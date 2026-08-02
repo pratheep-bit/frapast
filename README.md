@@ -39,8 +39,8 @@ flowchart TD
 
 ```bash
 # Clone the repository
-git clone https://github.com/pratheep-bit/frappe-security-scanner.git
-cd frappe-security-scanner
+git clone https://github.com/pratheep-bit/frappe-security-engine.git
+cd frappe-security-engine
 
 # Run static scan against a Frappe app repository
 PYTHONPATH=. python3 scanner/cli.py scan /path/to/target/app
