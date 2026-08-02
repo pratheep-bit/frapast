@@ -1,0 +1,7 @@
+rule_id: FR-SQLI-001
+rule_version: 1.0.0
+taxonomy_id: FR-SQLI-001
+required_indexes: [python]
+predicate: dynamic frappe.db.sql call without parameter binding
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: HTTP request-controlled input must not alter the SQL predicate

@@ -1,0 +1,7 @@
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+taxonomy_id: FR-DATA-001
+required_indexes: [python, callgraph, schema]
+predicate: Nonexistent fieldname referenced
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: Synthesize unit test to trigger AttributeError

@@ -1,0 +1,69 @@
+# Canonical, versioned taxonomy — single source of truth. Three tiers:
+#   core_scope           — original 6-category scheme, working detectors, in
+#                           the 90-day roadmap (project guide §8.1 / §2).
+#   documented_undetected — in the original taxonomy, deliberately NOT
+#                           scheduled for detector work yet (guide §2
+#                           scope-discipline callout).
+#   additional_categories — anything added after the original scheme. Every
+#                           entry here MUST have added_date, justification,
+#                           and precision_status filled in honestly. This
+#                           tier exists specifically so a new category can
+#                           never be silently promoted into core_scope just
+#                           because validate_taxonomy.py started failing.
+core_scope:
+  FR-PERM: {range: "001-006", name: "Permission & Access Control Bypass"}
+  FR-SQLI: {range: "001-004", name: "ORM vs. Raw SQL Boundary"}
+  FR-HOOK: {range: "001-007", name: "Hook Execution & Lifecycle"}
+  FR-WKFL: {range: "001-004", name: "Docstatus / Workflow State Machine"}
+
+documented_undetected:
+  FR-DATA: {range: "001-003", name: "Child Tables, Multi-Tenancy, Integrity"}
+  FR-INJ:  {range: "001-005", name: "API / Injection Surfaces"}
+
+additional_categories:
+  FR-CSRF:
+    range: "001-001"
+    name: "Cross-Site Request Forgery"
+    added_date: "2026-07-21"
+    justification: "Static detection rule stub added during initial ruleset creation; not in original 6-category scope."
+    precision_status: "untested - zero findings recorded"
+  FR-SSRF:
+    range: "001-001"
+    name: "Server-Side Request Forgery"
+    added_date: "2026-07-21"
+    justification: "Static detection rule stub added during initial ruleset creation; not in original 6-category scope."
+    precision_status: "untested - zero findings recorded"
+  FR-PERF:
+    range: "001-001"
+    name: "Performance Anti-Patterns"
+    added_date: "2026-07-21"
+    justification: "Static detection rule stub added during initial ruleset creation; not in original 6-category scope."
+    precision_status: "untested - zero findings recorded"
+  FR-I18N:
+    range: "001-001"
+    name: "Internationalization & Formatting"
+    added_date: "2026-07-21"
+    justification: "Static detection rule stub added during initial ruleset creation; not in original 6-category scope."
+    precision_status: "untested - zero findings recorded"
+
+extensions:
+  FR-CORR-001:
+    name: "Bare exception swallowing"
+    maps_to: "FR-HOOK"
+    action: "RENAMED to FR-HOOK-006."
+    status: renamed
+  FR-CORR-002:
+    name: "Mutable default argument"
+    maps_to: "FR-HOOK"
+    action: "RENAMED to FR-HOOK-007."
+    status: renamed
+  FR-XSS-001:
+    name: "Unsanitized HTML rendering in whitelisted endpoint"
+    maps_to: "FR-INJ"
+    action: "RENAMED to FR-INJ-005."
+    status: renamed
+  FR-DATA-001:
+    name: "DocType attribute/field mismatch (AttributeError-class bugs)"
+    maps_to: "UNCLEAR"
+    action: "DO NOT auto-rename. Needs a human decision — see Round 1 notes."
+    status: needs_human_decision

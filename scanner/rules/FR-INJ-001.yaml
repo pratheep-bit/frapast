@@ -1,0 +1,7 @@
+rule_id: FR-INJ-001
+rule_version: 1.0.0
+taxonomy_id: FR-INJ-001
+required_indexes: [python, callgraph]
+predicate: request-controlled data flows into frappe.get_doc without field allowlist
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: pass unexpected fields (owner, docstatus) through endpoint and verify rejection

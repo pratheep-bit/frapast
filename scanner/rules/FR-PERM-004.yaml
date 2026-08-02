@@ -1,0 +1,7 @@
+rule_id: FR-PERM-004
+rule_version: 1.0.0
+taxonomy_id: FR-PERM-004
+required_indexes: [python, hooks, schema]
+predicate: Script Report uses raw SQL without permission_query_conditions coverage
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: run report as restricted user and verify cross-user data is not exposed

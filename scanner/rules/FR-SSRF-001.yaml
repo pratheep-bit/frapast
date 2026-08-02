@@ -1,0 +1,11 @@
+id: FR-SSRF-001
+family: FR-SSRF
+title: "User-controlled URL passed to outbound request or wkhtmltopdf"
+description: >
+  Passing frappe.form_dict-derived values into requests.get/post,
+  frappe.utils.pdf generation flags, or LDAP bind targets without an
+  allowlist enables SSRF or protocol-level injection.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "data_exposure"
+  blast_radius: "framework_wide"

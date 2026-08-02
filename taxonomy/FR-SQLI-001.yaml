@@ -1,0 +1,10 @@
+id: FR-SQLI-001
+name: String-interpolated frappe.db.sql
+description: >
+  Request-controlled values are interpolated into raw SQL.
+ast_confidence: high
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+  - Frappe CVE history includes SQL injection fixes in 14.89.0 and 15.51.0
+detector_status: implemented

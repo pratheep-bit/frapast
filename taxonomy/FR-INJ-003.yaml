@@ -1,0 +1,9 @@
+id: FR-INJ-003
+name: Query Report injection
+description: >
+  Report filters are interpolated into SQL unsafely.
+ast_confidence: low
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+detector_status: none

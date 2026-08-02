@@ -1,0 +1,7 @@
+rule_id: FR-PERM-006
+rule_version: 1.0.0
+taxonomy_id: FR-PERM-006
+required_indexes: [schema, python, callgraph]
+predicate: frappe.db.set_value on child table bypasses parent validate
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: modify child table via this path and verify parent totals/validation re-triggers

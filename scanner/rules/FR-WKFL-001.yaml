@@ -1,0 +1,7 @@
+rule_id: FR-WKFL-001
+rule_version: 1.0.0
+taxonomy_id: FR-WKFL-001
+required_indexes: [schema, python, callgraph]
+predicate: mutation on submittable DocType via set_value without docstatus guard
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: create submitted and cancelled records and verify mutations are blocked on non-draft documents

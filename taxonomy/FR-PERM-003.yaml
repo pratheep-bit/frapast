@@ -1,0 +1,9 @@
+id: FR-PERM-003
+name: if_owner bypass via non-standard write path
+description: >
+  Owner-scoped DocType is mutated through a path that skips owner checks.
+ast_confidence: low
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+detector_status: none

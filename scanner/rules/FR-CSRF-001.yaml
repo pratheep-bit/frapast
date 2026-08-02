@@ -1,0 +1,12 @@
+id: FR-CSRF-001
+family: FR-CSRF
+title: "State-changing whitelisted endpoint missing CSRF enforcement"
+description: >
+  A @frappe.whitelist() endpoint that performs a write (calls .save(),
+  .submit(), .delete(), or frappe.db.set_value) but is also decorated
+  or configured with allow_guest=True or xss_safe bypass without any
+  referrer/CSRF token check is vulnerable to cross-site request forgery.
+severity_defaults:
+  privilege_required: "guest"
+  impact_class: "privilege_escalation"
+  blast_radius: "cross_site"

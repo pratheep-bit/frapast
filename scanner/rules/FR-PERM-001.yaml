@@ -1,0 +1,7 @@
+rule_id: FR-PERM-001
+rule_version: 1.0.0
+taxonomy_id: FR-PERM-001
+required_indexes: [python, callgraph]
+predicate: whitelisted endpoint lacks permission check in body or 1-hop callees
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: invoke endpoint as low-privilege user and verify unauthorized access is rejected

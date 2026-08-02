@@ -1,0 +1,7 @@
+rule_id: FR-HOOK-003
+rule_version: 1.0.0
+taxonomy_id: FR-HOOK-003
+required_indexes: [python, callgraph]
+predicate: whitelisted path writes via db.set_value skipping doctype validate chain
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: invoke endpoint and verify doctype validate/before_save hooks were triggered

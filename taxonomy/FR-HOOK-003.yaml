@@ -1,0 +1,9 @@
+id: FR-HOOK-003
+name: API fast-path divergence
+description: >
+  Whitelisted API mutates data through fast paths that skip controller validation.
+ast_confidence: low
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+detector_status: none

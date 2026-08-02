@@ -1,0 +1,7 @@
+rule_id: FR-CORR-002
+rule_version: 1.0.0
+taxonomy_id: FR-CORR-002
+required_indexes: [python, callgraph]
+predicate: Mutable default argument
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: Synthesize unit test to trigger shared state

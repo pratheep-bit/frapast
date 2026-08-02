@@ -1,0 +1,7 @@
+rule_id: FR-INJ-002
+rule_version: 1.0.0
+taxonomy_id: FR-INJ-002
+required_indexes: [python, callgraph]
+predicate: eval or exec called with request-controlled input reachable from whitelist
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: pass crafted payload through endpoint and verify arbitrary code cannot execute

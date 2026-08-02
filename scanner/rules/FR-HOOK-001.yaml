@@ -1,0 +1,7 @@
+rule_id: FR-HOOK-001
+rule_version: 1.0.0
+taxonomy_id: FR-HOOK-001
+required_indexes: [python]
+predicate: on_submit defined without matching on_cancel — asymmetric lifecycle
+evidence_fields: [class_name, file, source_span]
+proof_recipe: submit then cancel a document and verify all side effects are reversed

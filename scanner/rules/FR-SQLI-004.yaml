@@ -1,0 +1,7 @@
+rule_id: FR-SQLI-004
+rule_version: 1.0.0
+taxonomy_id: FR-SQLI-004
+required_indexes: [python, callgraph]
+predicate: frappe.qb uses dynamic non-literal table/column name
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: supply crafted table name through endpoint and verify query structure cannot be altered

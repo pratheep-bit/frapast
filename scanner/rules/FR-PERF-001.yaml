@@ -1,0 +1,7 @@
+rule_id: FR-PERF-001
+rule_version: 1.0.0
+taxonomy_id: FR-PERF-001
+required_indexes: [python, callgraph]
+predicate: get_doc called inside a loop over get_all results
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: Synthetic load test to measure N+1 overhead

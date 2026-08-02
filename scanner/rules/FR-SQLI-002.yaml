@@ -1,0 +1,7 @@
+rule_id: FR-SQLI-002
+rule_version: 1.0.0
+taxonomy_id: FR-SQLI-002
+required_indexes: [schema, python]
+predicate: raw SQL references a submittable DocType table without docstatus
+evidence_fields: [source_span, function, doctype, code_location_hash]
+proof_recipe: HTTP query must preserve submitted and cancelled-record visibility rules

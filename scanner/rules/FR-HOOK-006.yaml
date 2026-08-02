@@ -1,0 +1,7 @@
+rule_id: FR-HOOK-006
+rule_version: 1.0.0
+taxonomy_id: FR-HOOK-006
+required_indexes: [python, callgraph]
+predicate: Bare except block swallows exceptions
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: Synthesize unit test to trigger exception

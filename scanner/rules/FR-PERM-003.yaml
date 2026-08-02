@@ -1,0 +1,7 @@
+rule_id: FR-PERM-003
+rule_version: 1.0.0
+taxonomy_id: FR-PERM-003
+required_indexes: [schema, python, callgraph]
+predicate: frappe.db.set_value on owner-scoped DocType bypasses if_owner enforcement
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: invoke endpoint as non-owner user and verify write is rejected

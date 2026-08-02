@@ -1,0 +1,9 @@
+{
+  "doctype": "DocType",
+  "name": "Expense Claim",
+  "module": "HR",
+  "is_submittable": 1,
+  "istable": 0,
+  "fields": [],
+  "permissions": []
+}

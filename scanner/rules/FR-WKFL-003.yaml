@@ -1,0 +1,7 @@
+rule_id: FR-WKFL-003
+rule_version: 1.0.0
+taxonomy_id: FR-WKFL-003
+required_indexes: [python]
+predicate: status set without corresponding docstatus update in same function
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: set status via this path and verify docstatus is consistent

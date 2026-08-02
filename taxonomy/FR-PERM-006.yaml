@@ -1,0 +1,9 @@
+id: FR-PERM-006
+name: Cascading child-table permission bypass
+description: >
+  Child-table mutation indirectly mutates a parent without parent permission.
+ast_confidence: low
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+detector_status: none

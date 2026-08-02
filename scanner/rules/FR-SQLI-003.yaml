@@ -1,0 +1,7 @@
+rule_id: FR-SQLI-003
+rule_version: 1.0.0
+taxonomy_id: FR-SQLI-003
+required_indexes: [python, callgraph]
+predicate: frappe.db.set_value bypasses controller validate/before_save hooks
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: invoke endpoint and verify doctype validate was not triggered and derived fields are stale

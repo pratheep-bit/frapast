@@ -1,0 +1,11 @@
+id: FR-INJ-005
+family: FR-INJ
+title: "Unescaped user input rendered via frappe.msgprint or similar"
+description: >
+  frappe.msgprint(), frappe.throw(), or direct HTML string construction
+  using unsanitized frappe.form_dict / request values can lead to stored
+  or reflected XSS if rendered without escaping on the frontend.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "data_exposure"
+  blast_radius: "cross_site"

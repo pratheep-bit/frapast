@@ -1,0 +1,7 @@
+rule_id: FR-HOOK-005
+rule_version: 1.0.0
+taxonomy_id: FR-HOOK-005
+required_indexes: [hooks, python]
+predicate: frappe.db.commit() inside a lifecycle or registered hook
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: a forced later-hook failure rolls back the complete transaction

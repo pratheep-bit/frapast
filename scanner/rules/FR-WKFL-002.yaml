@@ -1,0 +1,7 @@
+rule_id: FR-WKFL-002
+rule_version: 1.0.0
+taxonomy_id: FR-WKFL-002
+required_indexes: [python, callgraph]
+predicate: direct workflow_state write reachable from a whitelisted endpoint outside workflow engine paths
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: HTTP request cannot bypass a denied workflow transition

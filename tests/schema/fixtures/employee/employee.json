@@ -1,0 +1,15 @@
+{
+  "doctype": "DocType",
+  "name": "Employee",
+  "module": "HR",
+  "is_submittable": 0,
+  "istable": 0,
+  "autoname": "HR-EMP-.#####",
+  "fields": [
+    {"fieldname": "employee_name", "fieldtype": "Data"},
+    {"fieldname": "attendance", "fieldtype": "Table", "options": "Attendance"}
+  ],
+  "permissions": [
+    {"role": "Employee", "read": 1, "write": 1, "if_owner": 1}
+  ]
+}

@@ -1,0 +1,7 @@
+rule_id: FR-HOOK-004
+rule_version: 1.0.0
+taxonomy_id: FR-HOOK-004
+required_indexes: [python]
+predicate: frappe.enqueue without deduplicate/job_id key
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: kill worker mid-job and verify re-queued execution does not double-process

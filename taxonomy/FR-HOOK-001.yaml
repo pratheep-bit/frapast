@@ -1,0 +1,9 @@
+id: FR-HOOK-001
+name: on_submit/on_cancel asymmetry
+description: >
+  Submit lifecycle logic lacks an inverse cancel path.
+ast_confidence: low
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+detector_status: none

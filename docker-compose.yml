@@ -1,0 +1,117 @@
+services:
+  mariadb:
+    image: mariadb:10.6.21
+    container_name: frappe-security-mariadb
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-file-format=Barracuda
+      - --innodb-file-per-table=1
+      - --innodb-large-prefix=1
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: frappe_security
+      MYSQL_USER: frappe
+      MYSQL_PASSWORD: frappe
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-padmin"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: frappe-security-redis-cache
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-cache-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  bench:
+    image: frappe/bench@sha256:8f7ab83f027eb41ac3c682f251765f2811fe88d879a42e3dd8234470bca28075
+    container_name: frappe-security-bench
+    working_dir: /home/frappe
+    environment:
+      SHELL: /bin/bash
+      SITE_NAME: security.localhost
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      MYSQL_ROOT_PASSWORD: admin
+      REDIS_CACHE: redis://redis-cache:6379
+      REDIS_QUEUE: redis://redis-cache:6379
+      REDIS_SOCKETIO: redis://redis-cache:6379
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+    volumes:
+      - bench-data:/home/frappe/bench-state
+      - .:/workspace
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    command: ["bash", "-lc", "sleep infinity"]
+
+  worker:
+    image: frappe/bench@sha256:8f7ab83f027eb41ac3c682f251765f2811fe88d879a42e3dd8234470bca28075
+    container_name: frappe-security-worker
+    working_dir: /home/frappe
+    environment:
+      SHELL: /bin/bash
+      SITE_NAME: security.localhost
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      MYSQL_ROOT_PASSWORD: admin
+      REDIS_CACHE: redis://redis-cache:6379
+      REDIS_QUEUE: redis://redis-cache:6379
+      REDIS_SOCKETIO: redis://redis-cache:6379
+    volumes:
+      - bench-data:/home/frappe/bench-state
+      - .:/workspace
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    command: ["bash", "-lc", "sleep infinity"]
+
+  scheduler:
+    image: frappe/bench@sha256:8f7ab83f027eb41ac3c682f251765f2811fe88d879a42e3dd8234470bca28075
+    container_name: frappe-security-scheduler
+    working_dir: /home/frappe
+    environment:
+      SHELL: /bin/bash
+      SITE_NAME: security.localhost
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      MYSQL_ROOT_PASSWORD: admin
+      REDIS_CACHE: redis://redis-cache:6379
+      REDIS_QUEUE: redis://redis-cache:6379
+      REDIS_SOCKETIO: redis://redis-cache:6379
+    volumes:
+      - bench-data:/home/frappe/bench-state
+      - .:/workspace
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    command: ["bash", "-lc", "sleep infinity"]
+
+volumes:
+  mariadb-data:
+  redis-cache-data:
+  bench-data:

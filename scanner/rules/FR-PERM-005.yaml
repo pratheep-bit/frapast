@@ -1,0 +1,7 @@
+rule_id: FR-PERM-005
+rule_version: 1.0.0
+taxonomy_id: FR-PERM-005
+required_indexes: [hooks, python, schema, callgraph]
+predicate: internal query bypasses has_permission hook that protects list views
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: invoke endpoint as restricted user and verify hook-filtered rows are not exposed

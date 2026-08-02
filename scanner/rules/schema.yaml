@@ -1,0 +1,8 @@
+required:
+  - rule_id
+  - rule_version
+  - taxonomy_id
+  - required_indexes
+  - predicate
+  - evidence_fields
+  - proof_recipe

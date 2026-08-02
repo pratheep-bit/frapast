@@ -1,0 +1,7 @@
+rule_id: FR-PERM-002
+rule_version: 1.1.0
+taxonomy_id: FR-PERM-002
+required_indexes: [python, callgraph]
+predicate: ignore_permissions=True reachable within one hop of a whitelisted endpoint
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: lowest allowed role cannot access an unauthorized document through the endpoint

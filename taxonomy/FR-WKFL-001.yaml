@@ -1,0 +1,9 @@
+id: FR-WKFL-001
+name: Missing docstatus guard
+description: >
+  Submittable DocType mutation lacks docstatus branch or guard.
+ast_confidence: low
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+detector_status: none

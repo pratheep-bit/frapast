@@ -1,0 +1,7 @@
+rule_id: FR-HOOK-002
+rule_version: 1.0.0
+taxonomy_id: FR-HOOK-002
+required_indexes: [hooks]
+predicate: cross-app hook collision on same doctype event
+evidence_fields: [doctype, event, handler_count]
+proof_recipe: install apps in different orders and verify hook behavior is consistent

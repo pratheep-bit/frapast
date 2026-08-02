@@ -1,0 +1,7 @@
+rule_id: FR-WKFL-004
+rule_version: 1.0.0
+taxonomy_id: FR-WKFL-004
+required_indexes: [python, schema]
+predicate: submittable class has on_submit but no before_insert for amendment chain resets
+evidence_fields: [class_name, file, source_span]
+proof_recipe: submit, cancel, amend and verify workflow_state and child tables are reset

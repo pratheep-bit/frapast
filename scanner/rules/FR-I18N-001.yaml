@@ -1,0 +1,7 @@
+rule_id: FR-I18N-001
+rule_version: 1.0.0
+taxonomy_id: FR-I18N-001
+required_indexes: [python, callgraph]
+predicate: Hardcoded user-facing string not wrapped in frappe._()
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: Synthesize unit test to trigger missing translation
