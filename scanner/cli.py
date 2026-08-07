@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 from scanner.config import default_config, load_config
 from scanner.fp import apply_fp_suppression, load_false_positives
@@ -415,6 +415,15 @@ def main(argv: list[str] | None = None) -> int:
 				else:
 					print(f"\n✓ Proof complete: {len(proven_findings)} / {len(candidates_to_prove)} candidates verified as PROVEN.")
 					_render_human_summary(repo, proven_findings if proven_findings else candidates_to_prove, num_files, elapsed, limit=args.limit)
+					if sys.stdout.isatty():
+						try:
+							export = input("\nSave verified findings to a JSON file? [y/N]: ").strip().lower()
+							if export in {"y", "yes"}:
+								out_file = Path("frapast_proven_findings.json")
+								out_file.write_text(json.dumps({"proven": proven_findings, "total_scanned": num_files}, indent=2, default=str), encoding="utf-8")
+								print(f"✓ Saved {len(proven_findings)} proven findings to '{out_file.resolve()}'")
+						except (KeyboardInterrupt, EOFError):
+							print()
 			else:
 				if args.format == "json":
 					print(json.dumps(output, indent=2, default=str))
