@@ -61,7 +61,11 @@ def discover_python_files(app_roots: str | Path | list[str | Path] | tuple[str |
 	files: list[SourceFile] = []
 	for root in roots:
 		for path in sorted(root.rglob("*.py")):
-			if any(part in SKIP_DIRS for part in path.parts):
+			try:
+				rel_parts = path.relative_to(root).parts[:-1]
+			except ValueError:
+				rel_parts = path.parts[:-1]
+			if any(part in SKIP_DIRS for part in rel_parts):
 				continue
 			files.append(SourceFile(path=path, root=root))
 	return files
