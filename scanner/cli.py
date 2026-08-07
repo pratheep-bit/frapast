@@ -91,17 +91,16 @@ def _scan_repo_with_severity(
 			apply_fp_suppression(candidate_objs, load_false_positives(fp_log_path), repo_id).candidates
 		)
 	candidates = [c.__dict__ for c in candidate_objs]
-	if include_severity:
-		guest_endpoints = {e.function for e in python.whitelisted_endpoints if e.allow_guest}
-		scored = score_candidates(candidate_objs, guest_endpoints=guest_endpoints)
-		score_by_key = {
-			(c.rule_id, c.file, c.line, c.code_location_hash): score for c, score in scored
-		}
-		for c in candidates:
-			key = (c["rule_id"], c["file"], c["line"], c["code_location_hash"])
-			score = score_by_key.get(key)
-			if score is not None:
-				c["severity"] = score.__dict__
+	guest_endpoints = {e.function for e in python.whitelisted_endpoints if e.allow_guest}
+	scored = score_candidates(candidate_objs, guest_endpoints=guest_endpoints)
+	score_by_key = {
+		(c.rule_id, c.file, c.line, c.code_location_hash): score for c, score in scored
+	}
+	for c in candidates:
+		key = (c["rule_id"], c["file"], c["line"], c["code_location_hash"])
+		score = score_by_key.get(key)
+		if score is not None:
+			c["severity"] = score.__dict__
 
 	elapsed = time.perf_counter() - t0
 	num_files = python_files_count[0] or len(python.functions)
