@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 from scanner import ui
 from scanner.config import default_config, load_config
@@ -411,12 +411,19 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 		console.print(f"\n[success]✓ proof complete:[/success] {len(proven)} / {len(chosen)} verified as PROVEN.\n")
 		ui.render_results(repo, proven or chosen, int(state.get("num_files", 0)), float(state.get("elapsed", 0.0)), limit=20)
 
-	def do_report(*, findings_dir: str = "findings") -> None:
-		console.print(render_track_record(findings_dir))
-
-	def do_fp_report(*, findings_dir: str = "findings") -> None:
-		from scanner.fp_analyzer import print_report
-		print_report(findings_dir)
+	def do_view(*, bug_id: int) -> None:
+		from scanner.ui.results import render_code_snippet, candidate_score
+		cands = state.get("candidates") or []
+		repo = state.get("repo") or Path(".")
+		if not cands:
+			console.print("[muted]No findings to view yet — run /scan first.[/muted]")
+			return
+		sorted_cands = sorted(cands, key=candidate_score, reverse=True)
+		if 1 <= bug_id <= len(sorted_cands):
+			cand = sorted_cands[bug_id - 1]
+			render_code_snippet(repo, cand, bug_id=bug_id)
+		else:
+			console.print(f"[severity.critical]Invalid bug ID '{bug_id}'. Choose a number between 1 and {len(sorted_cands)}.[/severity.critical]")
 
 	shell = ui.InteractiveShell(
 		version=__version__,
@@ -424,6 +431,7 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 		run_prove=do_prove,
 		run_report=do_report,
 		run_fp_report=do_fp_report,
+		run_view=do_view,
 	)
 	return shell.run(initial_repo=initial_repo)
 

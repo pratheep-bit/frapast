@@ -27,9 +27,9 @@ except ImportError:
 	_HAS_PROMPT_TOOLKIT = False
 
 COMMANDS = [
-	"/scan", "/prove", "/report", "/fp-report", "/help", "/clear", "/exit", "/quit",
-	"scan", "prove", "report", "fp-report", "help", "clear", "exit", "quit",
-	"s", "p", "r", "f", "h", "q", "?"
+	"/scan", "/prove", "/report", "/fp-report", "/view", "/help", "/clear", "/exit", "/quit",
+	"scan", "prove", "report", "fp-report", "view", "help", "clear", "exit", "quit",
+	"s", "p", "r", "f", "v", "h", "q", "?"
 ]
 
 SHORTCUT_MAP = {
@@ -49,6 +49,9 @@ SHORTCUT_MAP = {
 	"fp": "/fp-report",
 	"/f": "/fp-report",
 	"/fp": "/fp-report",
+	"v": "/view",
+	"view": "/view",
+	"/v": "/view",
 	"h": "/help",
 	"?": "/help",
 	"q": "/exit",
@@ -59,12 +62,13 @@ HELP_TEXT = """\
 [heading]Commands & Shortcuts[/heading]
   [bold]s[/bold] or [bold]/scan[/bold] [muted]<path>[/muted]     run a static security scan (e.g. 's' or 's .')
   [bold]p[/bold] or [bold]/prove[/bold]            run runtime proof verification on findings (e.g. 'p')
+  [bold]v[/bold] or [bold]/view[/bold] [muted]<N>[/muted]        inspect source code context snippet for bug #N (e.g. 'v 1' or 'b1')
   [bold]r[/bold] or [bold]/report[/bold]           show track-record report (e.g. 'r')
   [bold]f[/bold] or [bold]/fp-report[/bold]        show false-positive rates (e.g. 'f')
   [bold]h[/bold] or [bold]?[/bold] or [bold]/help[/bold]          show this help message
   [bold]q[/bold] or [bold]/exit[/bold]          quit frapast shell
 
-[muted]Tip: Type 's' to scan current folder, 'p' to prove, 'r' for report, or 'q' to quit.[/muted]
+[muted]Tip: Type 's' to scan, 'v 1' to view code snippet around bug #1, or 'p' to prove.[/muted]
 """
 
 
@@ -77,12 +81,14 @@ class InteractiveShell:
 		run_prove: Callable[..., None],
 		run_report: Callable[..., None],
 		run_fp_report: Callable[..., None],
+		run_view: Callable[..., None] | None = None,
 	) -> None:
 		self.version = version
 		self._run_scan = run_scan
 		self._run_prove = run_prove
 		self._run_report = run_report
 		self._run_fp_report = run_fp_report
+		self._run_view = run_view
 		self._session = self._build_session()
 
 	def _build_session(self):
@@ -136,7 +142,18 @@ class InteractiveShell:
 		first_word = parts[0].lower()
 		rest = parts[1] if len(parts) > 1 else ""
 
-		# Expand 1-2 letter shortcuts (e.g. 's .' -> '/scan .', 'p' -> '/prove')
+		# Support shortcuts like 'b1', 'b2', 'v1', 'v2', '1', '2'
+		if first_word.startswith("b") and first_word[1:].isdigit():
+			first_word = "v"
+			rest = line[1:].strip()
+		elif first_word.startswith("v") and len(first_word) > 1 and first_word[1:].isdigit():
+			rest = first_word[1:]
+			first_word = "v"
+		elif first_word.isdigit():
+			rest = first_word
+			first_word = "v"
+
+		# Expand 1-2 letter shortcuts (e.g. 's .' -> '/scan .', 'p' -> '/prove', 'v 1' -> '/view 1')
 		if first_word in SHORTCUT_MAP:
 			expanded = SHORTCUT_MAP[first_word]
 			if expanded == "/scan" and not rest:
@@ -156,6 +173,10 @@ class InteractiveShell:
 
 		if line == "/clear":
 			console.clear()
+			return True
+
+		if line.startswith("/view"):
+			self._handle_view(line)
 			return True
 
 		if line.startswith("/scan"):
@@ -245,3 +266,18 @@ class InteractiveShell:
 			console.print(f"[muted]usage: /fp-report [--findings-dir dir] — {exc}[/muted]")
 			return
 		self._run_fp_report(findings_dir=args.findings_dir)
+
+	def _handle_view(self, line: str) -> None:
+		parts = self._tokens(line, "/view")
+		if not parts:
+			console.print("[muted]usage: /view <N> (or 'v 1', 'b1', '1')[/muted]")
+			return
+		raw_id = parts[0].lstrip("bBvV")
+		if not raw_id.isdigit():
+			console.print(f"[muted]invalid bug ID '{parts[0]}' — use a number like 'v 1' or 'b1'[/muted]")
+			return
+		bug_id = int(raw_id)
+		if self._run_view is not None:
+			self._run_view(bug_id=bug_id)
+		else:
+			console.print("[muted]code inspector unavailable.[/muted]")
