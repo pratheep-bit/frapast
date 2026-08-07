@@ -4,8 +4,6 @@ from pathlib import Path
 
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from scanner.ledger_io import discover_all_findings_dirs
 from scanner.ledger_schema import validate_entry
 

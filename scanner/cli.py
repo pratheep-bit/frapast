@@ -8,6 +8,8 @@ from datetime import date
 
 import yaml
 
+__version__ = "0.1.0"
+
 from scanner.ledger_io import read_ledger_entry, write_ledger_entry, update_ledger_after_proof, ledger_lock
 from scanner.config import default_config, load_config
 from scanner.fp import apply_fp_suppression, load_false_positives
@@ -120,6 +122,7 @@ def main(argv: list[str] | None = None) -> int:
 		prog="frappe-security-scan",
 		description="Frappe-specific security scanner — static analysis with mandatory runtime proof.",
 	)
+	parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 	subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
 	# scan command
