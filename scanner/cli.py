@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from scanner import ui
 from scanner.config import default_config, load_config
@@ -195,8 +195,9 @@ def _build_parser() -> argparse.ArgumentParser:
 	scan_parser.add_argument("--repo-id", default="local", help="Repository identifier for ledger entries")
 	scan_parser.add_argument("--fp-log", default="findings/fp-log.yaml", help="Path to false-positive log")
 	scan_parser.add_argument("--severity", action="store_true", help="Include severity scores in output")
+	scan_parser.add_argument("--diff", help="Scan only files modified relative to a git branch/commit (e.g. main, origin/main)")
 	scan_parser.add_argument("--limit", type=int, default=20, help="Maximum number of candidates to display in human output (default: 20; 0 for all)")
-	scan_parser.add_argument("--format", choices=["human", "yaml", "json"], default="human", help="Output format (default: human)")
+	scan_parser.add_argument("--format", choices=["human", "yaml", "json", "sarif"], default="human", help="Output format (default: human)")
 
 	prove_parser = subparsers.add_parser("prove", help="Run Tier 1 & Tier 2 proof verification")
 	prove_parser.add_argument("repo_path", nargs="?", default=".", help="Path to repository")
@@ -215,11 +216,40 @@ def _build_parser() -> argparse.ArgumentParser:
 	return parser
 
 
-def _write_json_or_yaml(payload: dict, fmt: str) -> None:
-	if fmt == "json":
+def _write_json_or_yaml(payload: dict, fmt: str, repo_path: Path | None = None) -> None:
+	if fmt == "sarif":
+		from scanner.reporting.sarif import export_sarif
+		cands = payload.get("candidates") or payload.get("proven") or []
+		if isinstance(cands, list):
+			print(export_sarif(cands, repo_path or Path(".")))
+		else:
+			print(json.dumps(payload, indent=2, default=str))
+	elif fmt == "json":
 		print(json.dumps(payload, indent=2, default=str))
 	else:
 		print(yaml.safe_dump(payload, sort_keys=False))
+
+
+def _filter_candidates_by_diff(candidates: list[dict[str, object]], repo_path: Path, diff_ref: str) -> list[dict[str, object]]:
+	import subprocess
+	try:
+		res = subprocess.run(
+			["git", "diff", "--name-only", diff_ref],
+			cwd=repo_path,
+			capture_output=True,
+			text=True,
+			check=True,
+		)
+		changed_files = set(res.stdout.splitlines())
+		if not changed_files:
+			return []
+		return [
+			c for c in candidates
+			if str(c.get("file", "")) in changed_files or any(str(c.get("file", "")).endswith(f) for f in changed_files)
+		]
+	except Exception as exc:
+		sys.stderr.write(f"Warning: failed to compute git diff against '{diff_ref}': {exc}\n")
+		return candidates
 
 
 def _run_scan_command(args: argparse.Namespace) -> int:
@@ -231,7 +261,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		results = scan_multi(config_path, include_severity=args.severity, show_progress=True)
 		total_candidates = sum(len(c_list) for c_list in results.values())
 		output = {"results": results}
-		if args.format in ("json", "yaml"):
+		if args.format in ("json", "yaml", "sarif"):
 			_write_json_or_yaml(output, args.format)
 		else:
 			for repo_id, c_list in results.items():
@@ -261,6 +291,10 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		include_severity=args.severity,
 		show_progress=True,
 	)
+
+	if args.diff:
+		candidates = _filter_candidates_by_diff(candidates, repo, args.diff)
+
 	output = {"candidates": candidates}
 	if args.write_ledger:
 		_write_candidates(candidates, Path(args.ledger_dir), args.repo_id)
@@ -275,8 +309,8 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 
 	if candidates_to_prove:
 		proven_findings = _run_proof_verification(candidates_to_prove, repo, args.repo_id)
-		if args.format in ("json", "yaml"):
-			_write_json_or_yaml({"candidates": candidates, "proven": proven_findings}, args.format)
+		if args.format in ("json", "yaml", "sarif"):
+			_write_json_or_yaml({"candidates": candidates, "proven": proven_findings}, args.format, repo)
 		else:
 			console.print(
 				f"\n[success]✓ proof complete:[/success] "
@@ -284,8 +318,8 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 			)
 			ui.render_results(repo, proven_findings or candidates_to_prove, num_files, elapsed, limit=args.limit)
 	else:
-		if args.format in ("json", "yaml"):
-			_write_json_or_yaml(output, args.format)
+		if args.format in ("json", "yaml", "sarif"):
+			_write_json_or_yaml(output, args.format, repo)
 		elif not interactive:
 			ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit)
 

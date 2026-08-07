@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 from scanner.callgraph import CallGraph, build_call_graph
 from scanner.hooks import HookIndex
@@ -834,7 +835,42 @@ def execute_rules(
 	clear_rule_caches()
 	graph = call_graph or build_call_graph(python)
 	candidates = [candidate for rule in ALL_RULES for candidate in rule(schema, hooks, python, graph)]
+	candidates = _filter_suppressed_candidates(candidates, python)
 	return _deduplicate(candidates)
+
+
+def _filter_suppressed_candidates(candidates: list[Candidate], python: PythonSymbolIndex) -> list[Candidate]:
+	file_lines_cache: dict[str, list[str]] = {}
+
+	def get_lines(file_path_str: str) -> list[str]:
+		if file_path_str not in file_lines_cache:
+			p = Path(file_path_str)
+			if not p.is_file():
+				sources = getattr(python, "sources", [])
+				for src in sources:
+					if str(getattr(src, "path", "")).endswith(file_path_str):
+						p = src.path
+						break
+			if p.is_file():
+				try:
+					file_lines_cache[file_path_str] = p.read_text(encoding="utf-8").splitlines()
+				except Exception:
+					file_lines_cache[file_path_str] = []
+			else:
+				file_lines_cache[file_path_str] = []
+		return file_lines_cache[file_path_str]
+
+	filtered: list[Candidate] = []
+	for c in candidates:
+		lines = get_lines(c.file)
+		if lines and 1 <= c.line <= len(lines):
+			line_text = lines[c.line - 1]
+			if "# frapast:ignore" in line_text:
+				comment_part = line_text.split("# frapast:ignore", 1)[1].strip()
+				if not comment_part or c.rule_id in comment_part or c.taxonomy_id in comment_part:
+					continue
+		filtered.append(c)
+	return filtered
 
 
 # ---------------------------------------------------------------------------
