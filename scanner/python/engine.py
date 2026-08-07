@@ -73,9 +73,15 @@ def discover_python_files(app_roots: str | Path | list[str | Path] | tuple[str |
 
 from scanner.logger import logger
 
-def build_python_index(files: list[SourceFile] | tuple[SourceFile, ...]) -> PythonSymbolIndex:
+def build_python_index(
+	files: list[SourceFile] | tuple[SourceFile, ...],
+	progress_callback: Callable[[int, int], None] | None = None,
+) -> PythonSymbolIndex:
 	collector = _IndexCollector()
-	for source in files:
+	total = len(files)
+	for i, source in enumerate(files, 1):
+		if progress_callback is not None:
+			progress_callback(i, total)
 		try:
 			text = source.path.read_text(encoding="utf-8")
 			tree = ast.parse(text, filename=str(source.path))
@@ -86,8 +92,12 @@ def build_python_index(files: list[SourceFile] | tuple[SourceFile, ...]) -> Pyth
 	return collector.build()
 
 
-def load(repo_path: str | Path) -> PythonSymbolIndex:
-	return build_python_index(discover_python_files(Path(repo_path)))
+def load(
+	repo_path: str | Path,
+	progress_callback: Callable[[int, int], None] | None = None,
+) -> PythonSymbolIndex:
+	files = discover_python_files(Path(repo_path))
+	return build_python_index(files, progress_callback=progress_callback)
 
 
 def _normalize_roots(app_roots: str | Path | list[str | Path] | tuple[str | Path, ...]) -> list[Path]:
@@ -137,14 +147,19 @@ class _IndexCollector:
 		self._non_document_bases: set[str] = set()
 
 	def collect(self, source: SourceFile, tree: ast.Module, lines: list[str]) -> None:
+		rel_path = source.relative_path
+		import_map: dict[str, str] = {}
 		for node in tree.body:
 			if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
 				for imported in node.names:
 					if imported.name != "*":
+						local_name = imported.asname or imported.name
+						target_name = f"{node.module}.{imported.name}"
+						import_map[local_name] = target_name
 						self.imports.append(
 							ImportRecord(
-								source.relative_path,
-								imported.asname or imported.name,
+								rel_path,
+								local_name,
 								node.module,
 								imported.name,
 							)
@@ -152,24 +167,29 @@ class _IndexCollector:
 			elif isinstance(node, ast.Import):
 				for imported in node.names:
 					if imported.asname:
-						# "import a.b.c as x" binds x -> a.b.c; x.<attr> should resolve to a.b.c.<attr>
+						import_map[imported.asname] = imported.name
 						self.imports.append(
-							ImportRecord(source.relative_path, imported.asname, "", imported.name)
+							ImportRecord(rel_path, imported.asname, "", imported.name)
 						)
 					else:
 						# "import a.b.c" (no alias) only binds the top-level name "a" in the
 						# namespace; "a.<anything>" is already the correct dotted path as-is, so
 						# no rewriting is needed (or wanted) for the bound name.
 						top_level = imported.name.split(".")[0]
+						import_map[top_level] = top_level
 						self.imports.append(
-							ImportRecord(source.relative_path, top_level, "", top_level)
+							ImportRecord(rel_path, top_level, "", top_level)
 						)
-			elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-				self._collect_function(source, node, lines, ())
-			elif isinstance(node, ast.ClassDef):
-				self._collect_class(source, node, lines)
 
-	def _collect_class(self, source: SourceFile, node: ast.ClassDef, lines: list[str]) -> None:
+		for node in tree.body:
+			if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+				self._collect_function(source, node, lines, (), import_map=import_map)
+			elif isinstance(node, ast.ClassDef):
+				self._collect_class(source, node, lines, import_map=import_map)
+
+	def _collect_class(
+		self, source: SourceFile, node: ast.ClassDef, lines: list[str], import_map: dict[str, str]
+	) -> None:
 		method_names: list[str] = []
 
 		known_base_names = {base_node.name for base_node in getattr(self, "_class_records_seen", ())}
@@ -202,7 +222,7 @@ class _IndexCollector:
 		for child in node.body:
 			if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
 				method_names.append(child.name)
-				self._collect_function(source, child, lines, (node.name,), doctype_name)
+				self._collect_function(source, child, lines, (node.name,), doctype_name, import_map=import_map)
 
 		lifecycle_names = set(method_names) & LIFECYCLE_METHODS
 		if lifecycle_names:
@@ -227,16 +247,13 @@ class _IndexCollector:
 		lines: list[str],
 		class_stack: tuple[str, ...],
 		doctype_name: str | None = None,
+		import_map: dict[str, str] | None = None,
 	) -> None:
+		if import_map is None:
+			import_map = {}
 		span = _span(source, node, lines)
 		qualified_name = ".".join((*class_stack, node.name))
 		symbol_id = f"{source.relative_path}:{qualified_name}"
-		
-		import_map = {
-			imp.local_name: f"{imp.module}.{imp.imported_name}" if imp.module else imp.imported_name
-			for imp in self.imports
-			if imp.file == source.relative_path
-		}
 		
 		self.functions.append(FunctionRecord(symbol_id, source.relative_path, node.name, qualified_name, span))
 		if _is_whitelisted(node, import_map):

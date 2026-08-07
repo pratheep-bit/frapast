@@ -5,12 +5,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+from functools import cached_property
+
+
 @dataclass(frozen=True)
 class SourceFile:
 	path: Path
 	root: Path
 
-	@property
+	@cached_property
 	def relative_path(self) -> str:
 		try:
 			return self.path.relative_to(self.root).as_posix()

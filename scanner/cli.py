@@ -17,15 +17,21 @@ from scanner.hooks import load as load_hooks
 from scanner.python import load as load_python
 from scanner.reporting import render_track_record
 from scanner.rules import execute_rules, Candidate
+import time
+from collections.abc import Callable
+
 from scanner.schema import load as load_schema
 from scanner.severity import score_candidates
 from scanner.shared import stable_hash
 
 
-def _load_indexes(repo_path: Path):
+def _load_indexes(
+	repo_path: Path,
+	progress_callback: Callable[[int, int], None] | None = None,
+):
 	schema = load_schema(repo_path)
 	hooks = load_hooks(repo_path)
-	python = load_python(repo_path)
+	python = load_python(repo_path, progress_callback=progress_callback)
 	return schema, hooks, python
 
 
@@ -53,10 +59,20 @@ def _scan_repo_with_severity(
 	fp_log_path: str | Path | None,
 	repo_id: str,
 	include_severity: bool,
+	show_progress: bool = False,
 ) -> list[dict[str, object]]:
 	"""Single implementation shared by scan() and scan_multi() so single-repo
 	and multi-repo scans can never drift apart in behavior again."""
-	schema, hooks, python = _load_indexes(repo_path)
+	t0 = time.perf_counter()
+	python_files_count = [0]
+
+	def _progress(current: int, total: int) -> None:
+		python_files_count[0] = total
+		sys.stderr.write(f"\rScanning... [{current}/{total} files]")
+		sys.stderr.flush()
+
+	cb = _progress if show_progress else None
+	schema, hooks, python = _load_indexes(repo_path, progress_callback=cb)
 	candidate_objs = execute_rules(schema, hooks, python)
 	if fp_log_path is not None and Path(fp_log_path).is_file():
 		candidate_objs = list(
@@ -74,6 +90,15 @@ def _scan_repo_with_severity(
 			score = score_by_key.get(key)
 			if score is not None:
 				c["severity"] = score.__dict__
+
+	if show_progress:
+		elapsed = time.perf_counter() - t0
+		num_files = python_files_count[0] or len(python.functions)
+		sys.stderr.write(
+			f"\rScan complete: {num_files} files scanned in {elapsed:.2f}s ({len(candidates)} candidates found).\n"
+		)
+		sys.stderr.flush()
+
 	return candidates
 
 
@@ -83,14 +108,23 @@ def scan(
 	fp_log_path: str | Path | None = None,
 	repo_id: str | None = None,
 	include_severity: bool = False,
+	show_progress: bool = False,
 ) -> list[dict[str, object]]:
 	return _scan_repo_with_severity(
-		Path(repo_path), fp_log_path=fp_log_path, repo_id=repo_id or "local",
+		Path(repo_path),
+		fp_log_path=fp_log_path,
+		repo_id=repo_id or "local",
 		include_severity=include_severity,
+		show_progress=show_progress,
 	)
 
 
-def scan_multi(config_path: str | Path, *, include_severity: bool = False) -> dict[str, list[dict[str, object]]]:
+def scan_multi(
+	config_path: str | Path,
+	*,
+	include_severity: bool = False,
+	show_progress: bool = False,
+) -> dict[str, list[dict[str, object]]]:
 	"""Scan multiple repos using a config file."""
 	config = load_config(config_path)
 	all_results: dict[str, list[dict[str, object]]] = {}
@@ -103,7 +137,11 @@ def scan_multi(config_path: str | Path, *, include_severity: bool = False) -> di
 			all_results[repo.id] = []
 			continue
 		all_results[repo.id] = _scan_repo_with_severity(
-			repo_path, fp_log_path=fp_path, repo_id=repo.id, include_severity=include_severity,
+			repo_path,
+			fp_log_path=fp_path,
+			repo_id=repo.id,
+			include_severity=include_severity,
+			show_progress=show_progress,
 		)
 	return all_results
 
@@ -175,14 +213,14 @@ def main(argv: list[str] | None = None) -> int:
 
 	if args.command == "scan":
 		if args.config:
-			results = scan_multi(args.config, include_severity=args.severity)
+			results = scan_multi(args.config, include_severity=args.severity, show_progress=True)
 			output = {"results": results}
 		elif args.repo_path:
 			repo = Path(args.repo_path)
 			fp_log_path = args.fp_log if Path(args.fp_log).is_file() else None
 			candidates = _scan_repo_with_severity(
 				repo, fp_log_path=fp_log_path, repo_id=args.repo_id,
-				include_severity=args.severity,
+				include_severity=args.severity, show_progress=True,
 			)
 			output = {"candidates": candidates}
 			if args.write_ledger:
