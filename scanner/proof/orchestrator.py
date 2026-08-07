@@ -92,8 +92,8 @@ class ProofOrchestrator:
 			reproducers[finding_id] = path
 		return reproducers
 
-	def discover_unproven_findings(() -> list[tuple[str, Path]]:
-		pass
+	def discover_unproven_findings(self) -> list[tuple[str, Path]]:
+		return []
 
 	def prove_candidate(self, finding_id: str, candidate_data: dict | None = None) -> ProofResult:
 		reproducers = self.discover_reproducers()
