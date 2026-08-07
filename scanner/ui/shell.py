@@ -27,8 +27,8 @@ except ImportError:
 	_HAS_PROMPT_TOOLKIT = False
 
 COMMANDS = [
-	"/scan", "/prove", "/report", "/fp-report", "/view", "/help", "/clear", "/exit", "/quit",
-	"scan", "prove", "report", "fp-report", "view", "help", "clear", "exit", "quit",
+	"/scan", "/prove", "/report", "/fp-report", "/view", "/fix", "/pr", "/help", "/clear", "/exit", "/quit",
+	"scan", "prove", "report", "fp-report", "view", "fix", "pr", "help", "clear", "exit", "quit",
 	"s", "p", "r", "f", "v", "h", "q", "?"
 ]
 
@@ -38,9 +38,9 @@ SHORTCUT_MAP = {
 	"/s": "/scan",
 	"/sc": "/scan",
 	"p": "/prove",
-	"pr": "/prove",
 	"/p": "/prove",
-	"/pr": "/prove",
+	"pr": "/pr",
+	"/pr": "/pr",
 	"r": "/report",
 	"rep": "/report",
 	"/r": "/report",
@@ -65,6 +65,8 @@ HELP_TEXT = """\
   [bold]v[/bold] or [bold]/view[/bold] [muted]<N>[/muted]        inspect source code context snippet for bug #N (e.g. 'v 1' or 'b1')
   [bold]r[/bold] or [bold]/report[/bold]           show track-record report (e.g. 'r')
   [bold]f[/bold] or [bold]/fp-report[/bold]        show false-positive rates (e.g. 'f')
+  [bold]fix[/bold] or [bold]/fix[/bold]          show Tier 2+ proven findings eligible for fixes
+  [bold]pr[/bold] or [bold]/pr[/bold]            show Tier 2+ proven findings eligible for PRs
   [bold]h[/bold] or [bold]?[/bold] or [bold]/help[/bold]          show this help message
   [bold]q[/bold] or [bold]/exit[/bold]          quit frapast shell
 
@@ -82,6 +84,8 @@ class InteractiveShell:
 		run_report: Callable[..., None],
 		run_fp_report: Callable[..., None],
 		run_view: Callable[..., None] | None = None,
+		run_fix: Callable[..., None] | None = None,
+		run_pr: Callable[..., None] | None = None,
 	) -> None:
 		self.version = version
 		self._run_scan = run_scan
@@ -89,6 +93,8 @@ class InteractiveShell:
 		self._run_report = run_report
 		self._run_fp_report = run_fp_report
 		self._run_view = run_view
+		self._run_fix = run_fix
+		self._run_pr = run_pr
 		self._session = self._build_session()
 
 	def _build_session(self):
@@ -117,6 +123,10 @@ class InteractiveShell:
 	def run(self, initial_repo: str | None = None) -> int:
 		print_banner(self.version)
 		print_orientation(initial_repo)
+
+		if initial_repo and Path(initial_repo).exists():
+			console.print(f"[muted]Scanning initial repository '{initial_repo}'...[/muted]")
+			self._run_scan(path=initial_repo, limit=20)
 
 		while True:
 			line = self._read_line()
@@ -195,6 +205,14 @@ class InteractiveShell:
 			self._handle_fp_report(line)
 			return True
 
+		if line.startswith("/fix"):
+			self._handle_fix(line)
+			return True
+
+		if line.startswith("/pr"):
+			self._handle_pr(line)
+			return True
+
 		if line.startswith("/"):
 			console.print(f"[muted]unknown command '{line.split()[0]}' — try /help[/muted]")
 			return True
@@ -266,6 +284,40 @@ class InteractiveShell:
 			console.print(f"[muted]usage: /fp-report [--findings-dir dir] — {exc}[/muted]")
 			return
 		self._run_fp_report(findings_dir=args.findings_dir)
+
+	def _handle_fix(self, line: str) -> None:
+		import argparse
+
+		parser = argparse.ArgumentParser(prog="/fix", add_help=False, exit_on_error=False)
+		parser.add_argument("--findings-dir", default="findings")
+		parser.add_argument("--min-tier", type=int, default=2)
+		parser.add_argument("--finding-id")
+		try:
+			args = parser.parse_args(self._tokens(line, "/fix"))
+		except (argparse.ArgumentError, ValueError) as exc:
+			console.print(f"[muted]usage: /fix [--findings-dir dir] [--min-tier N] [--finding-id ID] — {exc}[/muted]")
+			return
+		if self._run_fix is not None:
+			self._run_fix(findings_dir=args.findings_dir, min_tier=args.min_tier, finding_id=args.finding_id)
+		else:
+			console.print("[muted]fix command unavailable.[/muted]")
+
+	def _handle_pr(self, line: str) -> None:
+		import argparse
+
+		parser = argparse.ArgumentParser(prog="/pr", add_help=False, exit_on_error=False)
+		parser.add_argument("--findings-dir", default="findings")
+		parser.add_argument("--min-tier", type=int, default=2)
+		parser.add_argument("--finding-id")
+		try:
+			args = parser.parse_args(self._tokens(line, "/pr"))
+		except (argparse.ArgumentError, ValueError) as exc:
+			console.print(f"[muted]usage: /pr [--findings-dir dir] [--min-tier N] [--finding-id ID] — {exc}[/muted]")
+			return
+		if self._run_pr is not None:
+			self._run_pr(findings_dir=args.findings_dir, min_tier=args.min_tier, finding_id=args.finding_id)
+		else:
+			console.print("[muted]pr command unavailable.[/muted]")
 
 	def _handle_view(self, line: str) -> None:
 		parts = self._tokens(line, "/view")
