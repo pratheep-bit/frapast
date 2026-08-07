@@ -32,13 +32,13 @@ except ImportError:
 def select_post_scan_action(candidates: list[dict]) -> str:
 	"""Show an arrow-key selection menu listing all available post-scan actions."""
 	choices = [
-		f"🛡️  Run Proof Engine — Top 10 High-Severity (recommended)",
-		f"🛡️  Run Proof Engine — Top 20 Candidates",
-		f"🛡️  Run Proof Engine — All {len(candidates)} Candidates",
-		f"👁️  Inspect Code Snippet for a Bug (e.g. b1, b2)",
-		f"💾 Save Findings as JSON File",
-		f"📊 View Track-Record Report",
-		f"🚪 Exit",
+		"Run Proof Engine — Top 10 High-Severity (recommended)",
+		"Run Proof Engine — Top 20 Candidates",
+		f"Run Proof Engine — All {len(candidates)} Candidates",
+		"Inspect Code Snippet for a Bug (e.g. b1, b2)",
+		"Save Findings as JSON File",
+		"View Track-Record Report",
+		"Exit",
 	]
 
 	if not _HAS_QUESTIONARY:
@@ -63,10 +63,10 @@ def select_post_scan_action(candidates: list[dict]) -> str:
 			return "exit"
 
 	answer = questionary.select(
-		"What would you like to do next? (Use arrow keys ⬆/⬇):",
+		"What would you like to do next? (Use arrow keys):",
 		choices=choices,
 		style=_QSTYLE,
-		qmark="❯",
+		qmark=">",
 	).ask()
 
 	if answer is None or "Exit" in answer:
@@ -104,7 +104,7 @@ def select_bug_to_view(candidates: list[dict]) -> int | None:
 		func = c.get("function", "")
 		choices.append(f"b{idx}. [{rule_id}] {file_path}:{line} in {func}()")
 
-	choices.append("⬅ Back to Menu")
+	choices.append("Back to Menu")
 
 	if not _HAS_QUESTIONARY:
 		try:
@@ -118,10 +118,10 @@ def select_bug_to_view(candidates: list[dict]) -> int | None:
 		return None
 
 	answer = questionary.select(
-		"Select a bug to inspect source code snippet (Use arrow keys ⬆/⬇):",
+		"Select a bug to inspect source code snippet (Use arrow keys):",
 		choices=choices,
 		style=_QSTYLE,
-		qmark="👁️",
+		qmark=">",
 	).ask()
 
 	if answer is None or "Back" in answer:

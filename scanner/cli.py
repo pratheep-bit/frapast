@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 
 from scanner import ui
 from scanner.config import default_config, load_config
@@ -337,7 +337,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 				console.print(f"[success]✓ Saved {len(active_candidates)} findings to '{out_file.resolve()}'[/success]\n")
 
 			elif action == "report":
-				from scanner.track_record import render_track_record
+				from scanner.reporting.engine import render_track_record
 				console.print(render_track_record("findings"))
 
 			elif action == "exit":

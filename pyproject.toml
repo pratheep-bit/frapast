@@ -1,6 +1,6 @@
 [project]
 name = "frapast"
-version = "0.4.3"
+version = "0.4.4"
 description = "Framework-aware static security scanner for Frappe apps (ERPNext, HRMS, and custom apps)"
 readme = "README.md"
 license = "MIT"
