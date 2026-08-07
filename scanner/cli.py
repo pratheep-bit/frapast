@@ -11,8 +11,9 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
+from scanner import ui
 from scanner.config import default_config, load_config
 from scanner.fp import apply_fp_suppression, load_false_positives
 from scanner.hooks import load as load_hooks
@@ -23,6 +24,7 @@ from scanner.rules import Candidate, execute_rules
 from scanner.schema import load as load_schema
 from scanner.severity import score_candidates
 from scanner.shared import stable_hash
+from scanner.ui.theme import console
 
 
 def _get_version_string() -> str:
@@ -78,13 +80,16 @@ def _scan_repo_with_severity(
 	t0 = time.perf_counter()
 	python_files_count = [0]
 
-	def _progress(current: int, total: int) -> None:
-		python_files_count[0] = total
-		sys.stderr.write(f"\rScanning... [{current}/{total} files]")
-		sys.stderr.flush()
+	if show_progress:
+		with ui.scan_progress(f"scanning {repo_path.name or repo_path}") as cb:
+			def _progress(current: int, total: int) -> None:
+				python_files_count[0] = total
+				cb(current, total)
 
-	cb = _progress if show_progress else None
-	schema, hooks, python = _load_indexes(repo_path, progress_callback=cb)
+			schema, hooks, python = _load_indexes(repo_path, progress_callback=_progress)
+	else:
+		schema, hooks, python = _load_indexes(repo_path, progress_callback=None)
+
 	candidate_objs = execute_rules(schema, hooks, python)
 	if fp_log_path is not None and Path(fp_log_path).is_file():
 		candidate_objs = list(
@@ -104,10 +109,6 @@ def _scan_repo_with_severity(
 
 	elapsed = time.perf_counter() - t0
 	num_files = python_files_count[0] or len(python.functions)
-
-	if show_progress:
-		sys.stderr.write("\r\033[K")
-		sys.stderr.flush()
 
 	return candidates, num_files, elapsed
 
@@ -157,106 +158,16 @@ def scan_multi(
 	return all_results
 
 
-def _render_human_summary(
-	repo_path: Path,
-	candidates: list[dict[str, object]],
-	num_files: int,
-	elapsed: float,
-	limit: int = 20,
-) -> None:
-	is_tty = sys.stdout.isatty()
-	try:
-		from rich.console import Console
-		from rich.table import Table
-
-		console = Console(force_terminal=is_tty, no_color=not is_tty)
-
-		if not candidates:
-			console.print(
-				f"[bold green]✓[/bold green] Scanned [bold]{num_files}[/bold] files in "
-				f"[bold]{elapsed:.2f}s[/bold] — [bold green]0 candidates found (clean)[/bold green]."
-			)
-			return
-
-		# Sort candidates by severity score descending
-		def _get_score(cand: dict[str, object]) -> float:
-			sev = cand.get("severity")
-			if isinstance(sev, dict):
-				return float(sev.get("score", 0.0))
-			return 0.0
-
-		sorted_candidates = sorted(candidates, key=_get_score, reverse=True)
-
-		display_candidates = sorted_candidates[:limit] if limit > 0 else sorted_candidates
-
-		table = Table(
-			title=f"Security Audit Results — {repo_path}",
-			title_style="bold cyan",
-			header_style="bold magenta",
-		)
-		table.add_column("Rule ID", style="bold yellow")
-		table.add_column("File:Line", style="cyan")
-		table.add_column("Function", style="white")
-		table.add_column("Severity / Evidence", style="dim white")
-
-		for c in display_candidates:
-			sev_info = c.get("severity")
-			score = sev_info.get("score", 0.0) if isinstance(sev_info, dict) else 0.0
-
-			if score >= 60:
-				sev_badge = f"[bold red]CRITICAL ({score:.0f})[/bold red]"
-			elif score >= 40:
-				sev_badge = f"[bold yellow]HIGH ({score:.0f})[/bold yellow]"
-			elif score >= 20:
-				sev_badge = f"[yellow]MEDIUM ({score:.0f})[/yellow]"
-			elif score > 0:
-				sev_badge = f"[green]LOW ({score:.0f})[/green]"
-			else:
-				sev_badge = ""
-
-			file_line = f"{c.get('file', '')}:{c.get('line', '')}"
-			func = str(c.get("function", ""))
-			evidence = str(c.get("evidence", ""))
-
-			evidence_str = f"{sev_badge} {evidence}" if sev_badge else evidence
-			table.add_row(str(c.get("rule_id")), file_line, func, evidence_str)
-
-		console.print(table)
-		if limit > 0 and len(candidates) > limit:
-			console.print(
-				f"\n[bold]{len(candidates)}[/bold] candidates found across "
-				f"[bold]{num_files}[/bold] files in [bold]{elapsed:.2f}s[/bold] "
-				f"(showing top [bold]{limit}[/bold] by severity. Use [bold]--limit 0[/bold] for full list)."
-			)
-		else:
-			console.print(
-				f"\n[bold]{len(candidates)}[/bold] candidates found across "
-				f"[bold]{num_files}[/bold] files in [bold]{elapsed:.2f}s[/bold]."
-			)
-
-	except ImportError:
-		if not candidates:
-			print(f"✓ Scanned {num_files} files in {elapsed:.2f}s — 0 candidates found (clean).")
-			return
-		print(f"\nSecurity Audit Results — {repo_path}\n" + "=" * 50)
-		for c in candidates[:limit] if limit > 0 else candidates:
-			print(f"  [{c.get('rule_id')}] {c.get('file')}:{c.get('line')} in {c.get('function')}: {c.get('evidence')}")
-		print(f"\n{len(candidates)} candidates found across {num_files} files in {elapsed:.2f}s.")
+KNOWN_COMMANDS = {"scan", "prove", "report", "fp-report", "fix", "pr", "shell"}
 
 
-KNOWN_COMMANDS = {"scan", "prove", "report", "fp-report", "fix", "pr"}
-
-
-def main(argv: list[str] | None = None) -> int:
-	raw_args = sys.argv[1:] if argv is None else argv
-	if raw_args and not raw_args[0].startswith("-") and raw_args[0] not in KNOWN_COMMANDS:
-		return _legacy_main(raw_args)
-
+def _build_parser() -> argparse.ArgumentParser:
 	parser = argparse.ArgumentParser(
 		prog="frapast",
 		description="frapast — Framework-aware static security scanner for Frappe & ERPNext applications.",
 		formatter_class=argparse.RawDescriptionHelpFormatter,
 		epilog="""Examples:
+  frapast                              launch the interactive shell
   frapast scan /path/to/erpnext
   frapast scan /path/to/frappe-app --severity --format json
   frapast scan --config scan_config.yaml
@@ -265,7 +176,6 @@ def main(argv: list[str] | None = None) -> int:
 	parser.add_argument("--version", action="version", version=_get_version_string())
 	subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-	# scan command
 	scan_parser = subparsers.add_parser(
 		"scan",
 		help="Run static security analysis against one or more Frappe repositories",
@@ -288,158 +198,223 @@ def main(argv: list[str] | None = None) -> int:
 	scan_parser.add_argument("--limit", type=int, default=20, help="Maximum number of candidates to display in human output (default: 20; 0 for all)")
 	scan_parser.add_argument("--format", choices=["human", "yaml", "json"], default="human", help="Output format (default: human)")
 
-	# prove command
 	prove_parser = subparsers.add_parser("prove", help="Run Tier 1 & Tier 2 proof verification")
 	prove_parser.add_argument("repo_path", nargs="?", default=".", help="Path to repository")
 	prove_parser.add_argument("--finding-id", help="Prove a specific finding (or all candidates if omitted)")
 	prove_parser.add_argument("--dry-run", action="store_true", help="Show what would be proven without executing")
 
-	# report command
 	report_parser = subparsers.add_parser("report", help="Generate track-record report")
 	report_parser.add_argument("--findings-dir", default="findings", help="Path to findings directory")
 
-	# fp-report command
 	fp_report_parser = subparsers.add_parser("fp-report", help="Show false-positive rates per rule")
 	fp_report_parser.add_argument("--findings-dir", default="findings", help="Path to findings directory")
 
+	shell_parser = subparsers.add_parser("shell", help="Launch the interactive frapast shell")
+	shell_parser.add_argument("repo_path", nargs="?", help="Repository to pre-load as the shell's working target")
+
+	return parser
+
+
+def _write_json_or_yaml(payload: dict, fmt: str) -> None:
+	if fmt == "json":
+		print(json.dumps(payload, indent=2, default=str))
+	else:
+		print(yaml.safe_dump(payload, sort_keys=False))
+
+
+def _run_scan_command(args: argparse.Namespace) -> int:
+	if args.config:
+		config_path = Path(args.config)
+		if not config_path.is_file():
+			sys.stderr.write(f"Error: path '{args.config}' does not exist\n")
+			return 2
+		results = scan_multi(config_path, include_severity=args.severity, show_progress=True)
+		total_candidates = sum(len(c_list) for c_list in results.values())
+		output = {"results": results}
+		if args.format in ("json", "yaml"):
+			_write_json_or_yaml(output, args.format)
+		else:
+			for repo_id, c_list in results.items():
+				ui.render_results(Path(repo_id), c_list, len(c_list), 0.0, limit=args.limit)
+		return 1 if total_candidates > 0 else 0
+
+	if not args.repo_path:
+		sys.stderr.write("Error: missing required argument 'repo_path' or '--config'\n")
+		return 2
+
+	repo = Path(args.repo_path)
+	if not repo.exists():
+		sys.stderr.write(f"Error: path '{args.repo_path}' does not exist\n")
+		return 2
+
+	from scanner.python.engine import discover_python_files
+	py_files = discover_python_files(repo)
+	if not py_files:
+		sys.stderr.write(f"Error: No Python files found in '{args.repo_path}'\n")
+		return 2
+
+	fp_log_path = args.fp_log if Path(args.fp_log).is_file() else None
+	candidates, num_files, elapsed = _scan_repo_with_severity(
+		repo,
+		fp_log_path=fp_log_path,
+		repo_id=args.repo_id,
+		include_severity=args.severity,
+		show_progress=True,
+	)
+	output = {"candidates": candidates}
+	if args.write_ledger:
+		_write_candidates(candidates, Path(args.ledger_dir), args.repo_id)
+
+	candidates_to_prove: list[dict[str, object]] = []
+	interactive = not args.prove and candidates and sys.stdout.isatty() and args.format == "human"
+	if interactive:
+		ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit)
+		candidates_to_prove = ui.select_proof_scope(candidates)
+	elif args.prove:
+		candidates_to_prove = candidates
+
+	if candidates_to_prove:
+		proven_findings = _run_proof_verification(candidates_to_prove, repo, args.repo_id)
+		if args.format in ("json", "yaml"):
+			_write_json_or_yaml({"candidates": candidates, "proven": proven_findings}, args.format)
+		else:
+			console.print(
+				f"\n[success]✓ proof complete:[/success] "
+				f"{len(proven_findings)} / {len(candidates_to_prove)} candidates verified as PROVEN."
+			)
+			ui.render_results(repo, proven_findings or candidates_to_prove, num_files, elapsed, limit=args.limit)
+	else:
+		if args.format in ("json", "yaml"):
+			_write_json_or_yaml(output, args.format)
+		elif not interactive:
+			ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit)
+
+	return 1 if len(candidates) > 0 else 0
+
+
+def _run_proof_verification(candidates_to_prove: list[dict], repo: Path, repo_id: str) -> list[dict]:
+	from scanner.proof.orchestrator import ProofOrchestrator
+	from scanner.proof.models import ProofStatus
+
+	orchestrator = ProofOrchestrator(workspace_root=repo)
+	proven_findings: list[dict] = []
+	with ui.proof_progress(len(candidates_to_prove), "Verifying candidates") as advance:
+		for c in candidates_to_prove:
+			rule_id = c.get("rule_id", "")
+			file_path = c.get("file", "")
+			func = c.get("function", "")
+			loc_hash = c.get("code_location_hash", "")
+			identity = f"{repo_id}:{rule_id}:{file_path}:{func}:{loc_hash}"
+			fid = f"{c['taxonomy_id']}-{stable_hash(identity)}"
+			res = orchestrator.prove_candidate(fid, candidate_data=c)
+			advance(f"{rule_id} in {func}")
+			if res.status == ProofStatus.PASSED:
+				c["proof_tier"] = res.proof_tier
+				c["status"] = "proven"
+				proven_findings.append(c)
+	return proven_findings
+
+
+def _run_interactive(initial_repo: str | None = None) -> int:
+	state: dict[str, object] = {"repo": None, "repo_id": "local", "candidates": [], "num_files": 0, "elapsed": 0.0}
+
+	def do_scan(*, path: str | None = None, config: str | None = None, severity: bool = False, limit: int = 20) -> None:
+		if config:
+			config_path = Path(config)
+			if not config_path.is_file():
+				console.print(f"[severity.critical]config '{config}' not found[/severity.critical]")
+				return
+			results = scan_multi(config_path, include_severity=severity, show_progress=True)
+			total = sum(len(v) for v in results.values())
+			for repo_id, c_list in results.items():
+				ui.render_results(Path(repo_id), c_list, len(c_list), 0.0, limit=limit)
+			state["candidates"] = [c for c_list in results.values() for c in c_list]
+			state["repo"] = None
+			state["repo_id"] = "multi"
+			console.print(f"[muted]{total} total candidates across {len(results)} repos[/muted]\n")
+			return
+
+		repo = Path(path or ".")
+		if not repo.exists():
+			console.print(f"[severity.critical]path '{repo}' does not exist[/severity.critical]")
+			return
+		from scanner.python.engine import discover_python_files
+		if not discover_python_files(repo):
+			console.print(f"[muted]no Python files found in '{repo}'[/muted]")
+			return
+
+		fp_log_path = "findings/fp-log.yaml" if Path("findings/fp-log.yaml").is_file() else None
+		candidates, num_files, elapsed = _scan_repo_with_severity(
+			repo, fp_log_path=fp_log_path, repo_id="local", include_severity=severity, show_progress=True,
+		)
+		ui.render_results(repo, candidates, num_files, elapsed, limit=limit)
+		state.update(repo=repo, repo_id="local", candidates=candidates, num_files=num_files, elapsed=elapsed)
+
+	def do_prove(*, finding_id: str | None = None, dry_run: bool = False) -> None:
+		from scanner.proof.orchestrator import ProofOrchestrator
+		from scanner.proof.models import ProofStatus
+
+		repo = state.get("repo") or Path(".")
+		orchestrator = ProofOrchestrator(workspace_root=repo, dry_run=dry_run)
+
+		if finding_id:
+			result = orchestrator.prove_candidate(finding_id)
+			proof_dict = {**result.__dict__, "status": getattr(result.status, "value", str(result.status))}
+			console.print(yaml.safe_dump({"proof": proof_dict}, sort_keys=False))
+			return
+
+		candidates = state.get("candidates") or []
+		if not candidates:
+			console.print("[muted]nothing to prove yet — run /scan first[/muted]")
+			return
+
+		chosen = ui.select_proof_scope(candidates)
+		if not chosen:
+			console.print("[muted]skipped.[/muted]\n")
+			return
+
+		proven = _run_proof_verification(chosen, repo, str(state.get("repo_id", "local")))
+		console.print(f"\n[success]✓ proof complete:[/success] {len(proven)} / {len(chosen)} verified as PROVEN.\n")
+		ui.render_results(repo, proven or chosen, int(state.get("num_files", 0)), float(state.get("elapsed", 0.0)), limit=20)
+
+	def do_report(*, findings_dir: str = "findings") -> None:
+		console.print(render_track_record(findings_dir))
+
+	def do_fp_report(*, findings_dir: str = "findings") -> None:
+		from scanner.fp_analyzer import print_report
+		print_report(findings_dir)
+
+	shell = ui.InteractiveShell(
+		version=__version__,
+		run_scan=do_scan,
+		run_prove=do_prove,
+		run_report=do_report,
+		run_fp_report=do_fp_report,
+	)
+	return shell.run(initial_repo=initial_repo)
+
+
+def main(argv: list[str] | None = None) -> int:
+	raw_args = sys.argv[1:] if argv is None else argv
+	if raw_args and not raw_args[0].startswith("-") and raw_args[0] not in KNOWN_COMMANDS:
+		return _legacy_main(raw_args)
+
+	parser = _build_parser()
 	args = parser.parse_args(argv)
 
 	if args.command is None:
+		if sys.stdout.isatty():
+			return _run_interactive()
 		parser.print_help()
 		return 0
 
+	if args.command == "shell":
+		return _run_interactive(args.repo_path)
+
 	if args.command == "scan":
-		if args.config:
-			config_path = Path(args.config)
-			if not config_path.is_file():
-				sys.stderr.write(f"Error: path '{args.config}' does not exist\n")
-				return 2
-			results = scan_multi(config_path, include_severity=args.severity, show_progress=True)
-			total_candidates = sum(len(c_list) for c_list in results.values())
-			output = {"results": results}
-			if args.format == "json":
-				print(json.dumps(output, indent=2, default=str))
-			elif args.format == "yaml":
-				print(yaml.safe_dump(output, sort_keys=False))
-			else:
-				for repo_id, c_list in results.items():
-					_render_human_summary(Path(repo_id), c_list, len(c_list), 0.0, limit=args.limit)
-			return 1 if total_candidates > 0 else 0
+		return _run_scan_command(args)
 
-		elif args.repo_path:
-			repo = Path(args.repo_path)
-			if not repo.exists():
-				sys.stderr.write(f"Error: path '{args.repo_path}' does not exist\n")
-				return 2
-
-			from scanner.python.engine import discover_python_files
-			py_files = discover_python_files(repo)
-			if not py_files:
-				sys.stderr.write(f"Error: No Python files found in '{args.repo_path}'\n")
-				return 2
-
-			fp_log_path = args.fp_log if Path(args.fp_log).is_file() else None
-			candidates, num_files, elapsed = _scan_repo_with_severity(
-				repo,
-				fp_log_path=fp_log_path,
-				repo_id=args.repo_id,
-				include_severity=args.severity,
-				show_progress=True,
-			)
-			output = {"candidates": candidates}
-			if args.write_ledger:
-				_write_candidates(candidates, Path(args.ledger_dir), args.repo_id)
-
-			candidates_to_prove: list[dict[str, object]] = []
-			if not args.prove and candidates and sys.stdout.isatty() and args.format == "human":
-				_render_human_summary(repo, candidates, num_files, elapsed, limit=args.limit)
-				try:
-					print("\nSelect proof verification mode:")
-					print("  [1] Top 10 High-Severity candidates (recommended for large repos)")
-					print("  [2] Top 20 candidates")
-					print("  [3] All candidates")
-					print("  [4] Specify a custom Rule ID (e.g. FR-SQLI-001)")
-					print("  [N] Skip proof (Exit)")
-					choice = input("\nEnter choice [1/2/3/4/N]: ").strip().lower()
-
-					def _get_score(cand: dict[str, object]) -> float:
-						sev = cand.get("severity")
-						return float(sev.get("score", 0.0)) if isinstance(sev, dict) else 0.0
-
-					sorted_cands = sorted(candidates, key=_get_score, reverse=True)
-
-					if choice == "1":
-						candidates_to_prove = sorted_cands[:10]
-					elif choice == "2":
-						candidates_to_prove = sorted_cands[:20]
-					elif choice == "3":
-						candidates_to_prove = candidates
-					elif choice == "4":
-						rule_filter = input("Enter Rule ID to prove (e.g. FR-SQLI-001): ").strip().upper()
-						candidates_to_prove = [c for c in candidates if str(c.get("rule_id", "")).upper() == rule_filter]
-						if not candidates_to_prove:
-							print(f"No candidates found matching rule '{rule_filter}'.")
-				except (KeyboardInterrupt, EOFError):
-					print()
-			elif args.prove:
-				candidates_to_prove = candidates
-
-			if candidates_to_prove:
-				from scanner.proof.orchestrator import ProofOrchestrator
-				from scanner.proof.models import ProofStatus
-				orchestrator = ProofOrchestrator(workspace_root=repo)
-				proven_findings = []
-				print(f"\nRunning proof verification against {len(candidates_to_prove)} candidates...")
-				for idx, c in enumerate(candidates_to_prove, 1):
-					rule_id = c.get("rule_id", "")
-					file_path = c.get("file", "")
-					func = c.get("function", "")
-					loc_hash = c.get("code_location_hash", "")
-					identity = f"{args.repo_id}:{rule_id}:{file_path}:{func}:{loc_hash}"
-					fid = f"{c['taxonomy_id']}-{stable_hash(identity)}"
-					sys.stderr.write(f"\rProving candidate [{idx}/{len(candidates_to_prove)}] ({rule_id} in {func})...")
-					sys.stderr.flush()
-					res = orchestrator.prove_candidate(fid, candidate_data=c)
-					if res.status == ProofStatus.PASSED:
-						c["proof_tier"] = res.proof_tier
-						c["status"] = "proven"
-						proven_findings.append(c)
-
-				sys.stderr.write("\r\033[K")
-				sys.stderr.flush()
-
-				if args.format == "json":
-					print(json.dumps({"candidates": candidates, "proven": proven_findings}, indent=2, default=str))
-				elif args.format == "yaml":
-					print(yaml.safe_dump({"candidates": candidates, "proven": proven_findings}, sort_keys=False))
-				else:
-					print(f"\n✓ Proof complete: {len(proven_findings)} / {len(candidates_to_prove)} candidates verified as PROVEN.")
-					_render_human_summary(repo, proven_findings if proven_findings else candidates_to_prove, num_files, elapsed, limit=args.limit)
-					if sys.stdout.isatty():
-						try:
-							export = input("\nSave verified findings to a JSON file? [y/N]: ").strip().lower()
-							if export in {"y", "yes"}:
-								out_file = Path("frapast_proven_findings.json")
-								out_file.write_text(json.dumps({"proven": proven_findings, "total_scanned": num_files}, indent=2, default=str), encoding="utf-8")
-								print(f"✓ Saved {len(proven_findings)} proven findings to '{out_file.resolve()}'")
-						except (KeyboardInterrupt, EOFError):
-							print()
-			else:
-				if args.format == "json":
-					print(json.dumps(output, indent=2, default=str))
-				elif args.format == "yaml":
-					print(yaml.safe_dump(output, sort_keys=False))
-				elif not (candidates and sys.stdout.isatty() and not args.prove):
-					_render_human_summary(repo, candidates, num_files, elapsed, limit=args.limit)
-
-			return 1 if len(candidates) > 0 else 0
-
-		else:
-			sys.stderr.write("Error: missing required argument 'repo_path' or '--config'\n")
-			scan_parser.print_help(sys.stderr)
-			return 2
-
-	elif args.command == "prove":
+	if args.command == "prove":
 		repo = Path(args.repo_path)
 		from scanner.proof.orchestrator import ProofOrchestrator
 		orchestrator = ProofOrchestrator(workspace_root=repo, dry_run=args.dry_run)
@@ -451,15 +426,17 @@ def main(argv: list[str] | None = None) -> int:
 			print(f"Proof engine ready for {repo}.")
 		return 0
 
-	elif args.command == "fp-report":
-		from scanner.fp_analyzer import print_report
+	if args.command == "report":
+		print(render_track_record(args.findings_dir))
+		return 0
 
+	if args.command == "fp-report":
+		from scanner.fp_analyzer import print_report
 		print_report(args.findings_dir)
 		return 0
 
-	else:
-		parser.print_help()
-		return 0
+	parser.print_help()
+	return 0
 
 
 def _legacy_main(argv: list[str] | None = None) -> int:
