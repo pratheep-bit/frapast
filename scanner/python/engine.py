@@ -60,7 +60,14 @@ def discover_python_files(app_roots: str | Path | list[str | Path] | tuple[str |
 	roots = _normalize_roots(app_roots)
 	files: list[SourceFile] = []
 	for root in roots:
-		for path in sorted(root.rglob("*.py")):
+		if not root.exists():
+			continue
+		try:
+			candidates = sorted(root.rglob("*.py"))
+		except Exception as exc:
+			logger.warning("Error accessing path %s: %s", root, exc)
+			continue
+		for path in candidates:
 			try:
 				rel_parts = path.relative_to(root).parts[:-1]
 			except ValueError:

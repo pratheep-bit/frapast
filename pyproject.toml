@@ -1,5 +1,5 @@
 [project]
-name = "frappe-security-scanner"
+name = "frapast"
 version = "0.1.0"
 description = "Framework-aware static security scanner for Frappe apps (ERPNext, HRMS, and custom apps)"
 readme = "README.md"
@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "pyyaml>=6.0",
+    "rich>=12.0.0",
 ]
 
 [project.optional-dependencies]
@@ -30,12 +31,13 @@ dev = [
 ]
 
 [project.scripts]
+frapast = "scanner.cli:main"
 frappe-security-scan = "scanner.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/pratheep-bit/frappe-security-engine"
-Repository = "https://github.com/pratheep-bit/frappe-security-engine.git"
-"Bug Reports" = "https://github.com/pratheep-bit/frappe-security-engine/issues"
+Homepage = "https://github.com/pratheep-bit/frapast"
+Repository = "https://github.com/pratheep-bit/frapast.git"
+"Bug Reports" = "https://github.com/pratheep-bit/frapast/issues"
 
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]

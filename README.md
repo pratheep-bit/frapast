@@ -150,14 +150,14 @@ Every rule's `rule_id` and `taxonomy_id` are validated against `taxonomy_registr
 ### Install from GitHub (recommended)
 
 ```bash
-pip install git+https://github.com/pratheep-bit/frappe-security-engine.git
+pip install git+https://github.com/pratheep-bit/frapast.git
 ```
 
 ### Install from a local clone (for development)
 
 ```bash
-git clone https://github.com/pratheep-bit/frappe-security-engine.git
-cd frappe-security-engine
+git clone https://github.com/pratheep-bit/frapast.git
+cd frapast
 pip install -e .
 ```
 
@@ -165,23 +165,23 @@ pip install -e .
 
 ## Quick Start
 
-Once installed, the `frappe-security-scan` command is available on your PATH:
+Once installed, the `frapast` command is available on your PATH:
 
 ```bash
 # Check version
-frappe-security-scan --version
+frapast --version
 
-# Scan a single Frappe app, print candidates as YAML
-frappe-security-scan scan /path/to/frappe-app
+# Scan a single Frappe app (human-readable summary)
+frapast scan /path/to/frappe-app
 
 # Scan with severity scoring and JSON output
-frappe-security-scan scan /path/to/frappe-app --severity --format json
+frapast scan /path/to/frappe-app --severity --format json
 
 # Scan and persist findings to the ledger
-frappe-security-scan scan /path/to/frappe-app --write-ledger --repo-id my-app
+frapast scan /path/to/frappe-app --write-ledger --repo-id my-app
 
 # Scan multiple repos from a config file
-frappe-security-scan scan --config scan_config.yaml
+frapast scan --config scan_config.yaml
 ```
 
 Example `scan_config.yaml`:
@@ -203,7 +203,7 @@ repos:
 ## CLI Reference
 
 ```
-frappe-security-scan {scan,prove,report,fp-report,fix,pr}
+frapast {scan,prove,report,fp-report,fix,pr}
 ```
 
 | Command | Purpose |

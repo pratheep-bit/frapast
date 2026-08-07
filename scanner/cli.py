@@ -2,27 +2,42 @@ from __future__ import annotations
 
 import argparse
 import json
+import platform
 import sys
-from pathlib import Path
+import time
+from collections.abc import Callable
 from datetime import date
+from pathlib import Path
 
 import yaml
 
 __version__ = "0.1.0"
 
-from scanner.ledger_io import read_ledger_entry, write_ledger_entry, update_ledger_after_proof, ledger_lock
 from scanner.config import default_config, load_config
 from scanner.fp import apply_fp_suppression, load_false_positives
 from scanner.hooks import load as load_hooks
+from scanner.ledger_io import ledger_lock, read_ledger_entry, update_ledger_after_proof, write_ledger_entry
 from scanner.python import load as load_python
 from scanner.reporting import render_track_record
-from scanner.rules import execute_rules, Candidate
-import time
-from collections.abc import Callable
-
+from scanner.rules import Candidate, execute_rules
 from scanner.schema import load as load_schema
 from scanner.severity import score_candidates
 from scanner.shared import stable_hash
+
+
+def _get_version_string() -> str:
+	py_ver = f"Python {platform.python_version()}"
+	try:
+		import rich
+		rich_status = "rich: available"
+	except ImportError:
+		rich_status = "rich: unavailable"
+	try:
+		import libcst
+		libcst_status = "libcst: available"
+	except ImportError:
+		libcst_status = "libcst: unavailable"
+	return f"frapast {__version__} ({py_ver}, {rich_status}, {libcst_status})"
 
 
 def _load_indexes(
@@ -36,9 +51,7 @@ def _load_indexes(
 
 
 def _load_proven_findings(findings_dir: str | Path, min_tier: int = 2) -> dict[str, dict]:
-	"""Load ledger entries that have cleared runtime proof at or above min_tier.
-	Only these are eligible for automated fix synthesis or PR creation — this is
-	a hard gate, not a default that can be bypassed by a CLI flag."""
+	"""Load ledger entries that have cleared runtime proof at or above min_tier."""
 	proven: dict[str, dict] = {}
 	findings_path = Path(findings_dir)
 	if not findings_path.is_dir():
@@ -53,6 +66,7 @@ def _load_proven_findings(findings_dir: str | Path, min_tier: int = 2) -> dict[s
 				proven[loc_hash] = entry
 	return proven
 
+
 def _scan_repo_with_severity(
 	repo_path: Path,
 	*,
@@ -60,9 +74,7 @@ def _scan_repo_with_severity(
 	repo_id: str,
 	include_severity: bool,
 	show_progress: bool = False,
-) -> list[dict[str, object]]:
-	"""Single implementation shared by scan() and scan_multi() so single-repo
-	and multi-repo scans can never drift apart in behavior again."""
+) -> tuple[list[dict[str, object]], int, float]:
 	t0 = time.perf_counter()
 	python_files_count = [0]
 
@@ -91,15 +103,16 @@ def _scan_repo_with_severity(
 			if score is not None:
 				c["severity"] = score.__dict__
 
+	elapsed = time.perf_counter() - t0
+	num_files = python_files_count[0] or len(python.functions)
+
 	if show_progress:
-		elapsed = time.perf_counter() - t0
-		num_files = python_files_count[0] or len(python.functions)
 		sys.stderr.write(
 			f"\rScan complete: {num_files} files scanned in {elapsed:.2f}s ({len(candidates)} candidates found).\n"
 		)
 		sys.stderr.flush()
 
-	return candidates
+	return candidates, num_files, elapsed
 
 
 def scan(
@@ -110,13 +123,14 @@ def scan(
 	include_severity: bool = False,
 	show_progress: bool = False,
 ) -> list[dict[str, object]]:
-	return _scan_repo_with_severity(
+	candidates, _, _ = _scan_repo_with_severity(
 		Path(repo_path),
 		fp_log_path=fp_log_path,
 		repo_id=repo_id or "local",
 		include_severity=include_severity,
 		show_progress=show_progress,
 	)
+	return candidates
 
 
 def scan_multi(
@@ -125,7 +139,6 @@ def scan_multi(
 	include_severity: bool = False,
 	show_progress: bool = False,
 ) -> dict[str, list[dict[str, object]]]:
-	"""Scan multiple repos using a config file."""
 	config = load_config(config_path)
 	all_results: dict[str, list[dict[str, object]]] = {}
 	fp_path = Path(config.fp_log) if Path(config.fp_log).is_file() else None
@@ -136,20 +149,95 @@ def scan_multi(
 		if not repo_path.exists():
 			all_results[repo.id] = []
 			continue
-		all_results[repo.id] = _scan_repo_with_severity(
+		c_list, _, _ = _scan_repo_with_severity(
 			repo_path,
 			fp_log_path=fp_path,
 			repo_id=repo.id,
 			include_severity=include_severity,
 			show_progress=show_progress,
 		)
+		all_results[repo.id] = c_list
 	return all_results
 
 
+def _render_human_summary(
+	repo_path: Path,
+	candidates: list[dict[str, object]],
+	num_files: int,
+	elapsed: float,
+) -> None:
+	is_tty = sys.stdout.isatty()
+	try:
+		from rich.console import Console
+		from rich.table import Table
 
+		console = Console(force_terminal=is_tty, no_color=not is_tty)
+
+		if not candidates:
+			console.print(
+				f"[bold green]✓[/bold green] Scanned [bold]{num_files}[/bold] files in "
+				f"[bold]{elapsed:.2f}s[/bold] — [bold green]0 candidates found (clean)[/bold green]."
+			)
+			return
+
+		family_groups: dict[str, list[dict[str, object]]] = {}
+		for c in candidates:
+			rule_id = str(c.get("rule_id", "UNKNOWN"))
+			family = rule_id.rsplit("-", 1)[0] if "-" in rule_id else rule_id
+			family_groups.setdefault(family, []).append(c)
+
+		table = Table(
+			title=f"Security Audit Results — {repo_path}",
+			title_style="bold cyan",
+			header_style="bold magenta",
+		)
+		table.add_column("Rule ID", style="bold yellow")
+		table.add_column("File:Line", style="cyan")
+		table.add_column("Function", style="white")
+		table.add_column("Severity / Evidence", style="dim white")
+
+		for family in sorted(family_groups.keys()):
+			group = family_groups[family]
+			for c in group:
+				sev_info = c.get("severity")
+				score = sev_info.get("score", 0.0) if isinstance(sev_info, dict) else 0.0
+
+				if score >= 60:
+					sev_badge = f"[bold red]CRITICAL ({score:.0f})[/bold red]"
+				elif score >= 40:
+					sev_badge = f"[bold yellow]HIGH ({score:.0f})[/bold yellow]"
+				elif score >= 20:
+					sev_badge = f"[yellow]MEDIUM ({score:.0f})[/yellow]"
+				elif score > 0:
+					sev_badge = f"[green]LOW ({score:.0f})[/green]"
+				else:
+					sev_badge = ""
+
+				file_line = f"{c.get('file', '')}:{c.get('line', '')}"
+				func = str(c.get("function", ""))
+				evidence = str(c.get("evidence", ""))
+
+				evidence_str = f"{sev_badge} {evidence}" if sev_badge else evidence
+				table.add_row(str(c.get("rule_id")), file_line, func, evidence_str)
+
+		console.print(table)
+		console.print(
+			f"\n[bold]{len(candidates)}[/bold] candidates found across "
+			f"[bold]{num_files}[/bold] files in [bold]{elapsed:.2f}s[/bold]."
+		)
+
+	except ImportError:
+		if not candidates:
+			print(f"✓ Scanned {num_files} files in {elapsed:.2f}s — 0 candidates found (clean).")
+			return
+		print(f"\nSecurity Audit Results — {repo_path}\n" + "=" * 50)
+		for c in candidates:
+			print(f"  [{c.get('rule_id')}] {c.get('file')}:{c.get('line')} in {c.get('function')}: {c.get('evidence')}")
+		print(f"\n{len(candidates)} candidates found across {num_files} files in {elapsed:.2f}s.")
 
 
 KNOWN_COMMANDS = {"scan", "prove", "report", "fp-report", "fix", "pr"}
+
 
 def main(argv: list[str] | None = None) -> int:
 	raw_args = sys.argv[1:] if argv is None else argv
@@ -157,14 +245,30 @@ def main(argv: list[str] | None = None) -> int:
 		return _legacy_main(raw_args)
 
 	parser = argparse.ArgumentParser(
-		prog="frappe-security-scan",
-		description="Frappe-specific security scanner — static analysis with mandatory runtime proof.",
+		prog="frapast",
+		description="frapast — Framework-aware static security scanner for Frappe & ERPNext applications.",
+		formatter_class=argparse.RawDescriptionHelpFormatter,
+		epilog="""Examples:
+  frapast scan /path/to/erpnext
+  frapast scan /path/to/frappe-app --severity --format json
+  frapast scan --config scan_config.yaml
+""",
 	)
-	parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+	parser.add_argument("--version", action="version", version=_get_version_string())
 	subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
 	# scan command
-	scan_parser = subparsers.add_parser("scan", help="Run scanner against one or more repos")
+	scan_parser = subparsers.add_parser(
+		"scan",
+		help="Run static security analysis against one or more Frappe repositories",
+		description="Run static security analysis against one or more Frappe repositories.",
+		formatter_class=argparse.RawDescriptionHelpFormatter,
+		epilog="""Examples:
+  frapast scan /path/to/frappe-app
+  frapast scan /path/to/frappe-app --severity --format json
+  frapast scan --config scan_config.yaml --write-ledger
+""",
+	)
 	scan_parser.add_argument("repo_path", nargs="?", help="Path to a single repo to scan")
 	scan_parser.add_argument("--config", help="Path to multi-repo scan config YAML")
 	scan_parser.add_argument("--write-ledger", action="store_true", help="Write findings to ledger directory")
@@ -172,7 +276,12 @@ def main(argv: list[str] | None = None) -> int:
 	scan_parser.add_argument("--repo-id", default="local", help="Repository identifier for ledger entries")
 	scan_parser.add_argument("--fp-log", default="findings/fp-log.yaml", help="Path to false-positive log")
 	scan_parser.add_argument("--severity", action="store_true", help="Include severity scores in output")
-	scan_parser.add_argument("--format", choices=["yaml", "json"], default="yaml", help="Output format")
+	scan_parser.add_argument(
+		"--format",
+		choices=["human", "yaml", "json"],
+		default="human",
+		help="Output format (default: human)",
+	)
 
 	# prove command
 	prove_parser = subparsers.add_parser("prove", help="Run runtime proof reproducers")
@@ -204,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
 		"--max-prs", type=int, default=5,
 		help="Maximum number of PRs to create per batch run (default: 5).",
 	)
-	
+
 	args = parser.parse_args(argv)
 
 	if args.command is None:
@@ -213,27 +322,59 @@ def main(argv: list[str] | None = None) -> int:
 
 	if args.command == "scan":
 		if args.config:
-			results = scan_multi(args.config, include_severity=args.severity, show_progress=True)
+			config_path = Path(args.config)
+			if not config_path.is_file():
+				sys.stderr.write(f"Error: path '{args.config}' does not exist\n")
+				return 2
+			results = scan_multi(config_path, include_severity=args.severity, show_progress=True)
+			total_candidates = sum(len(c_list) for c_list in results.values())
 			output = {"results": results}
+			if args.format == "json":
+				print(json.dumps(output, indent=2, default=str))
+			elif args.format == "yaml":
+				print(yaml.safe_dump(output, sort_keys=False))
+			else:
+				for repo_id, c_list in results.items():
+					_render_human_summary(Path(repo_id), c_list, len(c_list), 0.0)
+			return 1 if total_candidates > 0 else 0
+
 		elif args.repo_path:
 			repo = Path(args.repo_path)
+			if not repo.exists():
+				sys.stderr.write(f"Error: path '{args.repo_path}' does not exist\n")
+				return 2
+
+			from scanner.python.engine import discover_python_files
+			py_files = discover_python_files(repo)
+			if not py_files:
+				sys.stderr.write(f"Error: No Python files found in '{args.repo_path}'\n")
+				return 2
+
 			fp_log_path = args.fp_log if Path(args.fp_log).is_file() else None
-			candidates = _scan_repo_with_severity(
-				repo, fp_log_path=fp_log_path, repo_id=args.repo_id,
-				include_severity=args.severity, show_progress=True,
+			candidates, num_files, elapsed = _scan_repo_with_severity(
+				repo,
+				fp_log_path=fp_log_path,
+				repo_id=args.repo_id,
+				include_severity=args.severity,
+				show_progress=True,
 			)
 			output = {"candidates": candidates}
 			if args.write_ledger:
 				_write_candidates(candidates, Path(args.ledger_dir), args.repo_id)
-		else:
-			scan_parser.print_help()
-			return 1
 
-		if args.format == "json":
-			print(json.dumps(output, indent=2, default=str))
+			if args.format == "json":
+				print(json.dumps(output, indent=2, default=str))
+			elif args.format == "yaml":
+				print(yaml.safe_dump(output, sort_keys=False))
+			else:
+				_render_human_summary(repo, candidates, num_files, elapsed)
+
+			return 1 if len(candidates) > 0 else 0
+
 		else:
-			print(yaml.safe_dump(output, sort_keys=False))
-		return 0
+			sys.stderr.write("Error: missing required argument 'repo_path' or '--config'\n")
+			scan_parser.print_help(sys.stderr)
+			return 2
 
 	elif args.command in {"prove", "fix", "pr"}:
 		print(f"The '{args.command}' subcommand is part of the internal engine (runtime proof, fix synthesis, PR automation) and is not included in this open-source static scanner release.")
@@ -252,27 +393,36 @@ def main(argv: list[str] | None = None) -> int:
 
 def _legacy_main(argv: list[str] | None = None) -> int:
 	"""Backward-compatible CLI for single repo_path argument."""
-	parser = argparse.ArgumentParser(prog="frappe-security-scan")
+	parser = argparse.ArgumentParser(prog="frapast")
 	parser.add_argument("repo_path")
 	parser.add_argument("--write-ledger", action="store_true")
 	parser.add_argument("--ledger-dir", default="findings")
 	parser.add_argument("--repo-id", default="local")
 	parser.add_argument("--fp-log", default="findings/fp-log.yaml")
 	args = parser.parse_args(argv)
+
+	repo = Path(args.repo_path)
+	if not repo.exists():
+		sys.stderr.write(f"Error: path '{args.repo_path}' does not exist\n")
+		return 2
+
+	from scanner.python.engine import discover_python_files
+	py_files = discover_python_files(repo)
+	if not py_files:
+		sys.stderr.write(f"Error: No Python files found in '{args.repo_path}'\n")
+		return 2
+
 	candidates = scan(args.repo_path, fp_log_path=args.fp_log, repo_id=args.repo_id)
 	print(yaml.safe_dump({"candidates": candidates}, sort_keys=False))
 	if args.write_ledger:
 		_write_candidates(candidates, Path(args.ledger_dir), args.repo_id)
-	return 0
+	return 1 if len(candidates) > 0 else 0
 
 
 def _write_candidates(candidates: list[dict[str, object]], findings: Path, repo_id: str) -> None:
 	findings.mkdir(exist_ok=True)
 	with ledger_lock(findings):
 		for candidate in candidates:
-			# NOTE: line number deliberately excluded — it shifts on any unrelated
-			# upstream edit and would silently break dedup + FP-log matching.
-			# function name + code_location_hash are the stable identity anchors.
 			identity = (
 				f"{repo_id}:{candidate['rule_id']}:{candidate['file']}:"
 				f"{candidate['function']}:{candidate['code_location_hash']}"
@@ -282,8 +432,6 @@ def _write_candidates(candidates: list[dict[str, object]], findings: Path, repo_
 			if path.exists():
 				continue
 
-			# Compute REAL severity classification rather than hardcoding a
-			# placeholder for every finding regardless of rule
 			severity = candidate.get("severity")
 			if severity is None:
 				from scanner.rules import Candidate as _CandidateCls
