@@ -1,6 +1,6 @@
 [project]
 name = "frapast"
-version = "0.4.1"
+version = "0.4.2"
 description = "Framework-aware static security scanner for Frappe apps (ERPNext, HRMS, and custom apps)"
 readme = "README.md"
 license = "MIT"
@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
     "pyyaml>=6.0",
     "rich>=12.0.0",
+    "questionary>=2.0.0",
 ]
 
 [project.optional-dependencies]

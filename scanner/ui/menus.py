@@ -29,19 +29,121 @@ except ImportError:
 	_HAS_QUESTIONARY = False
 
 
-def select_proof_scope(candidates: list[dict]) -> list[dict]:
-	"""Ask the user which candidates to run runtime proof verification
-	against. Returns the chosen subset (possibly empty to skip)."""
+def select_post_scan_action(candidates: list[dict]) -> str:
+	"""Show an arrow-key selection menu listing all available post-scan actions."""
+	choices = [
+		f"🛡️  Run Proof Engine — Top 10 High-Severity (recommended)",
+		f"🛡️  Run Proof Engine — Top 20 Candidates",
+		f"🛡️  Run Proof Engine — All {len(candidates)} Candidates",
+		f"👁️  Inspect Code Snippet for a Bug (e.g. b1, b2)",
+		f"💾 Save Findings as JSON File",
+		f"📊 View Track-Record Report",
+		f"🚪 Exit",
+	]
+
+	if not _HAS_QUESTIONARY:
+		console.print("\n[bold cyan]What would you like to do next?[/bold cyan]")
+		console.print("  [1] Prove Top 10 High-Severity candidates")
+		console.print("  [2] Prove Top 20 candidates")
+		console.print(f"  [3] Prove All {len(candidates)} candidates")
+		console.print("  [4] Inspect Code Snippet for a Bug")
+		console.print("  [5] Save Findings as JSON File")
+		console.print("  [6] View Track-Record Report")
+		console.print("  [N] Exit\n")
+		try:
+			ans = input("Select option [1/2/3/4/5/6/N]: ").strip().lower()
+			if ans == "1": return "prove_top10"
+			if ans == "2": return "prove_top20"
+			if ans == "3": return "prove_all"
+			if ans == "4": return "inspect"
+			if ans == "5": return "export_json"
+			if ans == "6": return "report"
+			return "exit"
+		except (KeyboardInterrupt, EOFError):
+			return "exit"
+
+	answer = questionary.select(
+		"What would you like to do next? (Use arrow keys ⬆/⬇):",
+		choices=choices,
+		style=_QSTYLE,
+		qmark="❯",
+	).ask()
+
+	if answer is None or "Exit" in answer:
+		return "exit"
+	if "Top 10" in answer:
+		return "prove_top10"
+	if "Top 20" in answer:
+		return "prove_top20"
+	if "All" in answer:
+		return "prove_all"
+	if "Inspect Code" in answer:
+		return "inspect"
+	if "JSON" in answer:
+		return "export_json"
+	if "Track-Record" in answer:
+		return "report"
+	return "exit"
+
+
+def select_bug_to_view(candidates: list[dict]) -> int | None:
+	"""Arrow-key menu to select a specific bug snippet to inspect."""
+	if not candidates:
+		return None
 
 	def _score(c: dict) -> float:
 		sev = c.get("severity")
 		return float(sev.get("score", 0.0)) if isinstance(sev, dict) else 0.0
 
-	sorted_candidates = sorted(candidates, key=_score, reverse=True)
+	sorted_cands = sorted(candidates, key=_score, reverse=True)
+	choices = []
+	for idx, c in enumerate(sorted_cands[:30], 1):
+		rule_id = c.get("rule_id", "")
+		file_path = c.get("file", "")
+		line = c.get("line", "")
+		func = c.get("function", "")
+		choices.append(f"b{idx}. [{rule_id}] {file_path}:{line} in {func}()")
 
+	choices.append("⬅ Back to Menu")
+
+	if not _HAS_QUESTIONARY:
+		try:
+			ans = input("Enter Bug # to view (e.g. 1, 2): ").strip().lstrip("bBvV")
+			if ans.isdigit():
+				val = int(ans)
+				if 1 <= val <= len(sorted_cands):
+					return val
+		except (KeyboardInterrupt, EOFError):
+			pass
+		return None
+
+	answer = questionary.select(
+		"Select a bug to inspect source code snippet (Use arrow keys ⬆/⬇):",
+		choices=choices,
+		style=_QSTYLE,
+		qmark="👁️",
+	).ask()
+
+	if answer is None or "Back" in answer:
+		return None
+
+	try:
+		num_part = answer.split(".")[0].lstrip("bBvV")
+		return int(num_part)
+	except Exception:
+		return None
+
+
+def select_proof_scope(candidates: list[dict]) -> list[dict]:
+	"""Ask the user which candidates to run runtime proof verification against."""
+	def _score(c: dict) -> float:
+		sev = c.get("severity")
+		return float(sev.get("score", 0.0)) if isinstance(sev, dict) else 0.0
+
+	sorted_candidates = sorted(candidates, key=_score, reverse=True)
 	choices = [
-		f"Top 10 high-severity candidates  (recommended for large repos)",
-		f"Top 20 candidates",
+		"Top 10 high-severity candidates (recommended for large repos)",
+		"Top 20 candidates",
 		f"All {len(candidates)} candidates",
 		"Filter by rule ID (e.g. FR-SQLI-001)",
 		"Skip proof verification",
@@ -98,18 +200,24 @@ def select_proof_scope(candidates: list[dict]) -> list[dict]:
 	return []
 
 
+def select_repo_path(prompt_msg: str = "Target repository path:") -> str:
+	if not _HAS_QUESTIONARY:
+		return input(f"{prompt_msg} ").strip()
+	ans = questionary.text(prompt_msg, default=".", style=_QSTYLE).ask()
+	return (ans or ".").strip()
+
+
 def confirm(message: str, default: bool = True) -> bool:
 	if not _HAS_QUESTIONARY:
-		suffix = "[Y/n]" if default else "[y/N]"
+		prompt = "[Y/n]" if default else "[y/N]"
 		try:
-			raw = input(f"{message} {suffix} ").strip().lower()
+			ans = input(f"{message} {prompt} ").strip().lower()
 		except (KeyboardInterrupt, EOFError):
 			return default
-		if not raw:
+		if not ans:
 			return default
-		return raw.startswith("y")
-	result = questionary.confirm(message, default=default, style=_QSTYLE).ask()
-	return default if result is None else result
+		return ans in ("y", "yes")
+	return bool(questionary.confirm(message, default=default, style=_QSTYLE).ask())
 
 
 def select_repo(repo_ids: list[str]) -> str | None:
