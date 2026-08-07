@@ -1,16 +1,13 @@
-"""Frappe Security Scanner — Static Analysis with Runtime Proof."""
+"""Frappe Security Scanner — Static Analysis Engine."""
 from scanner.cli import scan, scan_multi
 from scanner.config import ScanConfig, RepoConfig, load_config
-from scanner.fix import synthesize_fix
 from scanner.logger import logger
-from scanner.proof.orchestrator import ProofOrchestrator
 from scanner.rules import Candidate, execute_rules, clear_rule_caches
 
 __version__ = "1.2.0"
 
 __all__ = [
 	"Candidate",
-	"ProofOrchestrator",
 	"RepoConfig",
 	"ScanConfig",
 	"clear_rule_caches",
@@ -19,5 +16,5 @@ __all__ = [
 	"logger",
 	"scan",
 	"scan_multi",
-	"synthesize_fix",
 ]
+

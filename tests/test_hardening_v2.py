@@ -6,7 +6,6 @@ from pathlib import Path
 
 from scanner.rules import Candidate
 from scanner.validate import validate_and_stage
-from scanner.pr.engine import run_pr_batch
 from scanner.severity import score_candidate
 from scanner.python.engine import _is_explicit_owner_or_role_guard
 
@@ -107,20 +106,6 @@ class TestCallGraphThreadSafetyAndOptimization(unittest.TestCase):
 		self.assertEqual(val1, "result")
 		self.assertEqual(val2, "result")
 		self.assertEqual(called, 1)
-
-
-class TestAutoSynthesizerAndFixers(unittest.TestCase):
-	def test_synthesize_reproducer_if_missing(self):
-		from scanner.proof.orchestrator import synthesize_reproducer_if_missing
-		with tempfile.TemporaryDirectory() as tmpdir:
-			td = Path(tmpdir)
-			finding_data = {"rule_id": "FR-HOOK-007", "file": "target.py", "line": 10}
-			out_path = synthesize_reproducer_if_missing(td, "FR-HOOK-007-hash1", finding_data)
-			self.assertIsNotNone(out_path)
-			self.assertTrue(out_path.is_file())
-			content = out_path.read_text()
-			self.assertTrue(content.startswith("# PROOF_MODE: direct_call"))
-			self.assertIn("Mutable default detected", content)
 
 
 if __name__ == "__main__":

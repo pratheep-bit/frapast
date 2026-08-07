@@ -12,16 +12,12 @@ from scanner.ledger_io import read_ledger_entry, write_ledger_entry, update_ledg
 from scanner.config import default_config, load_config
 from scanner.fp import apply_fp_suppression, load_false_positives
 from scanner.hooks import load as load_hooks
-from scanner.proof.orchestrator import ProofOrchestrator
 from scanner.python import load as load_python
 from scanner.reporting import render_track_record
 from scanner.rules import execute_rules, Candidate
 from scanner.schema import load as load_schema
 from scanner.severity import score_candidates
 from scanner.shared import stable_hash
-from scanner.fix import synthesize_fix
-from scanner.validate import validate_and_stage
-from scanner.pr import route_candidate, create_pr, run_pr_batch
 
 
 def _load_indexes(repo_path: Path):
@@ -198,111 +194,8 @@ def main(argv: list[str] | None = None) -> int:
 			print(yaml.safe_dump(output, sort_keys=False))
 		return 0
 
-	elif args.command == "prove":
-		orchestrator = ProofOrchestrator(
-			workspace_root=args.workspace,
-			dry_run=args.dry_run,
-		)
-		if args.finding_id:
-			result = orchestrator.prove_candidate(args.finding_id)
-			source_dir = orchestrator._locate_finding_dir(args.finding_id)
-			if not args.dry_run and source_dir is not None:
-				update_ledger_after_proof(source_dir, result)
-				orchestrator.save_proof_artifact(result)
-			elif not args.dry_run:
-				print(f"Warning: could not locate ledger entry for {args.finding_id} in any findings directory; not written.")
-			proof_dict = {**result.__dict__, "status": getattr(result.status, "value", str(result.status))}
-			print(yaml.safe_dump({"proof": proof_dict}, sort_keys=False, default_flow_style=False))
-		else:
-			unproven = orchestrator.discover_unproven_findings()
-			id_to_dir = dict(unproven)
-			results = orchestrator.prove_all_candidates()
-			if not args.dry_run:
-				for r in results:
-					source_dir = id_to_dir.get(r.finding_id) or orchestrator._locate_finding_dir(r.finding_id)
-					if source_dir is not None:
-						update_ledger_after_proof(source_dir, r)
-					orchestrator.save_proof_artifact(r)
-			summary = {
-				"total": len(results),
-				"passed": sum(1 for r in results if r.status.value == "passed"),
-				"failed": sum(1 for r in results if r.status.value == "failed"),
-				"error": sum(1 for r in results if r.status.value == "error"),
-				"skipped": sum(1 for r in results if r.status.value == "skipped"),
-				"dry_run": sum(1 for r in results if r.status.value == "dry_run"),
-				"results": [{**r.__dict__, "status": r.status.value} for r in results],
-			}
-			print(yaml.safe_dump({"proof_run": summary}, sort_keys=False, default_flow_style=False))
-		return 0
-
-	elif args.command == "report":
-		print(render_track_record(args.findings_dir))
-		return 0
-
-	elif args.command == "fix" or args.command == "pr":
-		repo_path = Path(args.repo_path)
-		findings_dir = repo_path / "findings" if (repo_path / "findings").is_dir() else Path("findings")
-		
-		# Auto-discover fp-log.yaml to apply FP suppression for fix/pr
-		fp_log = findings_dir / "fp-log.yaml"
-		fp_log_path = str(fp_log) if fp_log.is_file() else None
-		
-		candidates_data = scan(repo_path, fp_log_path=fp_log_path, repo_id="local")
-		candidates = [
-			Candidate(**{k: v for k, v in c.items() if k in Candidate.__dataclass_fields__})
-			for c in candidates_data
-		]
-
-		# MANDATORY GATE — never synthesize a fix or open a PR for a finding that
-		# hasn't cleared Tier 2+ runtime proof. Not optional, not bypassable by a flag.
-		proven_findings = _load_proven_findings(findings_dir, min_tier=2)
-		candidates = [c for c in candidates if c.code_location_hash in proven_findings]
-
-		if not candidates:
-			print("No Tier 2+ proven findings eligible for fix/PR. Run `prove` first.")
-			return 0
-		
-		# If finding-file is provided (for fix)
-		if getattr(args, "finding_file", None):
-			finding = yaml.safe_load(Path(args.finding_file).read_text())
-			candidates = [c for c in candidates if c.code_location_hash == finding.get("code_location_hash")]
-		
-		# Synthesize + statically validate every eligible candidate up front.
-		from scanner.fix.engine import cst
-		if cst is None:
-			print("Warning: libcst is not installed in the python environment. Automated code fix synthesis is disabled and candidates will fall back to manual triage.")
-
-		fixable: list[tuple[Candidate, str]] = []
-		for candidate in candidates:
-			if route_candidate(candidate) != "pr":
-				continue
-
-			print(f"Synthesizing fix for {candidate.rule_id} in {candidate.file}...")
-			fixed_code = synthesize_fix(candidate, repo_path)
-			if not fixed_code:
-				print("Failed to synthesize fix.")
-				continue
-
-			print("Validating fix...")
-			if not validate_and_stage(candidate, repo_path, fixed_code):
-				print("Validation failed. Skipping PR/Fix.")
-				continue
-
-			print("Validation successful.")
-			fixable.append((candidate, fixed_code))
-
-		if args.command == "fix":
-			for candidate, fixed_code in fixable:
-				preview_path = repo_path / f"{candidate.file}.{candidate.rule_id}.fixed"
-				preview_path.parent.mkdir(parents=True, exist_ok=True)
-				preview_path.write_text(fixed_code)
-				print(f"Wrote fix preview to {preview_path}")
-		elif args.command == "pr":
-			max_prs = getattr(args, "max_prs", 5)
-			created = run_pr_batch(fixable, repo_path, live=args.live, max_prs=max_prs)
-			if created == 0 and fixable:
-				print("No PR was created this run (all candidates were duplicates or failed) — nothing left to try.")
-
+	elif args.command in {"prove", "fix", "pr"}:
+		print(f"The '{args.command}' subcommand is part of the internal engine (runtime proof, fix synthesis, PR automation) and is not included in this open-source static scanner release.")
 		return 0
 
 	elif args.command == "fp-report":
