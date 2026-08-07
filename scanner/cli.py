@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 from scanner import ui
 from scanner.config import default_config, load_config
@@ -323,7 +323,37 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		elif not interactive:
 			ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit)
 
+	if sys.stdout.isatty() and args.format == "human" and candidates:
+		active_cands = proven_findings if (candidates_to_prove and 'proven_findings' in locals() and proven_findings) else candidates
+		_run_post_scan_inspector_loop(repo, active_cands)
+
 	return 1 if len(candidates) > 0 else 0
+
+
+def _run_post_scan_inspector_loop(repo: Path, candidates: list[dict]) -> None:
+	from scanner.ui.results import render_code_snippet, candidate_score
+	sorted_cands = sorted(candidates, key=candidate_score, reverse=True)
+	console.print("[dim white]Type 'v 1' (or 'b1') to view code snippet, or press Enter to exit.[/dim white]")
+	while True:
+		try:
+			cmd = input("frapast (v 1/q) › ").strip()
+			if not cmd or cmd.lower() in ("q", "quit", "exit", "/exit"):
+				break
+			if cmd.lower() in ("h", "help", "?", "/help"):
+				console.print("[muted]Type 'v 1' or 'b1' to inspect bug #1 code snippet, or 'q' to exit.[/muted]")
+				continue
+			raw_id = cmd.lstrip("bBvV ")
+			if raw_id.isdigit():
+				bug_id = int(raw_id)
+				if 1 <= bug_id <= len(sorted_cands):
+					render_code_snippet(repo, sorted_cands[bug_id - 1], bug_id=bug_id)
+				else:
+					console.print(f"[severity.critical]Invalid bug ID '{bug_id}'. Choose a number between 1 and {len(sorted_cands)}.[/severity.critical]")
+			else:
+				console.print(f"[muted]Unrecognized input '{cmd}'. Type 'v 1' to view code snippet for bug #1, or 'q' to exit.[/muted]")
+		except (KeyboardInterrupt, EOFError):
+			print()
+			break
 
 
 def _run_proof_verification(candidates_to_prove: list[dict], repo: Path, repo_id: str) -> list[dict]:
