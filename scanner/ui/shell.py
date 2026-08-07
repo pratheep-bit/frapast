@@ -26,23 +26,45 @@ try:
 except ImportError:
 	_HAS_PROMPT_TOOLKIT = False
 
-COMMANDS = ["/scan", "/prove", "/report", "/fp-report", "/help", "/clear", "/exit", "/quit"]
+COMMANDS = [
+	"/scan", "/prove", "/report", "/fp-report", "/help", "/clear", "/exit", "/quit",
+	"scan", "prove", "report", "fp-report", "help", "clear", "exit", "quit",
+	"s", "p", "r", "f", "h", "q", "?"
+]
+
+SHORTCUT_MAP = {
+	"s": "/scan",
+	"sc": "/scan",
+	"/s": "/scan",
+	"/sc": "/scan",
+	"p": "/prove",
+	"pr": "/prove",
+	"/p": "/prove",
+	"/pr": "/prove",
+	"r": "/report",
+	"rep": "/report",
+	"/r": "/report",
+	"/rep": "/report",
+	"f": "/fp-report",
+	"fp": "/fp-report",
+	"/f": "/fp-report",
+	"/fp": "/fp-report",
+	"h": "/help",
+	"?": "/help",
+	"q": "/exit",
+	"e": "/exit",
+}
 
 HELP_TEXT = """\
-[heading]Commands[/heading]
-  [bold]/scan[/bold] [muted]<path>[/muted] [muted][--severity] [--limit N] [--config file][/muted]
-        run a static security scan against a repo (or a multi-repo --config)
-  [bold]/prove[/bold] [muted][--finding-id ID] [--dry-run][/muted]
-        run runtime proof verification against the last scan's candidates
-  [bold]/report[/bold] [muted][--findings-dir dir][/muted]
-        show the track-record report generated from proven findings
-  [bold]/fp-report[/bold] [muted][--findings-dir dir][/muted]
-        show false-positive rates per rule
-  [bold]/clear[/bold]      clear the screen
-  [bold]/help[/bold]       show this message
-  [bold]/exit[/bold]       leave frapast
+[heading]Commands & Shortcuts[/heading]
+  [bold]s[/bold] or [bold]/scan[/bold] [muted]<path>[/muted]     run a static security scan (e.g. 's' or 's .')
+  [bold]p[/bold] or [bold]/prove[/bold]            run runtime proof verification on findings (e.g. 'p')
+  [bold]r[/bold] or [bold]/report[/bold]           show track-record report (e.g. 'r')
+  [bold]f[/bold] or [bold]/fp-report[/bold]        show false-positive rates (e.g. 'f')
+  [bold]h[/bold] or [bold]?[/bold] or [bold]/help[/bold]          show this help message
+  [bold]q[/bold] or [bold]/exit[/bold]          quit frapast shell
 
-[muted]Tip: typing a bare path (e.g. "." or "../erpnext") is shorthand for /scan[/muted]
+[muted]Tip: Type 's' to scan current folder, 'p' to prove, 'r' for report, or 'q' to quit.[/muted]
 """
 
 
@@ -104,19 +126,31 @@ class InteractiveShell:
 				if not self._dispatch(line):
 					return 0
 			except SystemExit:
-				# argparse-style mini-parsers raise this on bad flags; the
-				# handler already printed a usage message.
 				continue
-			except Exception as exc:  # keep the shell alive on command errors
+			except Exception as exc:
 				console.print(f"[severity.critical]{SYMBOL_BULLET} error:[/severity.critical] {exc}")
 
 	def _dispatch(self, line: str) -> bool:
 		"""Returns False to exit the shell."""
-		if line in ("/exit", "/quit", "exit", "quit"):
+		parts = line.split(maxsplit=1)
+		first_word = parts[0].lower()
+		rest = parts[1] if len(parts) > 1 else ""
+
+		# Expand 1-2 letter shortcuts (e.g. 's .' -> '/scan .', 'p' -> '/prove')
+		if first_word in SHORTCUT_MAP:
+			expanded = SHORTCUT_MAP[first_word]
+			if expanded == "/scan" and not rest:
+				line = "/scan ."
+			elif rest:
+				line = f"{expanded} {rest}"
+			else:
+				line = expanded
+
+		if line in ("/exit", "/quit", "exit", "quit", "q"):
 			console.print("[muted]goodbye.[/muted]")
 			return False
 
-		if line == "/help":
+		if line in ("/help", "help", "h", "?"):
 			console.print(HELP_TEXT)
 			return True
 
