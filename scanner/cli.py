@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 from scanner.config import default_config, load_config
 from scanner.fp import apply_fp_suppression, load_false_positives
@@ -350,40 +350,71 @@ def main(argv: list[str] | None = None) -> int:
 			if args.write_ledger:
 				_write_candidates(candidates, Path(args.ledger_dir), args.repo_id)
 
-			should_prove = args.prove
-			if not should_prove and candidates and sys.stdout.isatty() and args.format == "human":
+			candidates_to_prove: list[dict[str, object]] = []
+			if not args.prove and candidates and sys.stdout.isatty() and args.format == "human":
 				_render_human_summary(repo, candidates, num_files, elapsed, limit=args.limit)
 				try:
-					resp = input(f"\nFound {len(candidates)} candidates. Proceed to Tier 1 & Tier 2 proof verification? [y/N]: ")
-					if resp.strip().lower() in {"y", "yes"}:
-						should_prove = True
+					print("\nSelect proof verification mode:")
+					print("  [1] Top 10 High-Severity candidates (recommended for large repos)")
+					print("  [2] Top 20 candidates")
+					print("  [3] All candidates")
+					print("  [4] Specify a custom Rule ID (e.g. FR-SQLI-001)")
+					print("  [N] Skip proof (Exit)")
+					choice = input("\nEnter choice [1/2/3/4/N]: ").strip().lower()
+
+					def _get_score(cand: dict[str, object]) -> float:
+						sev = cand.get("severity")
+						return float(sev.get("score", 0.0)) if isinstance(sev, dict) else 0.0
+
+					sorted_cands = sorted(candidates, key=_get_score, reverse=True)
+
+					if choice == "1":
+						candidates_to_prove = sorted_cands[:10]
+					elif choice == "2":
+						candidates_to_prove = sorted_cands[:20]
+					elif choice == "3":
+						candidates_to_prove = candidates
+					elif choice == "4":
+						rule_filter = input("Enter Rule ID to prove (e.g. FR-SQLI-001): ").strip().upper()
+						candidates_to_prove = [c for c in candidates if str(c.get("rule_id", "")).upper() == rule_filter]
+						if not candidates_to_prove:
+							print(f"No candidates found matching rule '{rule_filter}'.")
 				except (KeyboardInterrupt, EOFError):
 					print()
+			elif args.prove:
+				candidates_to_prove = candidates
 
-			if should_prove and candidates:
+			if candidates_to_prove:
 				from scanner.proof.orchestrator import ProofOrchestrator
 				from scanner.proof.models import ProofStatus
 				orchestrator = ProofOrchestrator(workspace_root=repo)
 				proven_findings = []
-				for c in candidates:
+				print(f"\nRunning proof verification against {len(candidates_to_prove)} candidates...")
+				for idx, c in enumerate(candidates_to_prove, 1):
 					rule_id = c.get("rule_id", "")
 					file_path = c.get("file", "")
 					func = c.get("function", "")
 					loc_hash = c.get("code_location_hash", "")
 					identity = f"{args.repo_id}:{rule_id}:{file_path}:{func}:{loc_hash}"
 					fid = f"{c['taxonomy_id']}-{stable_hash(identity)}"
+					sys.stderr.write(f"\rProving candidate [{idx}/{len(candidates_to_prove)}] ({rule_id} in {func})...")
+					sys.stderr.flush()
 					res = orchestrator.prove_candidate(fid, candidate_data=c)
 					if res.status == ProofStatus.PASSED:
 						c["proof_tier"] = res.proof_tier
 						c["status"] = "proven"
 						proven_findings.append(c)
 
+				sys.stderr.write("\r\033[K")
+				sys.stderr.flush()
+
 				if args.format == "json":
 					print(json.dumps({"candidates": candidates, "proven": proven_findings}, indent=2, default=str))
 				elif args.format == "yaml":
 					print(yaml.safe_dump({"candidates": candidates, "proven": proven_findings}, sort_keys=False))
 				else:
-					_render_human_summary(repo, proven_findings if proven_findings else candidates, num_files, elapsed, limit=args.limit)
+					print(f"\n✓ Proof complete: {len(proven_findings)} / {len(candidates_to_prove)} candidates verified as PROVEN.")
+					_render_human_summary(repo, proven_findings if proven_findings else candidates_to_prove, num_files, elapsed, limit=args.limit)
 			else:
 				if args.format == "json":
 					print(json.dumps(output, indent=2, default=str))
