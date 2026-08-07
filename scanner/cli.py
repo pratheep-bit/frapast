@@ -163,6 +163,7 @@ def _render_human_summary(
 	candidates: list[dict[str, object]],
 	num_files: int,
 	elapsed: float,
+	limit: int = 20,
 ) -> None:
 	is_tty = sys.stdout.isatty()
 	try:
@@ -178,11 +179,16 @@ def _render_human_summary(
 			)
 			return
 
-		family_groups: dict[str, list[dict[str, object]]] = {}
-		for c in candidates:
-			rule_id = str(c.get("rule_id", "UNKNOWN"))
-			family = rule_id.rsplit("-", 1)[0] if "-" in rule_id else rule_id
-			family_groups.setdefault(family, []).append(c)
+		# Sort candidates by severity score descending
+		def _get_score(cand: dict[str, object]) -> float:
+			sev = cand.get("severity")
+			if isinstance(sev, dict):
+				return float(sev.get("score", 0.0))
+			return 0.0
+
+		sorted_candidates = sorted(candidates, key=_get_score, reverse=True)
+
+		display_candidates = sorted_candidates[:limit] if limit > 0 else sorted_candidates
 
 		table = Table(
 			title=f"Security Audit Results — {repo_path}",
@@ -194,42 +200,47 @@ def _render_human_summary(
 		table.add_column("Function", style="white")
 		table.add_column("Severity / Evidence", style="dim white")
 
-		for family in sorted(family_groups.keys()):
-			group = family_groups[family]
-			for c in group:
-				sev_info = c.get("severity")
-				score = sev_info.get("score", 0.0) if isinstance(sev_info, dict) else 0.0
+		for c in display_candidates:
+			sev_info = c.get("severity")
+			score = sev_info.get("score", 0.0) if isinstance(sev_info, dict) else 0.0
 
-				if score >= 60:
-					sev_badge = f"[bold red]CRITICAL ({score:.0f})[/bold red]"
-				elif score >= 40:
-					sev_badge = f"[bold yellow]HIGH ({score:.0f})[/bold yellow]"
-				elif score >= 20:
-					sev_badge = f"[yellow]MEDIUM ({score:.0f})[/yellow]"
-				elif score > 0:
-					sev_badge = f"[green]LOW ({score:.0f})[/green]"
-				else:
-					sev_badge = ""
+			if score >= 60:
+				sev_badge = f"[bold red]CRITICAL ({score:.0f})[/bold red]"
+			elif score >= 40:
+				sev_badge = f"[bold yellow]HIGH ({score:.0f})[/bold yellow]"
+			elif score >= 20:
+				sev_badge = f"[yellow]MEDIUM ({score:.0f})[/yellow]"
+			elif score > 0:
+				sev_badge = f"[green]LOW ({score:.0f})[/green]"
+			else:
+				sev_badge = ""
 
-				file_line = f"{c.get('file', '')}:{c.get('line', '')}"
-				func = str(c.get("function", ""))
-				evidence = str(c.get("evidence", ""))
+			file_line = f"{c.get('file', '')}:{c.get('line', '')}"
+			func = str(c.get("function", ""))
+			evidence = str(c.get("evidence", ""))
 
-				evidence_str = f"{sev_badge} {evidence}" if sev_badge else evidence
-				table.add_row(str(c.get("rule_id")), file_line, func, evidence_str)
+			evidence_str = f"{sev_badge} {evidence}" if sev_badge else evidence
+			table.add_row(str(c.get("rule_id")), file_line, func, evidence_str)
 
 		console.print(table)
-		console.print(
-			f"\n[bold]{len(candidates)}[/bold] candidates found across "
-			f"[bold]{num_files}[/bold] files in [bold]{elapsed:.2f}s[/bold]."
-		)
+		if limit > 0 and len(candidates) > limit:
+			console.print(
+				f"\n[bold]{len(candidates)}[/bold] candidates found across "
+				f"[bold]{num_files}[/bold] files in [bold]{elapsed:.2f}s[/bold] "
+				f"(showing top [bold]{limit}[/bold] by severity. Use [bold]--limit 0[/bold] for full list)."
+			)
+		else:
+			console.print(
+				f"\n[bold]{len(candidates)}[/bold] candidates found across "
+				f"[bold]{num_files}[/bold] files in [bold]{elapsed:.2f}s[/bold]."
+			)
 
 	except ImportError:
 		if not candidates:
 			print(f"✓ Scanned {num_files} files in {elapsed:.2f}s — 0 candidates found (clean).")
 			return
 		print(f"\nSecurity Audit Results — {repo_path}\n" + "=" * 50)
-		for c in candidates:
+		for c in candidates[:limit] if limit > 0 else candidates:
 			print(f"  [{c.get('rule_id')}] {c.get('file')}:{c.get('line')} in {c.get('function')}: {c.get('evidence')}")
 		print(f"\n{len(candidates)} candidates found across {num_files} files in {elapsed:.2f}s.")
 
@@ -275,12 +286,8 @@ def main(argv: list[str] | None = None) -> int:
 	scan_parser.add_argument("--repo-id", default="local", help="Repository identifier for ledger entries")
 	scan_parser.add_argument("--fp-log", default="findings/fp-log.yaml", help="Path to false-positive log")
 	scan_parser.add_argument("--severity", action="store_true", help="Include severity scores in output")
-	scan_parser.add_argument(
-		"--format",
-		choices=["human", "yaml", "json"],
-		default="human",
-		help="Output format (default: human)",
-	)
+	scan_parser.add_argument("--limit", type=int, default=20, help="Maximum number of candidates to display in human output (default: 20; 0 for all)")
+	scan_parser.add_argument("--format", choices=["human", "yaml", "json"], default="human", help="Output format (default: human)")
 
 	# prove command
 	prove_parser = subparsers.add_parser("prove", help="Run Tier 1 & Tier 2 proof verification")
@@ -317,7 +324,7 @@ def main(argv: list[str] | None = None) -> int:
 				print(yaml.safe_dump(output, sort_keys=False))
 			else:
 				for repo_id, c_list in results.items():
-					_render_human_summary(Path(repo_id), c_list, len(c_list), 0.0)
+					_render_human_summary(Path(repo_id), c_list, len(c_list), 0.0, limit=args.limit)
 			return 1 if total_candidates > 0 else 0
 
 		elif args.repo_path:
@@ -346,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
 
 			should_prove = args.prove
 			if not should_prove and candidates and sys.stdout.isatty() and args.format == "human":
-				_render_human_summary(repo, candidates, num_files, elapsed)
+				_render_human_summary(repo, candidates, num_files, elapsed, limit=args.limit)
 				try:
 					resp = input(f"\nFound {len(candidates)} candidates. Proceed to Tier 1 & Tier 2 proof verification? [y/N]: ")
 					if resp.strip().lower() in {"y", "yes"}:
@@ -377,14 +384,14 @@ def main(argv: list[str] | None = None) -> int:
 				elif args.format == "yaml":
 					print(yaml.safe_dump({"candidates": candidates, "proven": proven_findings}, sort_keys=False))
 				else:
-					_render_human_summary(repo, proven_findings if proven_findings else candidates, num_files, elapsed)
+					_render_human_summary(repo, proven_findings if proven_findings else candidates, num_files, elapsed, limit=args.limit)
 			else:
 				if args.format == "json":
 					print(json.dumps(output, indent=2, default=str))
 				elif args.format == "yaml":
 					print(yaml.safe_dump(output, sort_keys=False))
 				elif not (candidates and sys.stdout.isatty() and not args.prove):
-					_render_human_summary(repo, candidates, num_files, elapsed)
+					_render_human_summary(repo, candidates, num_files, elapsed, limit=args.limit)
 
 			return 1 if len(candidates) > 0 else 0
 
