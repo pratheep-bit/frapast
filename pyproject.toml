@@ -32,7 +32,6 @@ dev = [
 
 [project.scripts]
 frapast = "scanner.cli:main"
-frappe-security-scan = "scanner.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/pratheep-bit/frapast"

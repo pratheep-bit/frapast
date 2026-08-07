@@ -107,9 +107,7 @@ def _scan_repo_with_severity(
 	num_files = python_files_count[0] or len(python.functions)
 
 	if show_progress:
-		sys.stderr.write(
-			f"\rScan complete: {num_files} files scanned in {elapsed:.2f}s ({len(candidates)} candidates found).\n"
-		)
+		sys.stderr.write("\r\033[K")
 		sys.stderr.flush()
 
 	return candidates, num_files, elapsed
