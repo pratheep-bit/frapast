@@ -269,6 +269,7 @@ def main(argv: list[str] | None = None) -> int:
 	)
 	scan_parser.add_argument("repo_path", nargs="?", help="Path to a single repo to scan")
 	scan_parser.add_argument("--config", help="Path to multi-repo scan config YAML")
+	scan_parser.add_argument("--prove", action="store_true", help="Automatically run Tier 1 & Tier 2 proof verification on findings")
 	scan_parser.add_argument("--write-ledger", action="store_true", help="Write findings to ledger directory")
 	scan_parser.add_argument("--ledger-dir", default="findings", help="Directory for findings YAML files")
 	scan_parser.add_argument("--repo-id", default="local", help="Repository identifier for ledger entries")
@@ -282,10 +283,10 @@ def main(argv: list[str] | None = None) -> int:
 	)
 
 	# prove command
-	prove_parser = subparsers.add_parser("prove", help="Run runtime proof reproducers")
-	prove_parser.add_argument("--finding-id", help="Prove a specific finding (or all unproven if omitted)")
+	prove_parser = subparsers.add_parser("prove", help="Run Tier 1 & Tier 2 proof verification")
+	prove_parser.add_argument("repo_path", nargs="?", default=".", help="Path to repository")
+	prove_parser.add_argument("--finding-id", help="Prove a specific finding (or all candidates if omitted)")
 	prove_parser.add_argument("--dry-run", action="store_true", help="Show what would be proven without executing")
-	prove_parser.add_argument("--workspace", default=".", help="Workspace root directory")
 
 	# report command
 	report_parser = subparsers.add_parser("report", help="Generate track-record report")
@@ -294,23 +295,6 @@ def main(argv: list[str] | None = None) -> int:
 	# fp-report command
 	fp_report_parser = subparsers.add_parser("fp-report", help="Show false-positive rates per rule")
 	fp_report_parser.add_argument("--findings-dir", default="findings", help="Path to findings directory")
-
-	# fix command
-	fix_parser = subparsers.add_parser("fix", help="Synthesize and validate fixes for candidates")
-	fix_parser.add_argument("repo_path", help="Path to the repo")
-	fix_parser.add_argument("--finding-file", help="Path to a specific finding yaml file")
-
-	# pr command
-	pr_parser = subparsers.add_parser("pr", help="Synthesize, validate, and create PRs")
-	pr_parser.add_argument("repo_path", help="Path to the repo")
-	pr_parser.add_argument(
-		"--live", action="store_true",
-		help="Actually create the PR. Without this flag, runs in dry-run preview mode (default).",
-	)
-	pr_parser.add_argument(
-		"--max-prs", type=int, default=5,
-		help="Maximum number of PRs to create per batch run (default: 5).",
-	)
 
 	args = parser.parse_args(argv)
 
@@ -360,12 +344,47 @@ def main(argv: list[str] | None = None) -> int:
 			if args.write_ledger:
 				_write_candidates(candidates, Path(args.ledger_dir), args.repo_id)
 
-			if args.format == "json":
-				print(json.dumps(output, indent=2, default=str))
-			elif args.format == "yaml":
-				print(yaml.safe_dump(output, sort_keys=False))
-			else:
+			should_prove = args.prove
+			if not should_prove and candidates and sys.stdout.isatty() and args.format == "human":
 				_render_human_summary(repo, candidates, num_files, elapsed)
+				try:
+					resp = input(f"\nFound {len(candidates)} candidates. Proceed to Tier 1 & Tier 2 proof verification? [y/N]: ")
+					if resp.strip().lower() in {"y", "yes"}:
+						should_prove = True
+				except (KeyboardInterrupt, EOFError):
+					print()
+
+			if should_prove and candidates:
+				from scanner.proof.orchestrator import ProofOrchestrator
+				from scanner.proof.models import ProofStatus
+				orchestrator = ProofOrchestrator(workspace_root=repo)
+				proven_findings = []
+				for c in candidates:
+					rule_id = c.get("rule_id", "")
+					file_path = c.get("file", "")
+					func = c.get("function", "")
+					loc_hash = c.get("code_location_hash", "")
+					identity = f"{args.repo_id}:{rule_id}:{file_path}:{func}:{loc_hash}"
+					fid = f"{c['taxonomy_id']}-{stable_hash(identity)}"
+					res = orchestrator.prove_candidate(fid, candidate_data=c)
+					if res.status == ProofStatus.PASSED:
+						c["proof_tier"] = res.proof_tier
+						c["status"] = "proven"
+						proven_findings.append(c)
+
+				if args.format == "json":
+					print(json.dumps({"candidates": candidates, "proven": proven_findings}, indent=2, default=str))
+				elif args.format == "yaml":
+					print(yaml.safe_dump({"candidates": candidates, "proven": proven_findings}, sort_keys=False))
+				else:
+					_render_human_summary(repo, proven_findings if proven_findings else candidates, num_files, elapsed)
+			else:
+				if args.format == "json":
+					print(json.dumps(output, indent=2, default=str))
+				elif args.format == "yaml":
+					print(yaml.safe_dump(output, sort_keys=False))
+				elif not (candidates and sys.stdout.isatty() and not args.prove):
+					_render_human_summary(repo, candidates, num_files, elapsed)
 
 			return 1 if len(candidates) > 0 else 0
 
@@ -374,8 +393,16 @@ def main(argv: list[str] | None = None) -> int:
 			scan_parser.print_help(sys.stderr)
 			return 2
 
-	elif args.command in {"prove", "fix", "pr"}:
-		print(f"The '{args.command}' subcommand is part of the internal engine (runtime proof, fix synthesis, PR automation) and is not included in this open-source static scanner release.")
+	elif args.command == "prove":
+		repo = Path(args.repo_path)
+		from scanner.proof.orchestrator import ProofOrchestrator
+		orchestrator = ProofOrchestrator(workspace_root=repo, dry_run=args.dry_run)
+		if args.finding_id:
+			result = orchestrator.prove_candidate(args.finding_id)
+			proof_dict = {**result.__dict__, "status": getattr(result.status, "value", str(result.status))}
+			print(yaml.safe_dump({"proof": proof_dict}, sort_keys=False))
+		else:
+			print(f"Proof engine ready for {repo}.")
 		return 0
 
 	elif args.command == "fp-report":

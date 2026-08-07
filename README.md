@@ -1,11 +1,11 @@
 <div align="center">
 
-# Sentinel-FR — Runtime-Proven Static Analysis for Frappe & ERPNext
+# frapast — Static Analysis Security Scanner for Frappe & ERPNext
 
-**A static-analysis security scanner purpose-built for the Frappe framework, with a mandatory runtime-proof pipeline that turns raw candidates into verified, exploitable findings — not noise.**
+**A framework-aware static security scanner purpose-built for the Frappe framework ecosystem (ERPNext, HRMS, and custom apps).**
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-Proprietary-lightgrey.svg)](#license)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](#testing)
 [![Frappe](https://img.shields.io/badge/framework-Frappe%20%2F%20ERPNext-orange.svg)](https://frappeframework.com/)
 
@@ -13,33 +13,34 @@
 
 ---
 
-## Why Sentinel-FR exists
+## Why frapast exists
 
-Generic SAST tools treat Frappe apps like any other Python codebase — they don't understand `frappe.whitelist()`, doc_events hooks, docstatus state machines, or the ORM/raw-SQL boundary that defines where Frappe's permission layer actually applies. That mismatch produces two failure modes: **floods of false positives** on framework idioms that are actually safe, and **silent misses** on framework-specific bypass patterns (`ignore_permissions=True`, `frappe.db.set_value` skipping `validate()`, hook-dispatch reachability, etc.).
+Generic SAST tools (like Semgrep or Bandit) treat Frappe apps like standard Python codebases — they don't understand `frappe.whitelist()`, `hooks.py` registrations, DocType JSON permission rules, or Frappe's ORM vs. raw-SQL boundary.
 
-Sentinel-FR is built from the ground up around Frappe's actual execution model. It parses DocType JSON schemas, `hooks.py` registrations, and Python source into three cooperating indexes, builds a call graph that understands Frappe-specific dispatch patterns (string dispatch via `frappe.call()`, hook dispatch, dynamic method calls), and runs a taxonomy of rules against that graph — every rule backed by a **proof recipe**, not just a pattern match.
+`frapast` is built specifically for Frappe apps. It parses DocType JSON schemas, `hooks.py` registrations, and Python source files to detect framework-specific security risks:
+- Unprotected `@frappe.whitelist()` endpoints
+- Dangerous `ignore_permissions=True` calls reachable from public endpoints
+- Direct database state writes (`frappe.db.set_value`) bypassing controller validation hooks
+- SQL injection in `frappe.db.sql` and `frappe.qb`
+- Unsafe dynamic evaluation & code execution
 
-Critically: **a static match is never treated as a finding.** Every candidate is a Tier 0, internal-only signal until it clears a runtime proof gate against a real, containerized Frappe bench. Nothing reaches fix synthesis or PR automation without first passing Tier 2+ proof.
+---
+
+## Quick Installation
+
+```bash
+pip install git+https://github.com/pratheep-bit/frapast.git
+```
 
 ---
 
 ## Table of Contents
 
-- [Core Design Principles](#core-design-principles)
-- [Architecture](#architecture)
-- [Vulnerability Taxonomy](#vulnerability-taxonomy)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
+- [Why frapast exists](#why-frapast-exists)
+- [Installation & Quick Start](#installation)
 - [CLI Reference](#cli-reference)
-- [The Runtime Proof Pipeline](#the-runtime-proof-pipeline)
-- [Automated Fix Synthesis](#automated-fix-synthesis)
-- [False-Positive Management & Precision Tracking](#false-positive-management--precision-tracking)
-- [Multi-Repo Scanning](#multi-repo-scanning)
-- [Ledger & Data Integrity](#ledger--data-integrity)
-- [Testing](#testing)
-- [Benchmarking Against Known CVEs](#benchmarking-against-known-cves)
-- [Project Layout](#project-layout)
-- [Contributing](#contributing)
+- [GitHub Actions CI/CD Integration](#github-actions-cicd-integration)
+- [Vulnerability Taxonomy](#vulnerability-taxonomy)
 - [License](#license)
 
 ---
