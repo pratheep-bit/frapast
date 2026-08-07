@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 from scanner import ui
 from scanner.config import default_config, load_config
@@ -304,28 +304,46 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 	if interactive:
 		ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit)
 		from scanner.ui.menus import select_post_scan_action, select_bug_to_view
-		action = select_post_scan_action(candidates)
-		if action == "prove_top10":
-			candidates_to_prove = sorted(candidates, key=lambda c: float(c.get("severity", {}).get("score", 0.0) if isinstance(c.get("severity"), dict) else 0.0), reverse=True)[:10]
-		elif action == "prove_top20":
-			candidates_to_prove = sorted(candidates, key=lambda c: float(c.get("severity", {}).get("score", 0.0) if isinstance(c.get("severity"), dict) else 0.0), reverse=True)[:20]
-		elif action == "prove_all":
-			candidates_to_prove = candidates
-		elif action == "inspect":
-			bug_idx = select_bug_to_view(candidates)
-			if bug_idx is not None:
-				from scanner.ui.results import render_code_snippet, candidate_score
-				sorted_cands = sorted(candidates, key=candidate_score, reverse=True)
-				render_code_snippet(repo, sorted_cands[bug_idx - 1], bug_id=bug_idx)
-		elif action == "export_json":
-			out_file = Path("frapast_findings.json")
-			out_file.write_text(json.dumps({"candidates": candidates}, indent=2, default=str), encoding="utf-8")
-			console.print(f"[success]✓ Saved {len(candidates)} candidates to '{out_file.resolve()}'[/success]")
-		elif action == "report":
-			from scanner.track_record import render_track_record
-			console.print(render_track_record("findings"))
+		from scanner.ui.results import render_code_snippet, candidate_score
 
-	if candidates_to_prove:
+		active_candidates = candidates
+		while True:
+			action = select_post_scan_action(active_candidates)
+			if action in ("prove_top10", "prove_top20", "prove_all"):
+				if action == "prove_top10":
+					candidates_to_prove = sorted(active_candidates, key=candidate_score, reverse=True)[:10]
+				elif action == "prove_top20":
+					candidates_to_prove = sorted(active_candidates, key=candidate_score, reverse=True)[:20]
+				else:
+					candidates_to_prove = active_candidates
+
+				proven_findings = _run_proof_verification(candidates_to_prove, repo, args.repo_id)
+				console.print(
+					f"\n[success]✓ proof complete:[/success] "
+					f"{len(proven_findings)} / {len(candidates_to_prove)} candidates verified as PROVEN."
+				)
+				active_candidates = proven_findings or candidates_to_prove
+				ui.render_results(repo, active_candidates, num_files, elapsed, limit=args.limit)
+
+			elif action == "inspect":
+				bug_idx = select_bug_to_view(active_candidates)
+				if bug_idx is not None:
+					sorted_cands = sorted(active_candidates, key=candidate_score, reverse=True)
+					render_code_snippet(repo, sorted_cands[bug_idx - 1], bug_id=bug_idx)
+
+			elif action == "export_json":
+				out_file = Path("frapast_findings.json")
+				out_file.write_text(json.dumps({"candidates": active_candidates}, indent=2, default=str), encoding="utf-8")
+				console.print(f"[success]✓ Saved {len(active_candidates)} findings to '{out_file.resolve()}'[/success]\n")
+
+			elif action == "report":
+				from scanner.track_record import render_track_record
+				console.print(render_track_record("findings"))
+
+			elif action == "exit":
+				break
+	elif args.prove:
+		candidates_to_prove = candidates
 		proven_findings = _run_proof_verification(candidates_to_prove, repo, args.repo_id)
 		if args.format in ("json", "yaml", "sarif"):
 			_write_json_or_yaml({"candidates": candidates, "proven": proven_findings}, args.format, repo)
@@ -340,10 +358,6 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 			_write_json_or_yaml(output, args.format, repo)
 		elif not interactive:
 			ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit)
-
-	if sys.stdout.isatty() and args.format == "human" and candidates and not interactive:
-		active_cands = proven_findings if (candidates_to_prove and 'proven_findings' in locals() and proven_findings) else candidates
-		_run_post_scan_inspector_loop(repo, active_cands)
 
 	return 1 if len(candidates) > 0 else 0
 
