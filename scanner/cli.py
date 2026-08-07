@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "0.4.5"
+__version__ = "0.4.6"
 
 from scanner import ui
 from scanner.config import default_config, load_config
@@ -545,14 +545,22 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 					sorted_cands = sorted(active_candidates, key=candidate_score, reverse=True)
 					render_code_snippet(repo, sorted_cands[bug_idx - 1], bug_id=bug_idx)
 
+			elif action == "filter_proven":
+				proven_subset = [c for c in active_candidates if str(c.get("status", "")).lower() == "proven"]
+				ui.render_results(repo, proven_subset, num_files, elapsed, limit=args.limit)
+
+			elif action == "filter_all":
+				ui.render_results(repo, active_candidates, num_files, elapsed, limit=args.limit)
+
 			elif action == "export_json":
-				out_file = Path("frapast_findings.json")
+				out_file = repo / "frapast_findings.json"
 				out_file.write_text(json.dumps({"candidates": active_candidates}, indent=2, default=str), encoding="utf-8")
 				console.print(f"[success]✓ Saved {len(active_candidates)} findings to '{out_file.resolve()}'[/success]\n")
 
 			elif action == "report":
+				from rich.markdown import Markdown
 				from scanner.reporting.engine import render_track_record
-				console.print(render_track_record("findings"))
+				console.print(Markdown(render_track_record("findings")))
 
 			elif action == "exit":
 				break
@@ -745,7 +753,8 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 			console.print(f"[severity.critical]Invalid bug ID '{bug_id}'. Choose a number between 1 and {len(sorted_cands)}.[/severity.critical]")
 
 	def do_report(*, findings_dir: str = "findings") -> None:
-		console.print(render_track_record(findings_dir))
+		from rich.markdown import Markdown
+		console.print(Markdown(render_track_record(findings_dir)))
 
 	def do_fix(*, findings_dir: str = "findings", min_tier: int = 2, finding_id: str | None = None) -> None:
 		args = argparse.Namespace(findings_dir=findings_dir, min_tier=min_tier, finding_id=finding_id, format="human")

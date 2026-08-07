@@ -31,15 +31,21 @@ except ImportError:
 
 def select_post_scan_action(candidates: list[dict]) -> str:
 	"""Show an arrow-key selection menu listing all available post-scan actions."""
+	has_proven = any(str(c.get("status", "")).lower() == "proven" for c in candidates)
 	choices = [
 		"Run Proof Engine — Top 10 High-Severity (recommended)",
 		"Run Proof Engine — Top 20 Candidates",
 		f"Run Proof Engine — All {len(candidates)} Candidates",
 		"Inspect Code Snippet for a Bug (e.g. b1, b2)",
+	]
+	if has_proven:
+		choices.append("Filter Table — Show Only Proven Findings")
+		choices.append("Filter Table — Show All Candidates")
+	choices.extend([
 		"Save Findings as JSON File",
 		"View Track-Record Report",
 		"Exit",
-	]
+	])
 
 	if not _HAS_QUESTIONARY:
 		console.print("\n[bold cyan]What would you like to do next?[/bold cyan]")
@@ -47,15 +53,18 @@ def select_post_scan_action(candidates: list[dict]) -> str:
 		console.print("  [2] Prove Top 20 candidates")
 		console.print(f"  [3] Prove All {len(candidates)} candidates")
 		console.print("  [4] Inspect Code Snippet for a Bug")
+		if has_proven:
+			console.print("  [P] Filter Table — Show Only Proven Findings")
 		console.print("  [5] Save Findings as JSON File")
 		console.print("  [6] View Track-Record Report")
 		console.print("  [N] Exit\n")
 		try:
-			ans = input("Select option [1/2/3/4/5/6/N]: ").strip().lower()
+			ans = input("Select option: ").strip().lower()
 			if ans == "1": return "prove_top10"
 			if ans == "2": return "prove_top20"
 			if ans == "3": return "prove_all"
 			if ans == "4": return "inspect"
+			if ans == "p" and has_proven: return "filter_proven"
 			if ans == "5": return "export_json"
 			if ans == "6": return "report"
 			return "exit"
@@ -79,6 +88,10 @@ def select_post_scan_action(candidates: list[dict]) -> str:
 		return "prove_all"
 	if "Inspect Code" in answer:
 		return "inspect"
+	if "Show Only Proven" in answer:
+		return "filter_proven"
+	if "Show All Candidates" in answer:
+		return "filter_all"
 	if "JSON" in answer:
 		return "export_json"
 	if "Track-Record" in answer:

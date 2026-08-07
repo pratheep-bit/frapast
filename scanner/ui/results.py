@@ -51,6 +51,7 @@ def render_results(
 		expand=True,
 	)
 	table.add_column("#", style="bold yellow", width=5)
+	table.add_column("Status", width=14)
 	table.add_column("Severity", width=12)
 	table.add_column("Rule", style="bold")
 	table.add_column("Location", style="info")
@@ -64,8 +65,20 @@ def render_results(
 		badge = Text(f"{label}", style=style)
 		if score > 0:
 			badge.append(f" {score:.0f}", style="muted")
+
+		status_raw = str(c.get("status", "candidate")).lower()
+		tier = c.get("proof_tier", 0)
+		if status_raw == "proven":
+			tier_str = f" (T{tier})" if tier else ""
+			status_badge = Text(f"✓ PROVEN{tier_str}", style="bold green")
+		elif status_raw in ("unproven", "failed"):
+			status_badge = Text("UNPROVEN", style="bold red")
+		else:
+			status_badge = Text("CANDIDATE", style="dim yellow")
+
 		table.add_row(
 			f"b{idx}",
+			status_badge,
 			badge,
 			str(c.get("rule_id", "")),
 			f"{c.get('file', '')}:{c.get('line', '')}",
