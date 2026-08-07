@@ -734,7 +734,7 @@ def _is_dynamic_qb_target(node: ast.AST | None, values: dict[str, ast.AST]) -> b
 		return False
 	if isinstance(resolved, ast.Call):
 		func_name = _call_name(resolved.func)
-		if func_name in {"frappe.qb.DocType", "DocType"} and resolved.args:
+		if (func_name in {"frappe.qb.DocType", "qb.DocType", "DocType"} or func_name.endswith(".DocType")) and resolved.args:
 			arg_res = _resolve_expression(resolved.args[0], values)
 			if isinstance(arg_res, ast.Constant):
 				return False
