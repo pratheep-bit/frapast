@@ -147,31 +147,41 @@ Every rule's `rule_id` and `taxonomy_id` are validated against `taxonomy_registr
 
 ## Installation
 
+### Install from GitHub (recommended)
+
 ```bash
-git clone <your-repo-url> sentinel-fr
-cd sentinel-fr
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt   # pyyaml, libcst (optional but recommended), requests
+pip install git+https://github.com/pratheep-bit/frappe-security-engine.git
 ```
 
-> **Note:** `libcst` is required for automated fix synthesis (`scan fix` / `scan pr`). Without it, the scanner still runs full static analysis — fix synthesis simply falls back to manual-triage routing with a clear warning.
+### Install from a local clone (for development)
+
+```bash
+git clone https://github.com/pratheep-bit/frappe-security-engine.git
+cd frappe-security-engine
+pip install -e .
+```
 
 ---
 
 ## Quick Start
 
+Once installed, the `frappe-security-scan` command is available on your PATH:
+
 ```bash
-# Scan a single repo, print candidates as YAML
-python -m scanner.cli scan /path/to/frappe-app
+# Check version
+frappe-security-scan --version
+
+# Scan a single Frappe app, print candidates as YAML
+frappe-security-scan scan /path/to/frappe-app
+
+# Scan with severity scoring and JSON output
+frappe-security-scan scan /path/to/frappe-app --severity --format json
 
 # Scan and persist findings to the ledger
-python -m scanner.cli scan /path/to/frappe-app --write-ledger --repo-id my-app
-
-# Include severity scoring in the output
-python -m scanner.cli scan /path/to/frappe-app --severity --format json
+frappe-security-scan scan /path/to/frappe-app --write-ledger --repo-id my-app
 
 # Scan multiple repos from a config file
-python -m scanner.cli scan --config scan_config.yaml
+frappe-security-scan scan --config scan_config.yaml
 ```
 
 Example `scan_config.yaml`:
