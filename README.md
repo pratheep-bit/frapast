@@ -17,7 +17,7 @@
 
 Generic SAST tools treat Frappe apps like any other Python codebase — they don't understand `frappe.whitelist()`, doc_events hooks, docstatus state machines, or the ORM/raw-SQL boundary that defines where Frappe's permission layer actually applies. That mismatch produces two failure modes: **floods of false positives** on framework idioms that are actually safe, and **silent misses** on framework-specific bypass patterns (`ignore_permissions=True`, `frappe.db.set_value` skipping `validate()`, hook-dispatch reachability, etc.).
 
-Sentinel-FR is built from the ground up around Frappe's actual execution model. It parses DocType JSON schemas, `hooks.py` registrations, and Python source into three cooperating indexes, builds a call graph that understands Frappe-specific dispatch patterns (string dispatch via `frappe.call()`, hook dispatch, dynamic method calls), and runs a taxonomy of rules against that graph — every rule backed by a **proof recipe**, not just a pattern match.
+FrapAST is built from the ground up around Frappe's actual execution model. It parses DocType JSON schemas, `hooks.py` registrations, and Python source into three cooperating indexes, builds a call graph that understands Frappe-specific dispatch patterns (string dispatch via `frappe.call()`, hook dispatch, dynamic method calls), and runs a taxonomy of rules against that graph — every rule backed by a **proof recipe**, not just a pattern match.
 
 Critically: **a static match is never treated as a finding.** Every candidate is a Tier 0, internal-only signal until it clears a runtime proof gate against a real, containerized Frappe bench. Nothing reaches fix synthesis or PR automation without first passing Tier 2+ proof.
 
@@ -59,7 +59,7 @@ Critically: **a static match is never treated as a finding.** Every candidate is
 
 ## Architecture
 
-Sentinel-FR is organized as a pipeline of independent, composable indexes feeding a rule engine:
+FrapAST is organized as a pipeline of independent, composable indexes feeding a rule engine:
 
 ```
 ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
