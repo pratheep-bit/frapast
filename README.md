@@ -1,6 +1,6 @@
 <div align="center">
 
-# Sentinel-FR — Runtime-Proven Static Analysis for Frappe & ERPNext
+# FrapAST — Runtime-Proven Static Analysis for Frappe & ERPNext
 
 **A static-analysis security scanner purpose-built for the Frappe framework, with a mandatory runtime-proof pipeline that turns raw candidates into verified, exploitable findings — not noise.**
 
