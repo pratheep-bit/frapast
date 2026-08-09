@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>frapAST — Geometric A Icon</title>
+  <desc>Geometric white A mark matching the supplied reference, on a dark solid rounded-square app icon.</desc>
+
+  <!-- Solid dark background -->
+  <rect width="512" height="512" rx="72" fill="#151515"/>
+
+  <!-- Subtle edge/shadow -->
+  <rect x="2" y="2" width="508" height="508" rx="70" fill="none" stroke="#303030" stroke-width="4"/>
+
+  <!-- Reference-style geometric A -->
+  <g fill="#FFFFFF">
+    <!-- top horizontal bar -->
+    <rect x="136" y="118" width="240" height="48"/>
+
+    <!-- left/right vertical A structure with open bottom -->
+    <path d="M136 214H184V354H136V214Z"/>
+    <path d="M328 214H376V354H328V214Z"/>
+
+    <!-- middle horizontal bar / crossbar -->
+    <rect x="136" y="214" width="240" height="48"/>
+  </g>
+
+  <!-- Cut out the central lower opening -->
+  <rect x="184" y="262" width="144" height="92" fill="#151515"/>
+</svg>

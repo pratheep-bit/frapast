@@ -1,0 +1,2755 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>frapAST — Frappe Security Engine</title>
+  <style>
+    /* =====================================================================
+     DESIGN TOKENS
+     This dashboard is meant to sit alongside the Frappe/ERPNext Desk UI
+     that its findings come from, so the palette intentionally reuses
+     Frappe's own primary blue (#2490ef) and desk-style card chrome
+     rather than inventing an unrelated identity. Everything else —
+     status colors, spacing, radii, motion — is centralized here so the
+     rest of the stylesheet never hardcodes a raw value.
+     ===================================================================== */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      /* Surfaces */
+      --bg: #f4f5f7;
+      --card-bg: #ffffff;
+      --header-bg: #ffffff;
+      --overlay-bg: rgba(15, 23, 42, 0.48);
+      --skeleton-bg: #eef1f5;
+
+      /* Borders */
+      --border: #e2e8f0;
+      --border-dark: #cbd5e1;
+      --border-focus: #2490ef;
+
+      /* Brand */
+      --primary: #2490ef;
+      --primary-hover: #1b75d0;
+      --primary-soft: #eff6ff;
+
+      /* Text */
+      --text-main: #111827;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      --text-inverse: #ffffff;
+
+      /* Semantic status colors */
+      --green-bg: #f0fdf4;
+      --green-text: #16a34a;
+      --green-border: #bbf7d0;
+
+      --red-bg: #fef2f2;
+      --red-text: #dc2626;
+      --red-border: #fca5a5;
+
+      --yellow-bg: #fffbe6;
+      --yellow-text: #d97706;
+      --yellow-border: #fde68a;
+
+      --blue-bg: #eff6ff;
+      --blue-text: #2563eb;
+      --blue-border: #bfdbfe;
+
+      --purple-bg: #f5f3ff;
+      --purple-text: #7c3aed;
+      --purple-border: #ddd6fe;
+
+      --gray-bg: #f8fafc;
+      --gray-text: #475569;
+      --gray-border: #cbd5e1;
+
+      /* Spacing scale */
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-8: 32px;
+
+      /* Radii */
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-xl: 12px;
+
+      /* Elevation */
+      --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.18);
+
+      /* Motion */
+      --transition-fast: 0.12s ease;
+      --transition-med: 0.2s ease;
+      --transition-slow: 0.3s ease;
+
+      /* Z-index scale */
+      --z-header: 100;
+      --z-drawer: 200;
+      --z-toast: 300;
+
+      /* Type scale */
+      --fs-xs: 11px;
+      --fs-sm: 12px;
+      --fs-base: 13px;
+      --fs-md: 14px;
+      --fs-lg: 16px;
+      --fs-xl: 20px;
+    }
+
+    /* =====================================================================
+     RESET & BASE
+     ===================================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      font-size: var(--fs-base);
+      line-height: 1.5;
+    }
+
+    button,
+    input,
+    select {
+      font-family: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    /* Consistent, visible keyboard focus everywhere — a11y floor */
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 2px solid var(--border-focus);
+      outline-offset: 2px;
+    }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+
+    /* =====================================================================
+     HEADER
+     ===================================================================== */
+    header {
+      background: var(--header-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: var(--z-header);
+      box-shadow: var(--shadow-xs);
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.3px;
+      white-space: nowrap;
+    }
+
+    .logo-badge {
+      background: var(--primary);
+      color: var(--text-inverse);
+      font-size: var(--fs-xs);
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .header-repo {
+      font-size: var(--fs-sm);
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--gray-bg);
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      max-width: 400px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Connection status indicator — tells the user whether the live
+     verification stream is actually connected, instead of leaving them
+     to guess when a run silently stalls. */
+    .conn-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--gray-bg);
+      white-space: nowrap;
+    }
+
+    .conn-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-light);
+      flex-shrink: 0;
+      transition: background var(--transition-med);
+    }
+
+    .conn-status[data-state="idle"] .conn-dot {
+      background: var(--text-light);
+    }
+
+    .conn-status[data-state="connected"] .conn-dot {
+      background: var(--green-text);
+      box-shadow: 0 0 0 3px var(--green-bg);
+    }
+
+    .conn-status[data-state="reconnecting"] .conn-dot {
+      background: var(--yellow-text);
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    .conn-status[data-state="offline"] .conn-dot {
+      background: var(--red-text);
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.35;
+      }
+    }
+
+    .header-spacer {
+      flex: 1;
+    }
+
+    .header-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .header-badge {
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .badge-total {
+      background: var(--blue-bg);
+      border-color: var(--blue-border);
+      color: var(--blue-text);
+    }
+
+    .badge-critical {
+      background: var(--red-bg);
+      border-color: var(--red-border);
+      color: var(--red-text);
+    }
+
+    .badge-high {
+      background: var(--yellow-bg);
+      border-color: var(--yellow-border);
+      color: var(--yellow-text);
+    }
+
+    .badge-medium {
+      background: var(--purple-bg);
+      border-color: var(--purple-border);
+      color: var(--purple-text);
+    }
+
+    .badge-low {
+      background: var(--gray-bg);
+      border-color: var(--gray-border);
+      color: var(--gray-text);
+    }
+
+    /* =====================================================================
+     PAGE LAYOUT
+     ===================================================================== */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+      padding: 24px;
+      flex: 1;
+      align-items: start;
+      max-width: 1680px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1100px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      main {
+        padding: 12px;
+        gap: 12px;
+      }
+
+      header {
+        padding: 10px 12px;
+      }
+    }
+
+    /* =====================================================================
+     CARD
+     ===================================================================== */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--card-bg);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .card-title {
+      font-size: var(--fs-md);
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .card-title-sub {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-md);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-fast);
+    }
+
+    .icon-btn:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .icon-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .icon-btn:disabled:hover {
+      color: var(--text-muted);
+      border-color: var(--border);
+      background: #fff;
+    }
+
+    .link-btn {
+      background: none;
+      border: none;
+      color: var(--primary);
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      padding: 2px 4px;
+    }
+
+    .link-btn:hover {
+      color: var(--primary-hover);
+      text-decoration: underline;
+    }
+
+    .link-btn:disabled {
+      color: var(--text-light);
+      cursor: not-allowed;
+      text-decoration: none;
+    }
+
+    /* =====================================================================
+     TOOLBAR / FILTER BAR
+     ===================================================================== */
+    .filter-bar {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: var(--gray-bg);
+      flex-wrap: wrap;
+    }
+
+    .filter-input-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .filter-input-wrap svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      color: var(--text-light);
+      pointer-events: none;
+    }
+
+    .filter-input {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 7px 12px 7px 30px;
+      border-radius: var(--radius-md);
+      font-size: var(--fs-base);
+      outline: none;
+      width: 100%;
+      transition: border-color var(--transition-fast);
+    }
+
+    .filter-input:focus {
+      border-color: var(--primary);
+    }
+
+    .filter-input::placeholder {
+      color: var(--text-light);
+    }
+
+    .filter-select {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 7px 10px;
+      border-radius: var(--radius-md);
+      font-size: var(--fs-base);
+      outline: none;
+    }
+
+    .filter-kbd-hint {
+      font-size: var(--fs-xs);
+      color: var(--text-light);
+      border: 1px solid var(--border-dark);
+      border-radius: var(--radius-sm);
+      padding: 1px 5px;
+      font-family: 'JetBrains Mono', monospace;
+      background: #ffffff;
+    }
+
+    /* =====================================================================
+     SELECTION BAR
+     Appears once the user checks specific rows, so they can target a
+     precise set of findings instead of only "first N by severity".
+     ===================================================================== */
+    .selection-bar {
+      display: none;
+      padding: 10px 16px;
+      background: var(--primary-soft);
+      border-bottom: 1px solid var(--blue-border);
+      align-items: center;
+      gap: 12px;
+      font-size: var(--fs-sm);
+      color: var(--blue-text);
+      font-weight: 600;
+    }
+
+    .selection-bar.visible {
+      display: flex;
+    }
+
+    .selection-bar .link-btn {
+      font-size: var(--fs-sm);
+    }
+
+    /* =====================================================================
+     TABLE
+     ===================================================================== */
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    .results-summary {
+      padding: 8px 16px;
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: #ffffff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--fs-base);
+    }
+
+    thead th {
+      text-align: left;
+      padding: 10px 14px;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: var(--fs-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+      background: var(--gray-bg);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+    }
+
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th.sortable:hover {
+      color: var(--text-main);
+    }
+
+    th.sortable .sort-arrow {
+      display: inline-block;
+      margin-left: 3px;
+      opacity: 0.35;
+      font-size: 10px;
+    }
+
+    th.sortable[data-active="true"] .sort-arrow {
+      opacity: 1;
+      color: var(--primary);
+    }
+
+    th.col-check,
+    td.col-check {
+      width: 34px;
+      padding-left: 12px;
+      padding-right: 0;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background var(--transition-fast);
+    }
+
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    tbody tr.row-selected {
+      background: var(--primary-soft);
+    }
+
+    tbody tr.row-selected:hover {
+      background: #e3f0fd;
+    }
+
+    tbody td {
+      padding: 10px 14px;
+      vertical-align: middle;
+      color: var(--text-main);
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .col-num {
+      color: var(--text-muted);
+      font-size: var(--fs-sm);
+      width: 40px;
+    }
+
+    .col-rule {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--fs-sm);
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .col-fn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--fs-sm);
+      color: var(--text-muted);
+    }
+
+    .col-file {
+      font-size: var(--fs-sm);
+      color: var(--text-muted);
+      max-width: 200px;
+    }
+
+    .col-actions {
+      width: 44px;
+      text-align: right;
+    }
+
+    input[type="checkbox"].row-check {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* =====================================================================
+     BADGES
+     ===================================================================== */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .badge-sev-critical {
+      background: var(--red-bg);
+      color: var(--red-text);
+      border-color: var(--red-border);
+    }
+
+    .badge-sev-high {
+      background: var(--yellow-bg);
+      color: var(--yellow-text);
+      border-color: var(--yellow-border);
+    }
+
+    .badge-sev-medium {
+      background: var(--blue-bg);
+      color: var(--blue-text);
+      border-color: var(--blue-border);
+    }
+
+    .badge-sev-low {
+      background: var(--gray-bg);
+      color: var(--gray-text);
+      border-color: var(--gray-border);
+    }
+
+    .badge-status-proven {
+      background: var(--green-bg);
+      color: var(--green-text);
+      border-color: var(--green-border);
+    }
+
+    .badge-status-refuted {
+      background: var(--red-bg);
+      color: var(--red-text);
+      border-color: var(--red-border);
+    }
+
+    .badge-status-candidate {
+      background: var(--gray-bg);
+      color: var(--gray-text);
+      border-color: var(--gray-border);
+    }
+
+    .badge-status-skipped {
+      background: var(--yellow-bg);
+      color: var(--yellow-text);
+      border-color: var(--yellow-border);
+    }
+
+    /* =====================================================================
+     PAGINATION
+     ===================================================================== */
+    .pagination-bar {
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid var(--border);
+      background: #ffffff;
+      flex-wrap: wrap;
+    }
+
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .page-btn {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-md);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      transition: all var(--transition-fast);
+    }
+
+    .page-btn:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .page-info {
+      font-size: var(--fs-sm);
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .page-size-select {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 5px 8px;
+      border-radius: var(--radius-md);
+      font-size: var(--fs-sm);
+    }
+
+    /* =====================================================================
+     RIGHT PANEL WIDGETS
+     ===================================================================== */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .prove-section {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .prove-label {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .quick-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .quick-btn {
+      flex: 1;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 6px 0;
+      border-radius: var(--radius-md);
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      transition: all var(--transition-fast);
+      text-align: center;
+    }
+
+    .quick-btn:hover:not(:disabled) {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .quick-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: var(--text-inverse);
+    }
+
+    .quick-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .count-input-wrap {
+      position: relative;
+    }
+
+    .count-input {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      font-size: var(--fs-xl);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      transition: border-color var(--transition-fast);
+    }
+
+    .count-input:focus {
+      border-color: var(--primary);
+    }
+
+    .count-input.input-error {
+      border-color: var(--red-text);
+    }
+
+    .count-input:disabled {
+      background: var(--gray-bg);
+      color: var(--text-light);
+    }
+
+    .field-error {
+      font-size: var(--fs-xs);
+      color: var(--red-text);
+      margin-top: 4px;
+      min-height: 14px;
+    }
+
+    .field-hint {
+      font-size: var(--fs-xs);
+      color: var(--text-light);
+      margin-top: 4px;
+      min-height: 14px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--primary);
+      color: var(--text-inverse);
+      border: none;
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
+      font-size: var(--fs-base);
+      font-weight: 600;
+      transition: background var(--transition-med);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      width: 100%;
+      background: #ffffff;
+      color: var(--text-main);
+      border: 1px solid var(--border-dark);
+      padding: 9px 16px;
+      border-radius: var(--radius-md);
+      font-size: var(--fs-base);
+      font-weight: 600;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      border-color: var(--red-text);
+      color: var(--red-text);
+      background: var(--red-bg);
+    }
+
+    .btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* =====================================================================
+     PROGRESS
+     ===================================================================== */
+    .progress-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .progress-bar-outer {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-inner {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    .progress-bar-inner.progress-stalled {
+      background: var(--yellow-text);
+    }
+
+    .progress-text {
+      font-size: var(--fs-sm);
+      color: var(--text-muted);
+    }
+
+    .progress-warning {
+      font-size: var(--fs-xs);
+      color: var(--yellow-text);
+      background: var(--yellow-bg);
+      border: 1px solid var(--yellow-border);
+      border-radius: var(--radius-md);
+      padding: 6px 10px;
+      display: none;
+    }
+
+    .progress-warning.visible {
+      display: block;
+    }
+
+    /* =====================================================================
+     SUMMARY STATS GRID
+     ===================================================================== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-box {
+      background: var(--gray-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      text-align: center;
+    }
+
+    .stat-num {
+      font-size: var(--fs-xl);
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .stat-lbl {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
+    .stat-proven .stat-num {
+      color: var(--green-text);
+    }
+
+    .stat-refuted .stat-num {
+      color: var(--red-text);
+    }
+
+    .stat-skipped .stat-num {
+      color: var(--yellow-text);
+    }
+
+    .stat-total .stat-num {
+      color: var(--primary);
+    }
+
+    /* =====================================================================
+     LIVE STREAM LIST
+     ===================================================================== */
+    .stream-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 340px;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+
+    .stream-item {
+      background: var(--gray-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: var(--fs-sm);
+      animation: slideIn 0.18s ease;
+    }
+
+    .stream-item.unmatched {
+      border-style: dashed;
+      opacity: 0.75;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .stream-idx {
+      min-width: 22px;
+      height: 22px;
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .stream-info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .stream-rule {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--fs-xs);
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .stream-loc {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stream-truncated {
+      text-align: center;
+      font-size: var(--fs-xs);
+      color: var(--text-light);
+      padding: 6px 0 2px;
+    }
+
+    /* =====================================================================
+     EMPTY / ERROR / SKELETON STATES
+     ===================================================================== */
+    .empty {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--text-muted);
+    }
+
+    .empty p {
+      font-size: var(--fs-base);
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    .empty-icon {
+      font-size: 22px;
+      opacity: 0.5;
+    }
+
+    .error-state {
+      text-align: center;
+      padding: 32px 16px;
+    }
+
+    .error-state p {
+      font-size: var(--fs-base);
+      color: var(--red-text);
+      margin: 6px 0 12px;
+    }
+
+    .error-state .retry-btn {
+      background: #ffffff;
+      border: 1px solid var(--red-border);
+      color: var(--red-text);
+      padding: 6px 16px;
+      border-radius: var(--radius-md);
+      font-size: var(--fs-sm);
+      font-weight: 600;
+    }
+
+    .error-state .retry-btn:hover {
+      background: var(--red-bg);
+    }
+
+    .skeleton-row td {
+      padding: 12px 14px;
+    }
+
+    .skeleton-block {
+      height: 14px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(90deg, var(--skeleton-bg) 25%, #e2e8f0 37%, var(--skeleton-bg) 63%);
+      background-size: 400% 100%;
+      animation: shimmer 1.4s ease infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0 50%;
+      }
+    }
+
+    /* =====================================================================
+     TOASTS
+     ===================================================================== */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: var(--z-toast);
+      max-width: 360px;
+    }
+
+    @media (max-width: 640px) {
+      .toast-container {
+        left: 12px;
+        right: 12px;
+        max-width: none;
+        bottom: 12px;
+      }
+    }
+
+    .toast {
+      background: var(--text-main);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      font-size: var(--fs-sm);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity var(--transition-med), transform var(--transition-med);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast-msg {
+      flex: 1;
+      line-height: 1.4;
+    }
+
+    .toast-close {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 16px;
+      line-height: 1;
+      padding: 0 2px;
+      flex-shrink: 0;
+    }
+
+    .toast-close:hover {
+      color: #fff;
+    }
+
+    .toast-error {
+      background: #7f1d1d;
+    }
+
+    .toast-warning {
+      background: #78350f;
+    }
+
+    .toast-success {
+      background: #14532d;
+    }
+
+    .toast-info {
+      background: #1e293b;
+    }
+
+    /* =====================================================================
+     DETAIL DRAWER
+     ===================================================================== */
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: var(--overlay-bg);
+      z-index: var(--z-drawer);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-med);
+    }
+
+    .drawer-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100%;
+      width: min(460px, 100%);
+      background: #ffffff;
+      box-shadow: var(--shadow-lg);
+      z-index: calc(var(--z-drawer) + 1);
+      transform: translateX(100%);
+      transition: transform var(--transition-slow);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .drawer-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--fs-md);
+      font-weight: 700;
+    }
+
+    .drawer-subtitle {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .drawer-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .drawer-field-label {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .drawer-field-value {
+      font-size: var(--fs-base);
+      color: var(--text-main);
+      line-height: 1.6;
+    }
+
+    .drawer-code {
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--fs-sm);
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .drawer-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+    }
+
+    /* =====================================================================
+     FOOTER
+     ===================================================================== */
+    footer {
+      padding: 14px 24px 24px;
+      text-align: center;
+      font-size: var(--fs-xs);
+      color: var(--text-light);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <svg width="26" height="26" viewBox="0 0 512 512" style="border-radius: 6px; flex-shrink: 0;" aria-hidden="true">
+        <rect width="512" height="512" rx="72" fill="#151515"/>
+        <rect x="2" y="2" width="508" height="508" rx="70" fill="none" stroke="#303030" stroke-width="4"/>
+        <g fill="#FFFFFF">
+          <rect x="136" y="118" width="240" height="48"/>
+          <path d="M136 214H184V354H136V214Z"/>
+          <path d="M328 214H376V354H328V214Z"/>
+          <rect x="136" y="214" width="240" height="48"/>
+        </g>
+        <rect x="184" y="262" width="144" height="92" fill="#151515"/>
+      </svg>
+      frapAST <span class="logo-badge">Security Engine</span>
+    </div>
+    <div class="header-repo" id="repoPath">Loading repository…</div>
+    <div class="conn-status" id="connStatus" data-state="idle">
+      <span class="conn-dot"></span>
+      <span id="connStatusLabel">Idle</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-badges">
+      <span class="header-badge badge-total" id="badgeTotal">— Findings</span>
+      <span class="header-badge badge-critical" id="badgeCritical">— Critical</span>
+      <span class="header-badge badge-high" id="badgeHigh">— High</span>
+      <span class="header-badge badge-medium" id="badgeMedium">— Medium</span>
+      <span class="header-badge badge-low" id="badgeLow">— Low</span>
+    </div>
+  </header>
+
+  <!-- Main Grid -->
+  <main>
+
+    <!-- Left: Findings Table -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Detected Security Candidates</span>
+        <div class="card-actions">
+          <button class="icon-btn" id="exportCsvBtn" title="Export visible findings as CSV"
+            aria-label="Export visible findings as CSV"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+          <button class="icon-btn" id="refreshBtn" title="Reload findings from server"
+            aria-label="Reload findings from server"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="filter-input-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input class="filter-input" id="filterInput" placeholder="Filter by rule, file, or function…"
+            aria-label="Filter findings">
+        </div>
+        <select class="filter-select" id="filterStatus" aria-label="Filter by proof status">
+          <option value="">All Statuses</option>
+          <option value="candidate">Candidate</option>
+          <option value="proven">Proven</option>
+          <option value="refuted">Refuted</option>
+          <option value="skipped">Skipped</option>
+        </select>
+        <select class="filter-select" id="filterSev" aria-label="Filter by severity">
+          <option value="">All Severities</option>
+          <option value="CRITICAL">Critical</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+        </select>
+        <span class="filter-kbd-hint">/</span>
+      </div>
+
+      <div class="selection-bar" id="selectionBar">
+        <span id="selectionCount">0 selected</span>
+        <button class="link-btn" id="selectionClearBtn">Clear</button>
+      </div>
+
+      <div class="results-summary" id="resultsSummary">Loading…</div>
+
+      <div class="table-wrap">
+        <table id="findingsTable">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" class="row-check" id="selectAllCheckbox"
+                  aria-label="Select all visible rows"></th>
+              <th>#</th>
+              <th class="sortable" data-sort-key="rule_id">Rule ID<span class="sort-arrow">▲</span></th>
+              <th class="sortable" data-sort-key="severity">Severity<span class="sort-arrow">▲</span></th>
+              <th class="sortable" data-sort-key="file">File Location<span class="sort-arrow">▲</span></th>
+              <th class="sortable" data-sort-key="function">Function<span class="sort-arrow">▲</span></th>
+              <th class="sortable" data-sort-key="status">Proof Status<span class="sort-arrow">▲</span></th>
+              <th class="col-actions">View</th>
+            </tr>
+          </thead>
+          <tbody id="findingsTbody">
+            <tr>
+              <td colspan="8">
+                <div class="empty">
+                  <p>Loading security candidates…</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination-bar">
+        <div class="pagination-controls">
+          <button class="page-btn" id="pageFirstBtn" aria-label="First page">«</button>
+          <button class="page-btn" id="pagePrevBtn" aria-label="Previous page">‹</button>
+          <span class="page-info" id="pageInfo">Page 1 of 1</span>
+          <button class="page-btn" id="pageNextBtn" aria-label="Next page">›</button>
+          <button class="page-btn" id="pageLastBtn" aria-label="Last page">»</button>
+        </div>
+        <select class="page-size-select" id="pageSizeSelect" aria-label="Rows per page">
+          <option value="10">10 / page</option>
+          <option value="25" selected>25 / page</option>
+          <option value="50">50 / page</option>
+          <option value="100">100 / page</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel">
+
+      <!-- Action Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Run Proof Verification</span>
+        </div>
+        <div class="prove-section">
+          <div>
+            <div class="prove-label">Quick Selection</div>
+            <div class="quick-btns" id="quickBtns">
+              <button class="quick-btn" data-count="10">10</button>
+              <button class="quick-btn" data-count="20">20</button>
+              <button class="quick-btn" data-count="50">50</button>
+              <button class="quick-btn" data-count="all">All</button>
+            </div>
+          </div>
+          <div>
+            <div class="prove-label">
+              <span>Candidates to Prove</span>
+              <span id="candidateRemaining" class="field-hint" style="margin:0;">— remaining</span>
+            </div>
+            <div class="count-input-wrap">
+              <input class="count-input" id="countInput" type="number" value="10" min="1" step="1" inputmode="numeric"
+                aria-describedby="countError">
+            </div>
+            <div class="field-error" id="countError"></div>
+          </div>
+          <button class="btn-primary" id="proveBtn">
+            Start Proof Engine
+          </button>
+          <div class="progress-wrap" id="progressWrap" style="display:none">
+            <div class="progress-bar-outer">
+              <div class="progress-bar-inner" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Initializing…</div>
+            <div class="progress-warning" id="progressWarning">No response from the proof engine — the run may have
+              stalled. Still waiting…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Stats -->
+      <div class="card" id="statsCard" style="display:none">
+        <div class="card-header">
+          <span class="card-title">Verification Results</span>
+        </div>
+        <div class="card-body">
+          <div class="stats-grid">
+            <div class="stat-box stat-proven">
+              <div class="stat-num" id="statProven">0</div>
+              <div class="stat-lbl">Proven</div>
+            </div>
+            <div class="stat-box stat-refuted">
+              <div class="stat-num" id="statRefuted">0</div>
+              <div class="stat-lbl">Refuted</div>
+            </div>
+            <div class="stat-box stat-skipped">
+              <div class="stat-num" id="statSkipped">0</div>
+              <div class="stat-lbl">Skipped</div>
+            </div>
+            <div class="stat-box stat-total">
+              <div class="stat-num" id="statTotal">0</div>
+              <div class="stat-lbl">Total</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Stream -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Live Execution Log</span>
+          <span class="card-title-sub" id="streamCount"></span>
+        </div>
+        <div class="card-body" style="padding: 12px 16px;">
+          <div class="stream-list" id="streamList" role="log" aria-live="polite">
+            <div class="empty">
+              <p>Click "Start Proof Engine" to stream verification results in real time.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>frapAST security engine — client build — reads/writes only via the API on this origin</footer>
+
+  <!-- Detail drawer -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true" aria-label="Finding details">
+    <div class="drawer-header">
+      <div>
+        <div class="drawer-title" id="drawerRuleId">—</div>
+        <div class="drawer-subtitle" id="drawerLoc">—</div>
+      </div>
+      <button class="icon-btn" id="drawerCloseBtn" aria-label="Close details"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div>
+        <div class="drawer-field-label">Severity &amp; Status</div>
+        <div class="drawer-field-value" id="drawerBadges">—</div>
+      </div>
+      <div>
+        <div class="drawer-field-label">Function</div>
+        <div class="drawer-field-value" id="drawerFunction">—</div>
+      </div>
+      <div id="drawerDescriptionWrap" style="display:none;">
+        <div class="drawer-field-label">Description</div>
+        <div class="drawer-field-value" id="drawerDescription">—</div>
+      </div>
+      <div id="drawerEvidenceWrap" style="display:none;">
+        <div class="drawer-field-label">Evidence</div>
+        <pre class="drawer-code" id="drawerEvidence">—</pre>
+      </div>
+      <div id="drawerRemediationWrap" style="display:none;">
+        <div class="drawer-field-label">Suggested Remediation</div>
+        <div class="drawer-field-value" id="drawerRemediation">—</div>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn-secondary" id="drawerCloseBtn2">Close</button>
+    </div>
+  </aside>
+
+  <!-- Toasts -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <script>
+    'use strict';
+
+    /* =========================================================================
+       CONFIG
+       Centralized so behavior (timeouts, thresholds, endpoints) is defined
+       once instead of scattered as magic numbers through the code.
+       ========================================================================= */
+    const CONFIG = Object.freeze({
+      ENDPOINTS: {
+        findings: '/api/findings',
+        stats: '/api/stats',
+        prove: '/api/prove',
+        stream: '/api/stream',
+      },
+      // Severity band lower bounds (score >= bound). Centralized so the
+      // header badges, table badges, and filter dropdown can never drift
+      // out of sync with each other, unlike the original implementation
+      // where the same three numbers were duplicated inline.
+      SEVERITY_THRESHOLDS: { CRITICAL: 60, HIGH: 40, MEDIUM: 20 },
+      PAGE_SIZE_DEFAULT: 25,
+      MAX_LOG_ITEMS: 500,
+      // If no SSE message arrives for this long during an active run, treat
+      // the run as stalled rather than leaving the UI spinning forever.
+      WATCHDOG_TIMEOUT_MS: 45000,
+      RECONNECT_MAX_ATTEMPTS: 5,
+      RECONNECT_BASE_DELAY_MS: 1000,
+      TOAST_DURATION_MS: 5000,
+    });
+
+    /* =========================================================================
+       UTILITIES
+       ========================================================================= */
+
+    /** Escape a value for safe insertion into innerHTML (text or attribute
+     *  context). The original dashboard interpolated rule IDs, file paths,
+     *  and function names straight into innerHTML with no escaping at all —
+     *  since those strings originate from scanned source code, a crafted
+     *  file name or symbol containing `<`/`"` could break out of markup.
+     *  Every dynamic value rendered below goes through this first. */
+    function escapeHtml(value) {
+      const s = value === null || value === undefined ? '' : String(value);
+      return s.replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[ch]));
+    }
+
+    function debounce(fn, waitMs) {
+      let timer = null;
+      return function debounced(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(null, args), waitMs);
+      };
+    }
+
+    function clamp(n, min, max) {
+      return Math.min(max, Math.max(min, n));
+    }
+
+    /** Collapse every status spelling the backend might send ('passed',
+     *  'failed', 'proven', 'refuted', missing, ...) into exactly one of four
+     *  canonical values, applied once at ingestion. The original code kept
+     *  two different fields (`status` and `proof_status`) that could disagree
+     *  with each other — e.g. after a failed proof, `proof_status` became
+     *  'failed' but `status` was never updated, so the "Refuted" filter
+     *  silently matched nothing. Normalizing to one field removes that class
+     *  of bug entirely. */
+    function normalizeStatus(raw) {
+      const s = String(raw || 'candidate').toLowerCase();
+      if (s === 'proven' || s === 'passed' || s === 'pass') return 'proven';
+      if (s === 'refuted' || s === 'failed' || s === 'fail') return 'refuted';
+      if (s === 'skipped' || s === 'skip') return 'skipped';
+      return 'candidate';
+    }
+
+    /** Stable identity for a finding used to key the in-memory map and to
+     *  correlate incoming SSE progress events back to a row. Preferring a
+     *  server-issued id avoids the original bug where two different findings
+     *  that shared the same rule_id + function (e.g. the same rule firing
+     *  twice in one function, on different lines) were indistinguishable and
+     *  a progress event for one could silently update the other. */
+    function computeKey(f) {
+      if (f && f.id !== undefined && f.id !== null && f.id !== '') return `id:${f.id}`;
+      return `loc:${(f && f.file) || ''}::${(f && f.line) || ''}::${(f && f.rule_id) || ''}::${(f && f.function) || ''}`;
+    }
+
+    function normalizeFinding(raw) {
+      raw = raw || {};
+      const scoreRaw = raw.severity && typeof raw.severity === 'object' ? raw.severity.score : undefined;
+      return {
+        key: computeKey(raw),
+        id: raw.id ?? null,
+        rule_id: raw.rule_id ?? '',
+        file: raw.file ?? '',
+        line: raw.line ?? '',
+        function: raw.function ?? '',
+        // Track presence explicitly instead of `score || 0`, which the
+        // original code used — that collapses a genuine score of 0 and a
+        // missing score into the same falsy value, hiding real data.
+        score: Number.isFinite(scoreRaw) ? scoreRaw : null,
+        status: normalizeStatus(raw.status ?? raw.proof_status),
+        evidence: raw.evidence ?? '',
+        description: raw.description ?? '',
+        remediation: raw.remediation ?? '',
+      };
+    }
+
+    function sevLabel(score) {
+      if (!Number.isFinite(score)) return 'LOW';
+      const t = CONFIG.SEVERITY_THRESHOLDS;
+      if (score >= t.CRITICAL) return 'CRITICAL';
+      if (score >= t.HIGH) return 'HIGH';
+      if (score >= t.MEDIUM) return 'MEDIUM';
+      return 'LOW';
+    }
+
+    function sevClass(label) {
+      return {
+        CRITICAL: 'badge-sev-critical',
+        HIGH: 'badge-sev-high',
+        MEDIUM: 'badge-sev-medium',
+        LOW: 'badge-sev-low',
+      }[label] || 'badge-sev-low';
+    }
+
+    function statusBadgeHtml(status) {
+      const map = {
+        proven: ['badge-status-proven', 'PROVEN'],
+        refuted: ['badge-status-refuted', 'REFUTED'],
+        skipped: ['badge-status-skipped', 'SKIPPED'],
+        candidate: ['badge-status-candidate', 'CANDIDATE'],
+      };
+      const [cls, label] = map[status] || map.candidate;
+      return `<span class="badge ${cls}">${label}</span>`;
+    }
+
+    function shortenPath(file, segments = 2) {
+      return (file || '').split('/').slice(-segments).join('/');
+    }
+
+    function shortenFn(fn) {
+      return (fn || '').split('.').pop();
+    }
+
+    function csvEscape(value) {
+      const s = String(value ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }
+
+    function downloadTextFile(content, filename, mime) {
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    /* =========================================================================
+       STATE
+       Single source of truth. Findings live in a Map keyed by computeKey()
+       so lookups during live streaming are O(1) instead of the original
+       `Array.prototype.findIndex` scan on every progress event.
+       ========================================================================= */
+    const state = {
+      findings: new Map(),
+      repo: '',
+      loadError: null,
+
+      filters: { query: '', status: '', severity: '' },
+      sort: { key: 'severity', dir: 'desc' },
+
+      page: 1,
+      pageSize: CONFIG.PAGE_SIZE_DEFAULT,
+
+      selected: new Set(),
+
+      run: {
+        active: false,
+        total: 0,
+        completed: 0,
+        logCount: 0,
+        watchdogTimer: null,
+        reconnectTimer: null,
+        reconnectAttempts: 0,
+        sse: null,
+        startedAt: null,
+      },
+    };
+
+    /* =========================================================================
+       DOM SHORTHAND
+       ========================================================================= */
+    const $ = (id) => document.getElementById(id);
+
+    const els = {}; // populated in init() once the DOM is ready
+
+    /* =========================================================================
+       DATA LOADING
+       ========================================================================= */
+    async function loadFindings() {
+      renderTableSkeleton();
+      try {
+        const res = await fetch(CONFIG.ENDPOINTS.findings);
+        if (!res.ok) throw new Error(`Server returned ${res.status} ${res.statusText}`);
+        const data = await res.json();
+        if (data && typeof data.repo === 'string' && data.repo) {
+          state.repo = data.repo;
+          els.repoPath.textContent = data.repo;
+        }
+        const list = Array.isArray(data && data.candidates) ? data.candidates : [];
+        state.findings.clear();
+        for (const raw of list) {
+          const f = normalizeFinding(raw);
+          if (state.findings.has(f.key)) {
+            console.warn('[frapast] duplicate finding key, later entry wins:', f.key);
+          }
+          state.findings.set(f.key, f);
+        }
+        state.loadError = null;
+        state.page = 1;
+        refresh();
+        updateHeaderBadges();
+        updateCandidateRemaining();
+        updateQuickButtonAvailability();
+      } catch (err) {
+        state.loadError = err;
+        renderTableError(err);
+        showToast(`Couldn't load findings: ${err.message}`, 'error');
+      }
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch(CONFIG.ENDPOINTS.stats);
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+        const s = await res.json();
+        if (s && typeof s.repo === 'string' && s.repo) {
+          state.repo = s.repo;
+          els.repoPath.textContent = s.repo;
+        } else {
+          els.repoPath.textContent = 'Repository unknown';
+        }
+      } catch (err) {
+        els.repoPath.textContent = 'Repository unavailable';
+        console.warn('[frapast] failed to load stats:', err.message);
+      }
+    }
+
+    /* =========================================================================
+       DERIVED DATA / FILTER-SORT-PAGINATE PIPELINE
+       ========================================================================= */
+    function countByStatus(status) {
+      let n = 0;
+      for (const f of state.findings.values()) if (f.status === status) n++;
+      return n;
+    }
+
+    function compareFindings(a, b) {
+      const dir = state.sort.dir === 'asc' ? 1 : -1;
+      switch (state.sort.key) {
+        case 'severity': {
+          const sa = a.score ?? -1, sb = b.score ?? -1;
+          return (sa - sb) * dir;
+        }
+        case 'rule_id': return a.rule_id.localeCompare(b.rule_id) * dir;
+        case 'file': return `${a.file}:${String(a.line).padStart(10, '0')}`
+          .localeCompare(`${b.file}:${String(b.line).padStart(10, '0')}`) * dir;
+        case 'function': return a.function.localeCompare(b.function) * dir;
+        case 'status': return a.status.localeCompare(b.status) * dir;
+        default: return 0;
+      }
+    }
+
+    function getFilteredSorted() {
+      const q = state.filters.query.trim().toLowerCase();
+      let list = Array.from(state.findings.values());
+
+      if (q) {
+        list = list.filter((f) =>
+          `${f.rule_id} ${f.file} ${f.function} ${f.evidence}`.toLowerCase().includes(q)
+        );
+      }
+      if (state.filters.status) {
+        list = list.filter((f) => f.status === state.filters.status);
+      }
+      if (state.filters.severity) {
+        list = list.filter((f) => sevLabel(f.score) === state.filters.severity);
+      }
+
+      list.sort(compareFindings);
+      return list;
+    }
+
+    function getPageSlice(list) {
+      const totalPages = Math.max(1, Math.ceil(list.length / state.pageSize));
+      state.page = clamp(state.page, 1, totalPages);
+      const start = (state.page - 1) * state.pageSize;
+      return { slice: list.slice(start, start + state.pageSize), totalPages, start };
+    }
+
+    /* =========================================================================
+       RENDERING — TABLE
+       ========================================================================= */
+    function renderTableSkeleton() {
+      const rows = Array.from({ length: 8 }, () => `
+    <tr class="skeleton-row">
+      <td></td>
+      <td class="skeleton-block" style="width:20px;"></td>
+      <td><div class="skeleton-block" style="width:120px;"></div></td>
+      <td><div class="skeleton-block" style="width:70px;"></div></td>
+      <td><div class="skeleton-block" style="width:160px;"></div></td>
+      <td><div class="skeleton-block" style="width:100px;"></div></td>
+      <td><div class="skeleton-block" style="width:80px;"></div></td>
+      <td></td>
+    </tr>`).join('');
+      els.findingsTbody.innerHTML = rows;
+      els.resultsSummary.textContent = 'Loading findings…';
+    }
+
+    function renderTableError(err) {
+      els.findingsTbody.innerHTML = `
+    <tr><td colspan="8">
+      <div class="error-state">
+        <div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--red-text);"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <p>Couldn't load security candidates. ${escapeHtml(err.message)}</p>
+        <button class="retry-btn" id="tableRetryBtn">Try again</button>
+      </div>
+    </td></tr>`;
+      const btn = $('tableRetryBtn');
+      if (btn) btn.addEventListener('click', loadFindings);
+      els.resultsSummary.textContent = 'Failed to load findings.';
+    }
+
+    function renderTable() {
+      const totalCount = state.findings.size;
+      const filtered = getFilteredSorted();
+      const { slice, totalPages, start } = getPageSlice(filtered);
+
+      if (totalCount === 0 && !state.loadError) {
+        els.findingsTbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--green-text);"><polyline points="20 6 9 17 4 12"/></svg></div><p>No security candidates were found in this scan.</p></div></td></tr>`;
+      } else if (filtered.length === 0) {
+        els.findingsTbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-light);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><p>No findings match the current filters. Try clearing them.</p></div></td></tr>`;
+      } else {
+        els.findingsTbody.innerHTML = slice.map((f, i) => renderRow(f, start + i + 1)).join('');
+      }
+
+      renderResultsSummary(totalCount, filtered.length, start, slice.length);
+      renderPagination(totalPages);
+      updateSelectAllCheckboxState(slice);
+    }
+
+    function renderRow(f, rowNumber) {
+      const label = sevLabel(f.score);
+      const scoreText = Number.isFinite(f.score) ? f.score.toFixed(0) : '—';
+      const file = shortenPath(f.file);
+      const fn = shortenFn(f.function);
+      const titleLoc = escapeHtml(`${f.file || ''}:${f.line ?? ''}`);
+      const selected = state.selected.has(f.key);
+
+      return `<tr data-key="${escapeHtml(f.key)}" class="${selected ? 'row-selected' : ''}">
+      <td class="col-check">
+        <input type="checkbox" class="row-check" data-key="${escapeHtml(f.key)}" ${selected ? 'checked' : ''} aria-label="Select finding ${escapeHtml(f.rule_id)}">
+      </td>
+      <td class="col-num">${rowNumber}</td>
+      <td class="col-rule">${escapeHtml(f.rule_id)}</td>
+      <td><span class="badge ${sevClass(label)}">${label}${scoreText !== '—' ? ' ' + escapeHtml(scoreText) : ''}</span></td>
+      <td class="col-file" title="${titleLoc}">${escapeHtml(file)}:${escapeHtml(f.line ?? '')}</td>
+      <td class="col-fn" title="${escapeHtml(f.function)}">${escapeHtml(fn)}</td>
+      <td>${statusBadgeHtml(f.status)}</td>
+      <td class="col-actions">
+        <button class="icon-btn" data-view-key="${escapeHtml(f.key)}" aria-label="View details for ${escapeHtml(f.rule_id)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </td>
+    </tr>`;
+    }
+
+    function renderResultsSummary(totalCount, filteredCount, start, sliceLen) {
+      if (totalCount === 0) { els.resultsSummary.textContent = ''; return; }
+      const from = sliceLen === 0 ? 0 : start + 1;
+      const to = start + sliceLen;
+      const filterNote = filteredCount === totalCount ? '' : ` (filtered from ${totalCount})`;
+      els.resultsSummary.textContent = `Showing ${from}–${to} of ${filteredCount}${filterNote}`;
+    }
+
+    function renderPagination(totalPages) {
+      els.pageInfo.textContent = `Page ${state.page} of ${totalPages}`;
+      els.pageFirstBtn.disabled = state.page <= 1;
+      els.pagePrevBtn.disabled = state.page <= 1;
+      els.pageNextBtn.disabled = state.page >= totalPages;
+      els.pageLastBtn.disabled = state.page >= totalPages;
+    }
+
+    function updateSortHeaders() {
+      document.querySelectorAll('th.sortable').forEach((th) => {
+        const key = th.dataset.sortKey;
+        const active = key === state.sort.key;
+        th.dataset.active = active ? 'true' : 'false';
+        const arrow = th.querySelector('.sort-arrow');
+        if (arrow) arrow.textContent = state.sort.dir === 'asc' ? '▲' : '▼';
+      });
+    }
+
+    /* =========================================================================
+       RENDERING — HEADER BADGES
+       ========================================================================= */
+    function updateHeaderBadges() {
+      const counts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
+      for (const f of state.findings.values()) counts[sevLabel(f.score)]++;
+      els.badgeTotal.textContent = `${state.findings.size} Findings`;
+      els.badgeCritical.textContent = `${counts.CRITICAL} Critical`;
+      els.badgeHigh.textContent = `${counts.HIGH} High`;
+      els.badgeMedium.textContent = `${counts.MEDIUM} Medium`;
+      els.badgeLow.textContent = `${counts.LOW} Low`;
+    }
+
+    function updateCandidateRemaining() {
+      const n = countByStatus('candidate');
+      els.candidateRemaining.textContent = `${n} remaining`;
+    }
+
+    /* =========================================================================
+       FILTERS
+       ========================================================================= */
+    const onFilterInput = debounce(() => {
+      state.filters.query = els.filterInput.value;
+      state.page = 1;
+      renderTable();
+    }, 200);
+
+    function onFilterStatusChange() {
+      state.filters.status = els.filterStatus.value;
+      state.page = 1;
+      renderTable();
+    }
+
+    function onFilterSevChange() {
+      state.filters.severity = els.filterSev.value;
+      state.page = 1;
+      renderTable();
+    }
+
+    function onSortHeaderClick(e) {
+      const th = e.target.closest('th.sortable');
+      if (!th) return;
+      const key = th.dataset.sortKey;
+      if (state.sort.key === key) {
+        state.sort.dir = state.sort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sort.key = key;
+        state.sort.dir = key === 'severity' ? 'desc' : 'asc';
+      }
+      updateSortHeaders();
+      renderTable();
+    }
+
+    /* =========================================================================
+       PAGINATION EVENTS
+       ========================================================================= */
+    function goToPage(delta) {
+      state.page += delta;
+      renderTable();
+    }
+    function goToFirstPage() { state.page = 1; renderTable(); }
+    function goToLastPage() { state.page = Number.MAX_SAFE_INTEGER; renderTable(); }
+
+    function onPageSizeChange() {
+      state.pageSize = parseInt(els.pageSizeSelect.value, 10) || CONFIG.PAGE_SIZE_DEFAULT;
+      state.page = 1;
+      renderTable();
+    }
+
+    /* =========================================================================
+       ROW SELECTION
+       Lets the user target specific findings for proving instead of only
+       "the first N by severity", which is the only mode the original UI
+       supported despite showing a full table of individually distinguishable
+       rows.
+       ========================================================================= */
+    function toggleSelection(key, checked) {
+      if (checked) state.selected.add(key); else state.selected.delete(key);
+      renderSelectionBar();
+      const row = els.findingsTbody.querySelector(`tr[data-key="${cssEscapeAttr(key)}"]`);
+      if (row) row.classList.toggle('row-selected', checked);
+      updateSelectAllCheckboxState(getPageSlice(getFilteredSorted()).slice);
+    }
+
+    function cssEscapeAttr(value) {
+      // Minimal escaping for use inside a CSS attribute selector string.
+      return String(value).replace(/["\\]/g, '\\$&');
+    }
+
+    function clearSelection() {
+      state.selected.clear();
+      renderSelectionBar();
+      renderTable();
+    }
+
+    function renderSelectionBar() {
+      const n = state.selected.size;
+      els.selectionBar.classList.toggle('visible', n > 0);
+      els.selectionCount.textContent = `${n} selected`;
+      updateProveButtonLabel();
+    }
+
+    function updateSelectAllCheckboxState(visibleSlice) {
+      if (!visibleSlice || visibleSlice.length === 0) {
+        els.selectAllCheckbox.checked = false;
+        els.selectAllCheckbox.indeterminate = false;
+        return;
+      }
+      const selectedOnPage = visibleSlice.filter((f) => state.selected.has(f.key)).length;
+      els.selectAllCheckbox.checked = selectedOnPage === visibleSlice.length;
+      els.selectAllCheckbox.indeterminate = selectedOnPage > 0 && selectedOnPage < visibleSlice.length;
+    }
+
+    function onSelectAllToggle() {
+      const visible = getPageSlice(getFilteredSorted()).slice;
+      const shouldSelect = !els.selectAllCheckbox.checked ? false : true;
+      visible.forEach((f) => {
+        if (shouldSelect) state.selected.add(f.key); else state.selected.delete(f.key);
+      });
+      renderSelectionBar();
+      renderTable();
+    }
+
+    /* Event delegation for per-row controls, since rows are re-rendered on
+       every table update — attaching listeners once on the tbody avoids
+       re-binding hundreds of handlers and keeps dynamic HTML free of
+       inline onclick attributes built from untrusted string data. */
+    function onTableBodyClick(e) {
+      const viewBtn = e.target.closest('[data-view-key]');
+      if (viewBtn) { openDrawer(viewBtn.dataset.viewKey); return; }
+
+      const checkbox = e.target.closest('input.row-check');
+      if (checkbox) { toggleSelection(checkbox.dataset.key, checkbox.checked); return; }
+    }
+
+    /* =========================================================================
+       COUNT INPUT / QUICK SELECT
+       ========================================================================= */
+    function setCount(rawCount, btnEl) {
+      document.querySelectorAll('.quick-btn').forEach((b) => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+
+      const candidateCount = countByStatus('candidate');
+      const value = rawCount === 'all' ? Math.max(candidateCount, 1) : rawCount;
+      els.countInput.value = value;
+      clearCountError();
+    }
+
+    function updateQuickButtonAvailability() {
+      const hasCandidates = countByStatus('candidate') > 0;
+      document.querySelectorAll('.quick-btn').forEach((b) => { b.disabled = !hasCandidates; });
+      els.proveBtn.disabled = !hasCandidates || state.run.active;
+    }
+
+    /** Validate the manual count field. Fixes several bugs in the original:
+     *  `parseInt(input) || 10` silently replaced an intentional 0 with 10,
+     *  negative numbers were accepted outright, and there was no upper
+     *  bound check against how many candidates actually remain. */
+    function validateCount(raw) {
+      const n = Math.floor(Number(raw));
+      const candidateCount = countByStatus('candidate');
+      if (raw === '' || raw === null || Number.isNaN(n)) {
+        return { valid: false, message: 'Enter a number.' };
+      }
+      if (!Number.isFinite(n) || n < 1) {
+        return { valid: false, message: 'Enter a whole number of at least 1.' };
+      }
+      if (candidateCount === 0) {
+        return { valid: false, message: 'No unproven candidates remain.' };
+      }
+      if (n > candidateCount) {
+        return {
+          valid: false,
+          message: `Only ${candidateCount} candidate${candidateCount === 1 ? '' : 's'} remain — lower the count.`,
+        };
+      }
+      return { valid: true, value: n };
+    }
+
+    function showCountError(message) {
+      els.countError.textContent = message;
+      els.countInput.classList.add('input-error');
+    }
+    function clearCountError() {
+      els.countError.textContent = '';
+      els.countInput.classList.remove('input-error');
+    }
+
+    function updateProveButtonLabel() {
+      if (state.run.active) return;
+      els.proveBtn.textContent = state.selected.size > 0
+        ? `Prove ${state.selected.size} Selected`
+        : 'Start Proof Engine';
+    }
+
+    /* =========================================================================
+       PROOF ENGINE — RUN LIFECYCLE
+       ========================================================================= */
+    function setConnectionStatus(mode) {
+      const labels = { idle: 'Idle', connected: 'Live', reconnecting: 'Reconnecting…', offline: 'Offline' };
+      els.connStatus.dataset.state = mode;
+      els.connStatusLabel.textContent = labels[mode] || mode;
+    }
+
+    async function startProving() {
+      if (state.run.active) return;
+
+      let payload;
+      if (state.selected.size > 0) {
+        const ids = [];
+        const locators = [];
+        for (const key of state.selected) {
+          const f = state.findings.get(key);
+          if (!f) continue;
+          if (f.id !== null && f.id !== undefined) ids.push(f.id);
+          else locators.push({ file: f.file, line: f.line, rule_id: f.rule_id, function: f.function });
+        }
+        payload = { finding_ids: ids };
+        if (locators.length) payload.finding_locators = locators;
+      } else {
+        const check = validateCount(els.countInput.value);
+        if (!check.valid) { showCountError(check.message); return; }
+        clearCountError();
+        payload = { count: check.value };
+      }
+
+      beginRunUI(payload);
+
+      openStream();
+
+      try {
+        const res = await fetch(CONFIG.ENDPOINTS.prove, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(`Server returned ${res.status} ${res.statusText}`);
+      } catch (err) {
+        // The original code never checked this request's outcome at all, so
+        // a failed POST left the "Running…" button spinning forever because
+        // nothing but an SSE 'done' event could ever reset it.
+        failRun(`Couldn't start the proof engine: ${err.message}`);
+      }
+    }
+
+    function beginRunUI() {
+      state.run.active = true;
+      state.run.completed = 0;
+      state.run.logCount = 0;
+      state.run.startedAt = Date.now();
+      state.run.reconnectAttempts = 0;
+
+      els.proveBtn.disabled = true;
+      els.proveBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Running Proof Engine…';
+      els.progressWrap.style.display = 'flex';
+      els.progressBar.style.width = '0%';
+      els.progressBar.classList.remove('progress-stalled');
+      els.progressText.textContent = 'Initializing…';
+      els.progressWarning.classList.remove('visible');
+      els.statsCard.style.display = 'none';
+      els.streamList.innerHTML = '';
+      els.streamCount.textContent = '';
+      document.querySelectorAll('.quick-btn').forEach((b) => { b.disabled = true; });
+    }
+
+    function endRunUI() {
+      state.run.active = false;
+      els.proveBtn.disabled = false;
+      updateProveButtonLabel();
+      updateQuickButtonAvailability();
+    }
+
+    function resetWatchdog() {
+      clearTimeout(state.run.watchdogTimer);
+      if (!state.run.active) return;
+      els.progressWarning.classList.remove('visible');
+      els.progressBar.classList.remove('progress-stalled');
+      state.run.watchdogTimer = setTimeout(() => {
+        // Don't kill the run outright on the first silence — surface a
+        // visible warning, since a slow rule can legitimately take a while.
+        els.progressWarning.classList.add('visible');
+        els.progressBar.classList.add('progress-stalled');
+        state.run.watchdogTimer = setTimeout(() => {
+          failRun('No response from the proof engine for a while — the run may have stalled.');
+        }, CONFIG.WATCHDOG_TIMEOUT_MS);
+      }, CONFIG.WATCHDOG_TIMEOUT_MS);
+    }
+
+    function clearWatchdog() {
+      clearTimeout(state.run.watchdogTimer);
+      state.run.watchdogTimer = null;
+    }
+
+    function openStream() {
+      closeStream();
+      setConnectionStatus('reconnecting');
+
+      let es;
+      try {
+        es = new EventSource(CONFIG.ENDPOINTS.stream);
+      } catch (err) {
+        failRun(`Couldn't open the live stream: ${err.message}`);
+        return;
+      }
+      state.run.sse = es;
+
+      es.onopen = () => {
+        state.run.reconnectAttempts = 0;
+        setConnectionStatus('connected');
+        resetWatchdog();
+      };
+
+      es.onmessage = (ev) => {
+        resetWatchdog();
+        let msg;
+        try {
+          msg = JSON.parse(ev.data);
+        } catch (err) {
+          console.warn('[frapast] malformed SSE payload, ignoring:', ev.data);
+          return;
+        }
+        if (msg.type === 'progress') handleProgress(msg);
+        else if (msg.type === 'done') handleDone(msg);
+        else if (msg.type === 'error') handleStreamAppError(msg);
+      };
+
+      // The original handler just closed the stream on any error and left
+      // everything else (the disabled button, the spinner, the run state)
+      // exactly as it was — a dropped connection meant the UI was stuck
+      // until the page was reloaded. This retries with backoff and only
+      // gives up, visibly, after repeated failures.
+      es.onerror = () => {
+        if (!state.run.active) { closeStream(); return; }
+        setConnectionStatus('reconnecting');
+        attemptReconnect();
+      };
+    }
+
+    function attemptReconnect() {
+      if (state.run.reconnectAttempts >= CONFIG.RECONNECT_MAX_ATTEMPTS) {
+        failRun('Lost connection to the proof engine and could not reconnect.');
+        return;
+      }
+      state.run.reconnectAttempts += 1;
+      const delay = CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, state.run.reconnectAttempts - 1);
+      showToast(`Connection interrupted — retrying (${state.run.reconnectAttempts}/${CONFIG.RECONNECT_MAX_ATTEMPTS})…`, 'warning');
+      clearTimeout(state.run.reconnectTimer);
+      state.run.reconnectTimer = setTimeout(() => {
+        if (state.run.active) openStream();
+      }, delay);
+    }
+
+    function closeStream() {
+      clearTimeout(state.run.reconnectTimer);
+      if (state.run.sse) {
+        state.run.sse.close();
+        state.run.sse = null;
+      }
+    }
+
+    function failRun(message) {
+      clearWatchdog();
+      closeStream();
+      setConnectionStatus('offline');
+      endRunUI();
+      els.progressText.textContent = message;
+      els.progressWarning.classList.remove('visible');
+      showToast(message, 'error');
+    }
+
+    /** Locate the finding a progress event refers to. Tries the server id
+     *  first, then falls back to the same composite locator used at load
+     *  time. The original code used
+     *    `c.id === d.finding_id || (c.rule_id === d.rule_id && c.function === d.function)`
+     *  which — missing file/line — could update the wrong row whenever the
+     *  same rule fired more than once in the same function. */
+    function resolveFindingKey(d) {
+      if (d.finding_id !== undefined && d.finding_id !== null) {
+        const byId = `id:${d.finding_id}`;
+        if (state.findings.has(byId)) return byId;
+      }
+      const byLoc = computeKey({ file: d.file, line: d.line, rule_id: d.rule_id, function: d.function });
+      if (state.findings.has(byLoc)) return byLoc;
+      return null;
+    }
+
+    function handleProgress(d) {
+      state.run.total = Number(d.total) || state.run.total;
+      state.run.completed = Number(d.index) || state.run.completed;
+
+      const pct = state.run.total > 0 ? Math.round((state.run.completed / state.run.total) * 100) : 0;
+      els.progressBar.style.width = `${pct}%`;
+      els.progressText.textContent = `${state.run.completed} / ${state.run.total} — ${d.rule_id || ''} in ${d.function || ''}`;
+
+      const status = normalizeStatus(d.status === 'passed' ? 'proven' : d.status === 'failed' ? 'refuted' : d.status);
+      const key = resolveFindingKey(d);
+
+      if (key) {
+        const f = state.findings.get(key);
+        f.status = status;
+        patchRowIfVisible(key);
+      } else {
+        console.warn('[frapast] progress event did not match any known finding:', d);
+      }
+
+      pushStreamLogItem(d, status, !key);
+      updateHeaderBadges();
+      updateCandidateRemaining();
+    }
+
+    /** Live-patch a single row's status badge in place, instead of the
+     *  original behavior of silently mutating the data array and leaving
+     *  the visible table stale until the run finished (or the user
+     *  happened to re-filter). */
+    function patchRowIfVisible(key) {
+      const row = els.findingsTbody.querySelector(`tr[data-key="${cssEscapeAttr(key)}"]`);
+      if (!row) return;
+      const f = state.findings.get(key);
+      const statusCell = row.children[6];
+      if (statusCell) statusCell.innerHTML = statusBadgeHtml(f.status);
+    }
+
+    function pushStreamLogItem(d, status, unmatched) {
+      const clsMap = { proven: 'badge-status-proven', refuted: 'badge-status-refuted', skipped: 'badge-status-skipped' };
+      const labelMap = { proven: 'PROVEN', refuted: 'REFUTED', skipped: 'SKIPPED' };
+      const cls = clsMap[status] || 'badge-status-candidate';
+      const label = labelMap[status] || status.toUpperCase();
+      const file = shortenPath(d.file);
+
+      const item = document.createElement('div');
+      item.className = `stream-item${unmatched ? ' unmatched' : ''}`;
+      item.innerHTML = `
+    <div class="stream-idx">${escapeHtml(d.index ?? '?')}</div>
+    <div class="stream-info">
+      <div class="stream-rule">${escapeHtml(d.rule_id)}</div>
+      <div class="stream-loc">${escapeHtml(file)}:${escapeHtml(d.line ?? '')} — ${escapeHtml(shortenFn(d.function))}</div>
+    </div>
+    <span class="badge ${cls}">${label}</span>`;
+      els.streamList.prepend(item);
+
+      state.run.logCount++;
+      // Unbounded DOM growth was one of the original's quieter bugs — a
+      // long run (hundreds/thousands of findings) would keep every log
+      // entry in the DOM forever. Cap it and note the truncation.
+      while (els.streamList.children.length > CONFIG.MAX_LOG_ITEMS) {
+        els.streamList.removeChild(els.streamList.lastChild);
+      }
+      els.streamCount.textContent = state.run.logCount > CONFIG.MAX_LOG_ITEMS
+        ? `showing last ${CONFIG.MAX_LOG_ITEMS} of ${state.run.logCount}`
+        : `${state.run.logCount} logged`;
+    }
+
+    function handleStreamAppError(d) {
+      showToast(d.message || 'The proof engine reported an error.', 'error');
+    }
+
+    function handleDone(d) {
+      clearWatchdog();
+      closeStream();
+      setConnectionStatus('idle');
+      endRunUI();
+
+      els.progressBar.style.width = '100%';
+      els.progressBar.classList.remove('progress-stalled');
+      els.progressText.textContent = 'Verification complete.';
+      els.progressWarning.classList.remove('visible');
+
+      const s = d.summary || {};
+      const proven = Number(s.proven) || 0;
+      const refuted = Number(s.refuted) || 0;
+      const skipped = Number(s.skipped) || 0;
+      const total = Number(s.total) || proven + refuted + skipped;
+
+      els.statsCard.style.display = 'block';
+      els.statProven.textContent = proven;
+      els.statRefuted.textContent = refuted;
+      els.statSkipped.textContent = skipped;
+      els.statTotal.textContent = total;
+
+      clearSelectionSilently();
+      renderTable();
+      updateHeaderBadges();
+      updateCandidateRemaining();
+      updateQuickButtonAvailability();
+
+      showToast(`Verification complete — ${proven} proven, ${refuted} refuted, ${skipped} skipped.`, 'success');
+    }
+
+    function clearSelectionSilently() {
+      state.selected.clear();
+      els.selectionBar.classList.remove('visible');
+    }
+
+    /* =========================================================================
+       CENTRAL REFRESH
+       ========================================================================= */
+    function refresh() {
+      updateSortHeaders();
+      renderTable();
+    }
+
+    /* =========================================================================
+       TOASTS
+       ========================================================================= */
+    function showToast(message, type = 'info', duration = CONFIG.TOAST_DURATION_MS) {
+      const el = document.createElement('div');
+      el.className = `toast toast-${type}`;
+      el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+      el.innerHTML = `<span class="toast-msg">${escapeHtml(message)}</span><button class="toast-close" aria-label="Dismiss notification">&times;</button>`;
+      el.querySelector('.toast-close').addEventListener('click', () => removeToast(el));
+      els.toastContainer.appendChild(el);
+      requestAnimationFrame(() => el.classList.add('show'));
+      if (duration) setTimeout(() => removeToast(el), duration);
+    }
+
+    function removeToast(el) {
+      el.classList.remove('show');
+      setTimeout(() => el.remove(), 250);
+    }
+
+    /* =========================================================================
+       DETAIL DRAWER
+       ========================================================================= */
+    function openDrawer(key) {
+      const f = state.findings.get(key);
+      if (!f) return;
+
+      const label = sevLabel(f.score);
+      const scoreText = Number.isFinite(f.score) ? f.score.toFixed(0) : 'unscored';
+
+      $('drawerRuleId').textContent = f.rule_id || '(unnamed rule)';
+      $('drawerLoc').textContent = `${f.file || 'unknown file'}:${f.line ?? '?'}`;
+      $('drawerBadges').innerHTML = `<span class="badge ${sevClass(label)}">${label} · ${escapeHtml(scoreText)}</span> &nbsp; ${statusBadgeHtml(f.status)}`;
+      $('drawerFunction').textContent = f.function || '—';
+
+      toggleDrawerField('drawerDescriptionWrap', 'drawerDescription', f.description);
+      toggleDrawerField('drawerEvidenceWrap', 'drawerEvidence', f.evidence, true);
+      toggleDrawerField('drawerRemediationWrap', 'drawerRemediation', f.remediation);
+
+      els.drawer.classList.add('open');
+      els.drawer.setAttribute('aria-hidden', 'false');
+      els.drawerBackdrop.classList.add('open');
+      els.drawerCloseBtn.focus();
+    }
+
+    function toggleDrawerField(wrapId, valueId, value, isCode) {
+      const wrap = $(wrapId);
+      const target = $(valueId);
+      if (value) {
+        wrap.style.display = 'block';
+        if (isCode) target.textContent = value; // <pre> — no HTML escaping needed via textContent
+        else target.textContent = value;
+      } else {
+        wrap.style.display = 'none';
+      }
+    }
+
+    function closeDrawer() {
+      els.drawer.classList.remove('open');
+      els.drawer.setAttribute('aria-hidden', 'true');
+      els.drawerBackdrop.classList.remove('open');
+    }
+
+    /* =========================================================================
+       EXPORT
+       ========================================================================= */
+    function exportVisibleAsCsv() {
+      const rows = getFilteredSorted();
+      if (rows.length === 0) {
+        showToast('Nothing to export with the current filters.', 'warning');
+        return;
+      }
+      const header = ['rule_id', 'severity_score', 'severity_label', 'status', 'file', 'line', 'function'];
+      const lines = [header.join(',')];
+      for (const f of rows) {
+        lines.push([
+          f.rule_id, f.score ?? '', sevLabel(f.score), f.status, f.file, f.line, f.function,
+        ].map(csvEscape).join(','));
+      }
+      downloadTextFile(lines.join('\n'), 'frapast-findings.csv', 'text/csv;charset=utf-8');
+      showToast(`Exported ${rows.length} finding${rows.length === 1 ? '' : 's'} to CSV.`, 'success');
+    }
+
+    /* =========================================================================
+       KEYBOARD SHORTCUTS
+       ========================================================================= */
+    function onGlobalKeydown(e) {
+      const tag = (document.activeElement && document.activeElement.tagName) || '';
+      const inField = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+
+      if (e.key === '/' && !inField) {
+        e.preventDefault();
+        els.filterInput.focus();
+        return;
+      }
+      if (e.key === 'Escape') {
+        if (els.drawer.classList.contains('open')) closeDrawer();
+      }
+    }
+
+    /* =========================================================================
+       INIT
+       ========================================================================= */
+    function cacheEls() {
+      [
+        'repoPath', 'connStatus', 'connStatusLabel',
+        'badgeTotal', 'badgeCritical', 'badgeHigh', 'badgeMedium', 'badgeLow',
+        'filterInput', 'filterStatus', 'filterSev',
+        'selectionBar', 'selectionCount', 'selectionClearBtn',
+        'resultsSummary', 'findingsTbody', 'selectAllCheckbox',
+        'pageFirstBtn', 'pagePrevBtn', 'pageNextBtn', 'pageLastBtn', 'pageInfo', 'pageSizeSelect',
+        'quickBtns', 'countInput', 'countError', 'candidateRemaining', 'proveBtn',
+        'progressWrap', 'progressBar', 'progressText', 'progressWarning',
+        'statsCard', 'statProven', 'statRefuted', 'statSkipped', 'statTotal',
+        'streamList', 'streamCount',
+        'toastContainer', 'drawer', 'drawerBackdrop', 'drawerCloseBtn', 'drawerCloseBtn2',
+        'exportCsvBtn', 'refreshBtn',
+      ].forEach((id) => { els[id] = $(id); });
+    }
+
+    function wireEvents() {
+      els.filterInput.addEventListener('input', onFilterInput);
+      els.filterStatus.addEventListener('change', onFilterStatusChange);
+      els.filterSev.addEventListener('change', onFilterSevChange);
+
+      els.selectionClearBtn.addEventListener('click', clearSelection);
+      els.selectAllCheckbox.addEventListener('change', onSelectAllToggle);
+      els.findingsTbody.addEventListener('click', onTableBodyClick);
+
+      document.querySelectorAll('th.sortable').forEach((th) => th.addEventListener('click', onSortHeaderClick));
+
+      els.pageFirstBtn.addEventListener('click', goToFirstPage);
+      els.pagePrevBtn.addEventListener('click', () => goToPage(-1));
+      els.pageNextBtn.addEventListener('click', () => goToPage(1));
+      els.pageLastBtn.addEventListener('click', goToLastPage);
+      els.pageSizeSelect.addEventListener('change', onPageSizeChange);
+
+      els.quickBtns.addEventListener('click', (e) => {
+        const btn = e.target.closest('.quick-btn');
+        if (!btn || btn.disabled) return;
+        const raw = btn.dataset.count;
+        setCount(raw === 'all' ? 'all' : parseInt(raw, 10), btn);
+      });
+      els.countInput.addEventListener('input', () => {
+        document.querySelectorAll('.quick-btn').forEach((b) => b.classList.remove('active'));
+        clearCountError();
+      });
+
+      els.proveBtn.addEventListener('click', startProving);
+
+      els.drawerCloseBtn.addEventListener('click', closeDrawer);
+      els.drawerCloseBtn2.addEventListener('click', closeDrawer);
+      els.drawerBackdrop.addEventListener('click', closeDrawer);
+
+      els.exportCsvBtn.addEventListener('click', exportVisibleAsCsv);
+      els.refreshBtn.addEventListener('click', () => { if (!state.run.active) loadFindings(); });
+
+      document.addEventListener('keydown', onGlobalKeydown);
+    }
+
+    function boot() {
+      cacheEls();
+      wireEvents();
+      updateSortHeaders();
+      loadFindings();
+      loadStats();
+    }
+
+    document.addEventListener('DOMContentLoaded', boot);
+  </script>
+
+  <style>
+    /* Spinner kept in its own tiny stylesheet block next to where it's used
+     conceptually (button loading state) for easy discovery. */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</body>
+
+</html>
