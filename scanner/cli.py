@@ -340,6 +340,7 @@ def _build_parser() -> argparse.ArgumentParser:
   frapast scan --config scan_config.yaml --write-ledger
 """,
 	)
+	scan_parser.add_argument("--ui", action="store_true", help="Open local web dashboard (localhost:7777)")
 	scan_parser.add_argument("repo_path", nargs="?", help="Path to a single repo to scan")
 	scan_parser.add_argument("--config", help="Path to multi-repo scan config YAML")
 	scan_parser.add_argument("--prove", action="store_true", help="Automatically run Tier 1 & Tier 2 proof verification on findings")
@@ -360,6 +361,11 @@ def _build_parser() -> argparse.ArgumentParser:
 	prove_parser.add_argument("--repo-id", default="local", help="Repository identifier for generated finding IDs")
 	prove_parser.add_argument("--format", choices=["human", "yaml", "json", "sarif"], default="human", help="Output format")
 	prove_parser.add_argument("--limit", type=int, default=20, help="Maximum number of candidates to display in human output")
+	# Tier 2 bench configuration
+	prove_parser.add_argument("--bench-url", default="", help="Frappe bench base URL for Tier 2 HTTP/RPC proof (e.g. http://localhost:8000)")
+	prove_parser.add_argument("--bench-user", default="", help="Frappe username for Tier 2 bench authentication")
+	prove_parser.add_argument("--bench-password", default="", help="Frappe password for Tier 2 bench authentication")
+	prove_parser.add_argument("--bench-site", default="", help="Frappe site name (Host header) for multi-site bench setups")
 
 	fix_parser = subparsers.add_parser("fix", help="Show proof-gated findings eligible for fix work")
 	fix_parser.add_argument("--findings-dir", default="findings", help="Path to findings directory")
@@ -437,6 +443,16 @@ def _filter_candidates_by_diff(candidates: list[dict[str, object]], repo_path: P
 
 
 def _run_scan_command(args: argparse.Namespace) -> int:
+	if getattr(args, "ui", False) and args.repo_path:
+		from scanner.ui.flow import run_full_pipeline
+		return run_full_pipeline(
+			Path(args.repo_path),
+			repo_id=args.repo_id,
+			write_ledger=args.write_ledger,
+			ledger_dir=args.ledger_dir,
+			launch_web=True,
+		)
+
 	if args.config:
 		config_path = Path(args.config)
 		if not config_path.is_file():
@@ -511,59 +527,14 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 	candidates_to_prove: list[dict[str, object]] = []
 	interactive = not args.prove and candidates and sys.stdout.isatty() and args.format == "human"
 	if interactive:
-		ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit)
-		from scanner.ui.menus import select_post_scan_action, select_bug_to_view
-		from scanner.ui.results import render_code_snippet, candidate_score
-
-		active_candidates = candidates
-		while True:
-			action = select_post_scan_action(active_candidates)
-			if action in ("prove_top10", "prove_top20", "prove_all"):
-				if action == "prove_top10":
-					candidates_to_prove = sorted(active_candidates, key=candidate_score, reverse=True)[:10]
-				elif action == "prove_top20":
-					candidates_to_prove = sorted(active_candidates, key=candidate_score, reverse=True)[:20]
-				else:
-					candidates_to_prove = active_candidates
-
-				proven_findings = _run_proof_verification(
-					candidates_to_prove,
-					repo,
-					args.repo_id,
-					findings_dir=Path(args.ledger_dir) if args.write_ledger else None,
-				)
-				console.print(
-					f"\n[success]✓ proof complete:[/success] "
-					f"{len(proven_findings)} / {len(candidates_to_prove)} candidates verified as PROVEN."
-				)
-				active_candidates = candidates
-				ui.render_results(repo, active_candidates, num_files, elapsed, limit=args.limit)
-
-			elif action == "inspect":
-				bug_idx = select_bug_to_view(active_candidates)
-				if bug_idx is not None:
-					sorted_cands = sorted(active_candidates, key=candidate_score, reverse=True)
-					render_code_snippet(repo, sorted_cands[bug_idx - 1], bug_id=bug_idx)
-
-			elif action == "filter_proven":
-				proven_subset = [c for c in active_candidates if str(c.get("status", "")).lower() == "proven"]
-				ui.render_results(repo, proven_subset, num_files, elapsed, limit=args.limit)
-
-			elif action == "filter_all":
-				ui.render_results(repo, active_candidates, num_files, elapsed, limit=args.limit)
-
-			elif action == "export_json":
-				out_file = repo / "frapast_findings.json"
-				out_file.write_text(json.dumps({"candidates": active_candidates}, indent=2, default=str), encoding="utf-8")
-				console.print(f"[success]✓ Saved {len(active_candidates)} findings to '{out_file.resolve()}'[/success]\n")
-
-			elif action == "report":
-				from rich.markdown import Markdown
-				from scanner.reporting.engine import render_track_record
-				console.print(Markdown(render_track_record("findings")))
-
-			elif action == "exit":
-				break
+		from scanner.ui.flow import run_full_pipeline
+		return run_full_pipeline(
+			repo,
+			repo_id=args.repo_id,
+			limit=args.limit,
+			write_ledger=args.write_ledger,
+			ledger_dir=args.ledger_dir,
+		)
 	elif args.prove:
 		candidates_to_prove = candidates
 		proven_findings = _run_proof_verification(
@@ -589,6 +560,38 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 	return 1 if len(candidates) > 0 else 0
 
 
+def _legacy_main(argv: list[str] | None = None) -> int:
+	"""Backward-compatible CLI for direct single repo_path argument: frapast /path/to/repo"""
+	parser = argparse.ArgumentParser(prog="frapast")
+	parser.add_argument("repo_path")
+	parser.add_argument("--write-ledger", action="store_true")
+	parser.add_argument("--ledger-dir", default="findings")
+	parser.add_argument("--repo-id", default="local")
+	parser.add_argument("--fp-log", default="findings/fp-log.yaml")
+	parser.add_argument("--ui", action="store_true", help="Launch web UI")
+	args = parser.parse_args(argv)
+
+	repo = Path(args.repo_path)
+	if not repo.exists():
+		sys.stderr.write(f"Error: path '{args.repo_path}' does not exist\n")
+		return 2
+
+	from scanner.python.engine import discover_python_files
+	py_files = discover_python_files(repo)
+	if not py_files:
+		sys.stderr.write(f"Error: No Python files found in '{args.repo_path}'\n")
+		return 2
+
+	from scanner.ui.flow import run_full_pipeline
+	return run_full_pipeline(
+		repo,
+		repo_id=args.repo_id,
+		write_ledger=args.write_ledger,
+		ledger_dir=args.ledger_dir,
+		launch_web=args.ui,
+	)
+
+
 def _run_post_scan_inspector_loop(repo: Path, candidates: list[dict]) -> None:
 	from scanner.ui.menus import select_bug_to_view
 	from scanner.ui.results import render_code_snippet, candidate_score
@@ -604,11 +607,21 @@ def _run_proof_verification(
 	repo_id: str,
 	*,
 	findings_dir: str | Path | None = None,
+	bench_url: str = "",
+	bench_user: str = "",
+	bench_password: str = "",
+	bench_site: str = "",
 ) -> list[dict]:
 	from scanner.proof.orchestrator import ProofOrchestrator
 	from scanner.proof.models import ProofStatus
 
-	orchestrator = ProofOrchestrator(workspace_root=repo)
+	orchestrator = ProofOrchestrator(
+		workspace_root=repo,
+		bench_url=bench_url,
+		bench_user=bench_user,
+		bench_password=bench_password,
+		bench_site_name=bench_site,
+	)
 	proven_findings: list[dict] = []
 	if not candidates_to_prove:
 		return proven_findings
@@ -803,8 +816,20 @@ def main(argv: list[str] | None = None) -> int:
 
 	if args.command == "prove":
 		repo = Path(args.repo_path)
+		# Collect Tier 2 bench configuration from CLI args
+		bench_url = getattr(args, "bench_url", "")
+		bench_user = getattr(args, "bench_user", "")
+		bench_password = getattr(args, "bench_password", "")
+		bench_site = getattr(args, "bench_site", "")
 		from scanner.proof.orchestrator import ProofOrchestrator
-		orchestrator = ProofOrchestrator(workspace_root=repo, dry_run=args.dry_run)
+		orchestrator = ProofOrchestrator(
+			workspace_root=repo,
+			dry_run=args.dry_run,
+			bench_url=bench_url,
+			bench_user=bench_user,
+			bench_password=bench_password,
+			bench_site_name=bench_site,
+		)
 		if args.finding_id:
 			result = orchestrator.prove_candidate(args.finding_id)
 			update_ledger_after_proof(args.ledger_dir, result)
@@ -830,6 +855,10 @@ def main(argv: list[str] | None = None) -> int:
 				repo,
 				args.repo_id,
 				findings_dir=Path(args.ledger_dir),
+				bench_url=bench_url,
+				bench_user=bench_user,
+				bench_password=bench_password,
+				bench_site=bench_site,
 			)
 			if args.format in ("json", "yaml", "sarif"):
 				_write_json_or_yaml({"candidates": candidates, "proven": proven_findings}, args.format, repo)
