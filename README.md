@@ -161,8 +161,14 @@ pip install -r requirements.txt   # pyyaml, libcst (optional but recommended), r
 ## Quick Start
 
 ```bash
-# Scan a single repo, print candidates as YAML
-python -m scanner.cli scan /path/to/frappe-app
+# 1. Run full interactive scan & proof pipeline against ERPNext
+python3 -m scanner scan /path/to/erpnext
+
+# 2. Launch the Web UI dashboard (localhost:7777)
+python3 -m scanner scan /path/to/erpnext --ui
+
+# 3. Prove findings against a live containerized Frappe bench
+python3 -m scanner prove /path/to/erpnext --bench-url http://localhost:8000 --bench-user Administrator --bench-password admin
 
 # Scan and persist findings to the ledger
 python -m scanner.cli scan /path/to/frappe-app --write-ledger --repo-id my-app
