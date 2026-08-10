@@ -1,0 +1,54 @@
+name: 'frapAST Security Scanner'
+description: 'Runtime-proven SAST security scanner for Frappe & ERPNext apps'
+author: 'pratheep-bit'
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  path:
+    description: 'Path to Frappe app or repository to scan'
+    required: false
+    default: '.'
+  fail-on-proven:
+    description: 'Fail step if proven vulnerabilities are detected'
+    required: false
+    default: 'true'
+  sarif:
+    description: 'Output results in SARIF format for GitHub Security'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install frapAST Engine
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install "${{ github.action_path }}"
+
+    - name: Run frapAST Security Scan
+      shell: bash
+      run: |
+        echo "::group::frapAST Scan Execution"
+        if [ "${{ inputs.sarif }}" = "true" ]; then
+          frapast scan "${{ inputs.path }}" --severity --format sarif > frapast-results.sarif || true
+          frapast scan "${{ inputs.path }}" --severity
+        else
+          frapast scan "${{ inputs.path }}" --severity
+        fi
+        echo "::endgroup::"
+
+    - name: Upload SARIF to GitHub Security
+      if: inputs.sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: frapast-results.sarif
+        category: frapast-security-scan
+      continue-on-error: true

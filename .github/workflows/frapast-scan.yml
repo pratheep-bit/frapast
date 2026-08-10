@@ -1,0 +1,23 @@
+name: frapAST Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  frapast-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run frapAST Security Action
+        uses: pratheep-bit/frapast@main
+        with:
+          path: '.'
+          sarif: 'true'
