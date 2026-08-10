@@ -1,34 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "frapast"
-version = "0.4.7"
-description = "Framework-aware static security scanner for Frappe apps (ERPNext, HRMS, and custom apps)"
+version = "0.4.8"
+description = "Runtime-Proven Static Security Analysis Engine for Frappe & ERPNext"
 readme = "README.md"
-license = "MIT"
-requires-python = ">=3.10"
 authors = [
-    { name = "pratheep-bit", email = "pratheeps2024@gmail.com" },
+    { name = "Pratheep S", email = "pratheeps2024@gmail.com" }
 ]
-keywords = ["frappe", "erpnext", "security", "static-analysis", "scanner"]
+license = { text = "MIT" }
+keywords = ["frappe", "erpnext", "security", "sast", "static-analysis", "vulnerability-scanner"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "Topic :: Security",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Security",
-    "Topic :: Software Development :: Quality Assurance",
 ]
+requires-python = ">=3.10"
 dependencies = [
     "pyyaml>=6.0",
-    "rich>=12.0.0",
-    "questionary>=2.0.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "ruff",
+    "rich>=13.0.0",
+    "libcst>=1.0.0",
 ]
 
 [project.scripts]
@@ -36,40 +34,16 @@ frapast = "scanner.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/pratheep-bit/frapast"
-Repository = "https://github.com/pratheep-bit/frapast.git"
-"Bug Reports" = "https://github.com/pratheep-bit/frapast/issues"
-
-[build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
+Repository = "https://github.com/pratheep-bit/frapast"
+Issues = "https://github.com/pratheep-bit/frapast/issues"
 
 [tool.setuptools.packages.find]
+where = ["."]
 include = ["scanner*"]
 
 [tool.setuptools.package-data]
-"scanner" = ["taxonomy_registry.yaml"]
-"scanner.rules" = ["*.yaml"]
-
-[tool.ruff]
-line-length = 110
-target-version = "py310"
-
-[tool.ruff.lint]
-select = ["F", "E", "W", "I", "UP", "B", "RUF"]
-ignore = [
-    "B017",
-    "B904",
-    "E101",
-    "E402",
-    "E501",
-    "E741",
-    "F401",
-    "F403",
-    "F405",
-    "W191",
+scanner = [
+    "taxonomy_registry.yaml",
+    "rules/*.yaml",
+    "web/static/*",
 ]
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "tab"
-docstring-code-format = true
