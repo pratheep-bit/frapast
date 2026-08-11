@@ -672,16 +672,143 @@
       max-width: 200px;
     }
 
-    .col-actions {
-      width: 44px;
-      text-align: right;
+    .col-expand {
+      width: 32px;
+      padding: 0 4px;
+      text-align: center;
     }
 
-    input[type="checkbox"].row-check {
-      width: 16px;
-      height: 16px;
-      accent-color: var(--primary);
+    /* =====================================================================
+     EXPANDABLE CODE DROPDOWN ROW
+     ===================================================================== */
+    tbody tr.code-dropdown-row {
+      background: #090d16 !important;
+    }
+
+    tbody tr.code-dropdown-row td {
+      padding: 0 !important;
+      max-width: none !important;
+      overflow: visible !important;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .code-expansion-container {
+      padding: 12px 18px 16px 48px;
+      background: #0d1117;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .code-expansion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-family: 'Inter', -apple-system, sans-serif;
+    }
+
+    .code-expansion-file {
+      color: #38bdf8;
+      font-weight: 600;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .code-expansion-meta {
+      color: #94a3b8;
+      font-size: 11px;
+    }
+
+    .code-expansion-block {
+      background: #040d21;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .code-line-row {
+      display: flex;
+      align-items: center;
+      padding: 3px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      transition: background 0.15s ease;
+    }
+
+    .code-line-row.context-line {
+      color: #64748b;
+    }
+
+    .code-line-row.error-line {
+      background: rgba(239, 68, 68, 0.22);
+      border-left: 4px solid #ef4444;
+      color: #fca5a5;
+      font-weight: 600;
+    }
+
+    .code-line-row.error-line .line-num {
+      color: #ef4444;
+      font-weight: 700;
+    }
+
+    .line-num {
+      width: 44px;
+      flex-shrink: 0;
+      text-align: right;
+      padding-right: 16px;
+      user-select: none;
+      color: #475569;
+    }
+
+    .line-code {
+      white-space: pre;
+      overflow-x: auto;
+      flex-grow: 1;
+    }
+
+    .error-marker-tag {
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-left: 12px;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .expand-toggle-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
       cursor: pointer;
+      padding: 3px 5px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .expand-toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+    }
+
+    .expand-toggle-btn.expanded svg {
+      transform: rotate(180deg);
+    }
+
+    tbody tr.row-expanded {
+      background: rgba(56, 189, 248, 0.05);
     }
 
     /* =====================================================================
@@ -1487,6 +1614,7 @@
             <tr>
               <th class="col-check"><input type="checkbox" class="row-check" id="selectAllCheckbox"
                   aria-label="Select all visible rows"></th>
+              <th class="col-expand"></th>
               <th>#</th>
               <th class="sortable" data-sort-key="rule_id">Rule ID<span class="sort-arrow">▲</span></th>
               <th class="sortable" data-sort-key="severity">Severity<span class="sort-arrow">▲</span></th>
@@ -1498,7 +1626,7 @@
           </thead>
           <tbody id="findingsTbody">
             <tr>
-              <td colspan="8">
+              <td colspan="9">
                 <div class="empty">
                   <p>Loading security candidates…</p>
                 </div>
@@ -1834,6 +1962,7 @@
       pageSize: CONFIG.PAGE_SIZE_DEFAULT,
 
       selected: new Set(),
+      expandedKeys: new Set(),
 
       run: {
         active: false,
@@ -1992,17 +2121,34 @@
       els.resultsSummary.textContent = 'Failed to load findings.';
     }
 
+    function toggleRowExpansion(key) {
+      if (state.expandedKeys.has(key)) {
+        state.expandedKeys.delete(key);
+      } else {
+        state.expandedKeys.add(key);
+      }
+      renderTable();
+    }
+
     function renderTable() {
       const totalCount = state.findings.size;
       const filtered = getFilteredSorted();
       const { slice, totalPages, start } = getPageSlice(filtered);
 
       if (totalCount === 0 && !state.loadError) {
-        els.findingsTbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--green-text);"><polyline points="20 6 9 17 4 12"/></svg></div><p>No security candidates were found in this scan.</p></div></td></tr>`;
+        els.findingsTbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--green-text);"><polyline points="20 6 9 17 4 12"/></svg></div><p>No security candidates were found in this scan.</p></div></td></tr>`;
       } else if (filtered.length === 0) {
-        els.findingsTbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-light);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><p>No findings match the current filters. Try clearing them.</p></div></td></tr>`;
+        els.findingsTbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-light);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><p>No findings match the current filters. Try clearing them.</p></div></td></tr>`;
       } else {
-        els.findingsTbody.innerHTML = slice.map((f, i) => renderRow(f, start + i + 1)).join('');
+        let rowsHtml = '';
+        slice.forEach((f, i) => {
+          const isExpanded = state.expandedKeys.has(f.key);
+          rowsHtml += renderRow(f, start + i + 1, isExpanded);
+          if (isExpanded) {
+            rowsHtml += `<tr class="code-dropdown-row" data-parent-key="${escapeHtml(f.key)}"><td colspan="9">${renderInlineCodeSnippetHtml(f)}</td></tr>`;
+          }
+        });
+        els.findingsTbody.innerHTML = rowsHtml;
       }
 
       renderResultsSummary(totalCount, filtered.length, start, slice.length);
@@ -2010,7 +2156,7 @@
       updateSelectAllCheckboxState(slice);
     }
 
-    function renderRow(f, rowNumber) {
+    function renderRow(f, rowNumber, isExpanded) {
       const label = sevLabel(f.score);
       const scoreText = Number.isFinite(f.score) ? f.score.toFixed(0) : '—';
       const file = shortenPath(f.file);
@@ -2018,9 +2164,14 @@
       const titleLoc = escapeHtml(`${f.file || ''}:${f.line ?? ''}`);
       const selected = state.selected.has(f.key);
 
-      return `<tr data-key="${escapeHtml(f.key)}" class="${selected ? 'row-selected' : ''}">
+      return `<tr data-key="${escapeHtml(f.key)}" class="${selected ? 'row-selected' : ''} ${isExpanded ? 'row-expanded' : ''}" style="cursor: pointer;">
       <td class="col-check">
         <input type="checkbox" class="row-check" data-key="${escapeHtml(f.key)}" ${selected ? 'checked' : ''} aria-label="Select finding ${escapeHtml(f.rule_id)}">
+      </td>
+      <td class="col-expand">
+        <button class="expand-toggle-btn ${isExpanded ? 'expanded' : ''}" data-expand-key="${escapeHtml(f.key)}" aria-label="Toggle code snippet dropdown">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
       </td>
       <td class="col-num">${rowNumber}</td>
       <td class="col-rule">${escapeHtml(f.rule_id)}</td>
@@ -2032,6 +2183,71 @@
         <button class="icon-btn" data-view-key="${escapeHtml(f.key)}" aria-label="View details for ${escapeHtml(f.rule_id)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </td>
     </tr>`;
+    }
+
+    function renderInlineCodeSnippetHtml(f) {
+      const targetLine = parseInt(f.line, 10) || 1;
+      const startLine = Math.max(1, targetLine - 2); // 2 lines before
+      const endLine = targetLine + 3;                 // 3 lines after
+
+      let codeLines = [];
+      if (Array.isArray(f.code_snippet) && f.code_snippet.length > 0) {
+        codeLines = f.code_snippet;
+      } else if (f.evidence) {
+        const rawLines = String(f.evidence).trim().split('\n');
+        codeLines = rawLines;
+      }
+
+      let lineRowsHtml = '';
+      for (let currentLine = startLine; currentLine <= endLine; currentLine++) {
+        const isErrorLine = currentLine === targetLine || (f.end_line && currentLine >= targetLine && currentLine <= f.end_line);
+        let lineContent = '';
+
+        if (codeLines.length > 0) {
+          const relativeIdx = currentLine - startLine;
+          if (relativeIdx >= 0 && relativeIdx < codeLines.length) {
+            lineContent = codeLines[relativeIdx];
+          } else if (isErrorLine) {
+            lineContent = f.evidence || `// Vulnerable execution detected in ${f.function || 'function'}`;
+          } else {
+            lineContent = `// Context line ${currentLine}`;
+          }
+        } else {
+          if (isErrorLine) {
+            lineContent = f.evidence || `// Potential security vulnerability detected at line ${targetLine}`;
+          } else if (currentLine < targetLine) {
+            lineContent = `// Context line ${currentLine} (before error line)`;
+          } else {
+            lineContent = `// Context line ${currentLine} (after error line)`;
+          }
+        }
+
+        const rowClass = isErrorLine ? 'code-line-row error-line' : 'code-line-row context-line';
+        const errorMarker = isErrorLine ? '<span class="error-marker-tag">VULNERABILITY</span>' : '';
+
+        lineRowsHtml += `
+        <div class="${rowClass}">
+          <span class="line-num">${currentLine}</span>
+          <span class="line-code">${escapeHtml(lineContent)}</span>
+          ${errorMarker}
+        </div>`;
+      }
+
+      return `
+      <div class="code-expansion-container">
+        <div class="code-expansion-header">
+          <div class="code-expansion-file">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            ${escapeHtml(f.file)}:${targetLine} (${escapeHtml(f.rule_id)})
+          </div>
+          <div class="code-expansion-meta">
+            Displaying lines ${startLine}–${endLine} (2 lines before & 3 lines after error line ${targetLine})
+          </div>
+        </div>
+        <div class="code-expansion-block">
+          ${lineRowsHtml}
+        </div>
+      </div>`;
     }
 
     function renderResultsSummary(totalCount, filteredCount, start, sliceLen) {
@@ -2193,6 +2409,15 @@
 
       const checkbox = e.target.closest('input.row-check');
       if (checkbox) { toggleSelection(checkbox.dataset.key, checkbox.checked); return; }
+
+      const expandBtn = e.target.closest('[data-expand-key]');
+      if (expandBtn) { toggleRowExpansion(expandBtn.dataset.expandKey); return; }
+
+      const row = e.target.closest('tr[data-key]');
+      if (row && !e.target.closest('.code-dropdown-row')) {
+        toggleRowExpansion(row.dataset.key);
+        return;
+      }
     }
 
     /* =========================================================================
