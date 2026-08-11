@@ -10,13 +10,12 @@ readme = "README.md"
 authors = [
     { name = "Pratheep S", email = "pratheeps2024@gmail.com" }
 ]
-license = { text = "MIT" }
+license = "MIT"
 keywords = ["frappe", "erpnext", "security", "sast", "static-analysis", "vulnerability-scanner"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Security",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -47,10 +46,6 @@ scanner = [
     "rules/*.yaml",
     "web/static/*",
 ]
-
-# Top-level taxonomy files (shipped alongside the package at install time)
-[tool.setuptools.data-files]
-"share/frapast/taxonomy" = ["taxonomy/taxonomy_registry.yaml", "taxonomy/rule_severity_defaults.yaml"]
 
 [project.optional-dependencies]
 # pip install frapast[shell]  — enables the interactive REPL with history/tab-completion
