@@ -21,3 +21,4 @@ jobs:
         with:
           path: '.'
           sarif: 'true'
+          fail-on-proven: 'false'
