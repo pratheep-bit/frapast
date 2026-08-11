@@ -26,12 +26,37 @@
       </svg>
       frapAST <span class="logo-badge">Security Engine</span>
     </div>
-    <div class="header-repo" id="repoPath">Loading repository…</div>
+
+    <!-- Folder picker bar -->
+    <div class="scan-bar" id="scanBar">
+      <span class="scan-bar-label">Scanning:</span>
+      <input class="scan-path-input" id="scanPathInput" type="text" placeholder="/path/to/your/frappe-app" aria-label="Repository path to scan">
+      <button class="btn-scan" id="scanBtn" title="Start a fresh scan of this folder">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Scan
+      </button>
+      <span class="scan-status" id="scanStatus"></span>
+    </div>
+
     <div class="conn-status" id="connStatus" data-state="idle">
       <span class="conn-dot"></span>
       <span id="connStatusLabel">Idle</span>
     </div>
     <div class="header-spacer"></div>
+    <div class="header-actions">
+      <button class="header-action-btn" id="reportBtn" title="View track-record report">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Report
+      </button>
+      <button class="header-action-btn" id="exportJsonBtn" title="Download findings as JSON">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        JSON
+      </button>
+      <button class="header-action-btn" id="exportSarifBtn" title="Download findings as SARIF">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        SARIF
+      </button>
+    </div>
     <div class="header-badges">
       <span class="header-badge badge-total" id="badgeTotal">— Findings</span>
       <span class="header-badge badge-critical" id="badgeCritical">— Critical</span>
@@ -137,6 +162,63 @@
     <!-- Right Panel -->
     <div class="right-panel">
 
+      <!-- ⚙️ Bench Settings Card -->
+      <div class="card" id="benchSettingsCard">
+        <div class="card-header bench-settings-header" id="benchSettingsToggle" style="cursor:pointer;" title="Toggle bench settings">
+          <span class="card-title">⚙️ Bench Configuration</span>
+          <span class="bench-status-badge" id="benchStatusBadge">Not checked</span>
+          <span class="card-chevron" id="benchChevron">▼</span>
+        </div>
+        <div class="bench-settings-body" id="benchSettingsBody">
+          <div class="bench-field-group">
+            <label class="bench-label" for="benchUrlInput">Bench URL</label>
+            <input class="bench-input" id="benchUrlInput" type="url" placeholder="http://localhost:8005" autocomplete="off">
+          </div>
+          <div class="bench-field-row">
+            <div class="bench-field-group">
+              <label class="bench-label" for="benchPortInput">Port (shortcut)</label>
+              <input class="bench-input" id="benchPortInput" type="number" placeholder="8005" min="1" max="65535">
+            </div>
+            <div class="bench-field-group">
+              <label class="bench-label" for="benchSiteInput">Site Name</label>
+              <input class="bench-input" id="benchSiteInput" type="text" placeholder="mysite.local" autocomplete="off">
+            </div>
+          </div>
+          <div class="bench-field-row">
+            <div class="bench-field-group">
+              <label class="bench-label" for="benchUserInput">Username</label>
+              <input class="bench-input" id="benchUserInput" type="text" value="Administrator" autocomplete="off">
+            </div>
+            <div class="bench-field-group">
+              <label class="bench-label" for="benchPasswordInput">Password</label>
+              <input class="bench-input" id="benchPasswordInput" type="password" value="admin" autocomplete="new-password">
+            </div>
+          </div>
+          <div class="bench-actions">
+            <button class="btn-primary bench-save-btn" id="benchSaveBtn">Save &amp; Test Connection</button>
+          </div>
+          <!-- Bench Diagnostic Result -->
+          <div class="bench-diag" id="benchDiag" style="display:none">
+            <div class="bench-diag-row">
+              <span class="bench-diag-label">🌐 Bench URL</span>
+              <span class="bench-diag-val" id="diagUrl">—</span>
+              <span class="bench-diag-badge" id="diagReachBadge">—</span>
+            </div>
+            <div class="bench-diag-row">
+              <span class="bench-diag-label">🏠 Site</span>
+              <span class="bench-diag-val" id="diagSite">—</span>
+              <span class="bench-diag-badge" id="diagSiteBadge">—</span>
+            </div>
+            <div class="bench-diag-row">
+              <span class="bench-diag-label">🔑 Auth</span>
+              <span class="bench-diag-val" id="diagUser">—</span>
+              <span class="bench-diag-badge" id="diagAuthBadge">—</span>
+            </div>
+            <div class="bench-diag-issues" id="diagIssues" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Action Card -->
       <div class="card">
         <div class="card-header">
@@ -222,7 +304,7 @@
     </div>
   </main>
 
-  <footer>frapAST security engine — client build — reads/writes only via the API on this origin</footer>
+  <footer>frapAST security engine — reads/writes only via the API on this origin</footer>
 
   <!-- Detail drawer -->
   <div class="drawer-backdrop" id="drawerBackdrop"></div>
@@ -260,6 +342,21 @@
       <button class="btn-secondary" id="drawerCloseBtn2">Close</button>
     </div>
   </aside>
+
+  <!-- Report Modal -->
+  <div class="modal-overlay" id="reportModalOverlay" style="display:none;" aria-modal="true" role="dialog" aria-label="Track-Record Report">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">📊 Security Track-Record Report</span>
+        <button class="icon-btn" id="reportModalClose" aria-label="Close report">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <pre class="modal-report-pre" id="reportModalContent">Loading report…</pre>
+      </div>
+    </div>
+  </div>
 
   <!-- Toasts -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>

@@ -209,7 +209,7 @@
         const data = await res.json();
         if (data && typeof data.repo === 'string' && data.repo) {
           state.repo = data.repo;
-          els.repoPath.textContent = data.repo;
+          if (els.scanPathInput && !els.scanPathInput.value) els.scanPathInput.value = data.repo;
         }
         const list = Array.isArray(data && data.candidates) ? data.candidates : [];
         state.findings.clear();
@@ -240,12 +240,9 @@
         const s = await res.json();
         if (s && typeof s.repo === 'string' && s.repo) {
           state.repo = s.repo;
-          els.repoPath.textContent = s.repo;
-        } else {
-          els.repoPath.textContent = 'Repository unknown';
+          if (els.scanPathInput && !els.scanPathInput.value) els.scanPathInput.value = s.repo;
         }
       } catch (err) {
-        els.repoPath.textContent = 'Repository unavailable';
         console.warn('[frapast] failed to load stats:', err.message);
       }
     }
@@ -826,6 +823,7 @@
         if (msg.type === 'progress') handleProgress(msg);
         else if (msg.type === 'done') handleDone(msg);
         else if (msg.type === 'error') handleStreamAppError(msg);
+        else if (msg.type === 'scan_start' || msg.type === 'scan_progress' || msg.type === 'scan_done' || msg.type === 'scan_error') handleScanSseEvent(msg);
       };
 
       // The original handler just closed the stream on any error and left
@@ -834,7 +832,12 @@
       // until the page was reloaded. This retries with backoff and only
       // gives up, visibly, after repeated failures.
       es.onerror = () => {
-        if (!state.run.active) { closeStream(); return; }
+        if (!state.run.active) {
+          // Not in a proof run — quietly attempt reconnect for scan event monitoring
+          setConnectionStatus('idle');
+          attemptReconnect();
+          return;
+        }
         setConnectionStatus('reconnecting');
         attemptReconnect();
       };
@@ -1099,15 +1102,211 @@
       }
       if (e.key === 'Escape') {
         if (els.drawer.classList.contains('open')) closeDrawer();
+        closeReportModal();
       }
     }
 
     /* =========================================================================
-       INIT
+       SCAN TRIGGER
        ========================================================================= */
+    function triggerScan() {
+      const repoPath = els.scanPathInput.value.trim();
+      if (!repoPath) {
+        showToast('Please enter a folder path to scan.', 'warning');
+        els.scanPathInput.focus();
+        return;
+      }
+      els.scanBtn.disabled = true;
+      els.scanStatus.textContent = '⏳ Scanning…';
+      fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo_path: repoPath }),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.error) {
+            showToast(`Scan error: ${d.error}`, 'error');
+            els.scanStatus.textContent = '❌ Error';
+          } else if (d.status === 'already_running') {
+            showToast('A scan is already running.', 'warning');
+            els.scanStatus.textContent = '⏳ Running…';
+          } else {
+            showToast(`Scanning ${repoPath}…`, 'info');
+          }
+        })
+        .catch((err) => {
+          showToast(`Network error: ${err.message}`, 'error');
+          els.scanStatus.textContent = '❌ Error';
+          els.scanBtn.disabled = false;
+        });
+    }
+
+    // React to SSE scan_done / scan_progress events
+    function handleScanSseEvent(evt) {
+      if (evt.type === 'scan_start') {
+        els.scanStatus.textContent = '⏳ Indexing…';
+      } else if (evt.type === 'scan_progress') {
+        els.scanStatus.textContent = `✅ ${evt.count} candidates found`;
+        els.scanBtn.disabled = false;
+        loadFindings();
+        loadStats();
+      } else if (evt.type === 'scan_done') {
+        els.scanStatus.textContent = `✅ Scan complete`;
+        els.scanBtn.disabled = false;
+        loadFindings();
+        loadStats();
+      } else if (evt.type === 'scan_error') {
+        els.scanStatus.textContent = `❌ ${evt.error}`;
+        els.scanBtn.disabled = false;
+      }
+    }
+
+    /* =========================================================================
+       BENCH SETTINGS
+       ========================================================================= */
+    function toggleBenchSettings() {
+      const open = els.benchSettingsBody.classList.toggle('open');
+      els.benchChevron.classList.toggle('open', open);
+    }
+
+    function loadBenchConfig() {
+      fetch('/api/bench/config')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.bench_url) els.benchUrlInput.value = d.bench_url;
+          if (d.bench_user) els.benchUserInput.value = d.bench_user;
+          if (d.bench_site) els.benchSiteInput.value = d.bench_site;
+          if (d.repo) els.scanPathInput.value = d.repo;
+        })
+        .catch(() => {}); // silent — optional prefill
+    }
+
+    function saveBenchConfig() {
+      const payload = {
+        bench_url: els.benchUrlInput.value.trim(),
+        bench_port: els.benchPortInput.value.trim(),
+        bench_user: els.benchUserInput.value.trim(),
+        bench_password: els.benchPasswordInput.value,
+        bench_site: els.benchSiteInput.value.trim(),
+      };
+      els.benchSaveBtn.disabled = true;
+      els.benchSaveBtn.textContent = 'Saving…';
+      fetch('/api/bench/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+        .then((r) => r.json())
+        .then(() => {
+          showToast('Bench config saved. Testing connection…', 'info');
+          return fetch('/api/bench/check');
+        })
+        .then((r) => r.json())
+        .then((d) => renderBenchDiag(d))
+        .catch((err) => {
+          showToast(`Error: ${err.message}`, 'error');
+        })
+        .finally(() => {
+          els.benchSaveBtn.disabled = false;
+          els.benchSaveBtn.textContent = 'Save & Test Connection';
+        });
+    }
+
+    function renderBenchDiag(d) {
+      els.benchDiag.style.display = '';
+
+      const reach = d.reachable;
+      const auth  = d.auth_ok;
+      const site  = d.site_ok !== undefined ? d.site_ok : true;
+
+      // URL row
+      els.diagUrl.textContent = d.bench_url || '—';
+      _setDiagBadge(els.diagReachBadge, reach, 'REACHABLE', 'UNREACHABLE');
+
+      // Site row
+      els.diagSite.textContent = d.site || '—';
+      _setDiagBadge(els.diagSiteBadge, site, 'VALID', 'NOT FOUND');
+
+      // Auth row
+      els.diagUser.textContent = d.username || '—';
+      _setDiagBadge(els.diagAuthBadge, auth, 'OK', 'FAILED');
+
+      // Overall badge in card header
+      const overall = reach && auth && site;
+      const badge = els.benchStatusBadge;
+      badge.className = 'bench-status-badge ' + (overall ? 'ready' : auth === null ? 'warn' : 'error');
+      badge.textContent = overall ? '🟢 Ready' : '🔴 Issue';
+
+      // Issues list
+      const issues = [];
+      if (!reach) issues.push(`🌐 Bench URL is unreachable. Is "bench start" running on ${d.bench_url || 'the configured port'}?`);
+      if (reach && !auth) issues.push('🔑 Authentication failed. Check your username and password.');
+      if (reach && !site) issues.push(`🏠 Site "${d.site}" not found. Check your site name.`);
+
+      if (issues.length) {
+        els.diagIssues.innerHTML = issues.map((i) => `<div>⚠️ ${escapeHtml(i)}</div>`).join('');
+        els.diagIssues.style.display = '';
+      } else {
+        els.diagIssues.style.display = 'none';
+      }
+    }
+
+    function _setDiagBadge(el, ok, okLabel, failLabel) {
+      if (ok === null || ok === undefined) {
+        el.textContent = '—';
+        el.className = 'bench-diag-badge neutral';
+      } else if (ok) {
+        el.textContent = okLabel;
+        el.className = 'bench-diag-badge ok';
+      } else {
+        el.textContent = failLabel;
+        el.className = 'bench-diag-badge fail';
+      }
+    }
+
+    /* =========================================================================
+       DOWNLOAD HELPER
+       ========================================================================= */
+    function downloadFile(url, filename) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    /* =========================================================================
+       REPORT MODAL
+       ========================================================================= */
+    function openReportModal() {
+      els.reportModalOverlay.style.display = 'flex';
+      els.reportModalContent.textContent = 'Loading…';
+      fetch('/api/report')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.error) {
+            els.reportModalContent.textContent = `Error: ${d.error}`;
+          } else {
+            els.reportModalContent.textContent = d.report || '(No report data available)';
+          }
+        })
+        .catch((err) => {
+          els.reportModalContent.textContent = `Network error: ${err.message}`;
+        });
+    }
+
+    function closeReportModal() {
+      if (els.reportModalOverlay) els.reportModalOverlay.style.display = 'none';
+    }
+
+    /* =========================================================================
+       INIT
+       =========================================================================*/
     function cacheEls() {
       [
-        'repoPath', 'connStatus', 'connStatusLabel',
+        'connStatus', 'connStatusLabel',
         'badgeTotal', 'badgeCritical', 'badgeHigh', 'badgeMedium', 'badgeLow',
         'filterInput', 'filterStatus', 'filterSev',
         'selectionBar', 'selectionCount', 'selectionClearBtn',
@@ -1119,6 +1318,14 @@
         'streamList', 'streamCount',
         'toastContainer', 'drawer', 'drawerBackdrop', 'drawerCloseBtn', 'drawerCloseBtn2',
         'exportCsvBtn', 'refreshBtn',
+        // New elements
+        'scanPathInput', 'scanBtn', 'scanStatus',
+        'benchSettingsToggle', 'benchSettingsBody', 'benchChevron', 'benchStatusBadge',
+        'benchUrlInput', 'benchPortInput', 'benchSiteInput', 'benchUserInput', 'benchPasswordInput',
+        'benchSaveBtn',
+        'benchDiag', 'diagUrl', 'diagReachBadge', 'diagSite', 'diagSiteBadge', 'diagUser', 'diagAuthBadge', 'diagIssues',
+        'reportBtn', 'exportJsonBtn', 'exportSarifBtn',
+        'reportModalOverlay', 'reportModalClose', 'reportModalContent',
       ].forEach((id) => { els[id] = $(id); });
     }
 
@@ -1159,6 +1366,31 @@
       els.exportCsvBtn.addEventListener('click', exportVisibleAsCsv);
       els.refreshBtn.addEventListener('click', () => { if (!state.run.active) loadFindings(); });
 
+      // --- Scan bar ---
+      els.scanBtn.addEventListener('click', triggerScan);
+      els.scanPathInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') triggerScan(); });
+
+      // --- Bench settings toggle ---
+      els.benchSettingsToggle.addEventListener('click', toggleBenchSettings);
+
+      // --- Bench save & test ---
+      els.benchSaveBtn.addEventListener('click', saveBenchConfig);
+
+      // Port shortcut: fill benchUrlInput when port changes
+      els.benchPortInput.addEventListener('input', () => {
+        const p = els.benchPortInput.value.trim();
+        if (p) els.benchUrlInput.value = `http://localhost:${p}`;
+      });
+
+      // --- Report modal ---
+      els.reportBtn.addEventListener('click', openReportModal);
+      els.reportModalClose.addEventListener('click', closeReportModal);
+      els.reportModalOverlay.addEventListener('click', (e) => { if (e.target === els.reportModalOverlay) closeReportModal(); });
+
+      // --- Export JSON / SARIF ---
+      els.exportJsonBtn.addEventListener('click', () => downloadFile('/api/export/json', 'frapast-findings.json'));
+      els.exportSarifBtn.addEventListener('click', () => downloadFile('/api/export/sarif', 'frapast-findings.sarif'));
+
       document.addEventListener('keydown', onGlobalKeydown);
     }
 
@@ -1168,6 +1400,9 @@
       updateSortHeaders();
       loadFindings();
       loadStats();
+      loadBenchConfig();
+      // Open the persistent SSE stream so scan events arrive even outside proof runs
+      openStream();
     }
 
     document.addEventListener('DOMContentLoaded', boot);

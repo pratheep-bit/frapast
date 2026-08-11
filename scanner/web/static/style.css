@@ -204,17 +204,71 @@
       letter-spacing: 0.5px;
     }
 
-    .header-repo {
-      font-size: var(--fs-sm);
-      color: var(--text-muted);
-      font-family: 'JetBrains Mono', monospace;
+    /* Folder picker / scan bar */
+    .scan-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       background: var(--gray-bg);
-      padding: 4px 10px;
-      border-radius: var(--radius-md);
       border: 1px solid var(--border);
-      max-width: 400px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      border-radius: var(--radius-md);
+      padding: 4px 8px 4px 12px;
+      flex: 1;
+      min-width: 220px;
+      max-width: 480px;
+    }
+
+    .scan-bar-label {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .scan-path-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: var(--fs-sm);
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+      min-width: 80px;
+    }
+
+    .scan-path-input::placeholder {
+      color: var(--text-light);
+    }
+
+    .btn-scan {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--primary);
+      color: var(--text-inverse);
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 5px 12px;
+      font-size: var(--fs-sm);
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background var(--transition-fast);
+      flex-shrink: 0;
+    }
+
+    .btn-scan:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-scan:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .scan-status {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
       white-space: nowrap;
     }
 
@@ -1538,4 +1592,276 @@
       to {
         transform: rotate(360deg);
       }
+    }
+
+    /* =====================================================================
+     HEADER ACTION BUTTONS
+     ===================================================================== */
+    .header-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .header-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--gray-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 5px 12px;
+      font-size: var(--fs-sm);
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .header-action-btn:hover {
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    /* =====================================================================
+     BENCH SETTINGS CARD
+     ===================================================================== */
+    .bench-settings-header {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .bench-settings-header:hover {
+      background: var(--gray-bg);
+    }
+
+    .bench-status-badge {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--gray-bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .bench-status-badge.ready {
+      background: var(--green-bg);
+      border-color: var(--green-border);
+      color: var(--green-text);
+    }
+
+    .bench-status-badge.error {
+      background: var(--red-bg);
+      border-color: var(--red-border);
+      color: var(--red-text);
+    }
+
+    .bench-status-badge.warn {
+      background: var(--yellow-bg);
+      border-color: var(--yellow-border);
+      color: var(--yellow-text);
+    }
+
+    .card-chevron {
+      font-size: var(--fs-xs);
+      color: var(--text-light);
+      transition: transform var(--transition-fast);
+      flex-shrink: 0;
+    }
+
+    .card-chevron.open {
+      transform: rotate(180deg);
+    }
+
+    .bench-settings-body {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px 20px;
+    }
+
+    .bench-settings-body.open {
+      display: flex;
+    }
+
+    .bench-field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .bench-field-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .bench-label {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .bench-input {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 7px 10px;
+      font-size: var(--fs-sm);
+      color: var(--text-main);
+      background: var(--gray-bg);
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+      width: 100%;
+    }
+
+    .bench-input:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(36, 144, 239, 0.12);
+      background: var(--card-bg);
+    }
+
+    .bench-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .bench-save-btn {
+      width: 100%;
+    }
+
+    /* =====================================================================
+     BENCH DIAGNOSTIC PANEL
+     ===================================================================== */
+    .bench-diag {
+      background: var(--gray-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bench-diag-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .bench-diag-label {
+      font-size: var(--fs-xs);
+      color: var(--text-muted);
+      font-weight: 500;
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+
+    .bench-diag-val {
+      font-size: var(--fs-xs);
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bench-diag-badge {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+
+    .bench-diag-badge.ok {
+      background: var(--green-bg);
+      color: var(--green-text);
+    }
+
+    .bench-diag-badge.fail {
+      background: var(--red-bg);
+      color: var(--red-text);
+    }
+
+    .bench-diag-badge.warn {
+      background: var(--yellow-bg);
+      color: var(--yellow-text);
+    }
+
+    .bench-diag-badge.neutral {
+      background: var(--gray-bg);
+      color: var(--gray-text);
+      border: 1px solid var(--gray-border);
+    }
+
+    .bench-diag-issues {
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+      font-size: var(--fs-xs);
+      color: var(--red-text);
+      line-height: 1.6;
+    }
+
+    /* =====================================================================
+     REPORT MODAL
+     ===================================================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--overlay-bg);
+      z-index: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .modal {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 800px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal-title {
+      font-size: var(--fs-md);
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .modal-report-pre {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--fs-sm);
+      color: var(--text-main);
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.7;
     }

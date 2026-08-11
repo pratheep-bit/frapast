@@ -40,6 +40,11 @@ _state: dict = {
         "proven_findings": [],
     },
     "running": False,
+    "scan_running": False,
+    "bench_url": "",
+    "bench_user": "Administrator",
+    "bench_password": "admin",
+    "bench_site": "",
 }
 
 # Per-client SSE broadcast registry
@@ -85,9 +90,6 @@ class _Handler(BaseHTTPRequestHandler):
         elif not path.startswith("/api/") and (_STATIC_DIR / path.lstrip("/")).is_file():
             self._serve_static_file(path.lstrip("/"))
         elif path == "/api/findings":
-            # list(...) only copies the outer list — the dicts inside are the
-            # SAME objects the worker mutates. Copy each dict too, under the
-            # same lock the worker now uses (see _run_proof_in_background).
             with _lock:
                 snapshot_candidates = [dict(c) for c in _state["candidates"]]
                 snapshot_repo = _state["repo"]
@@ -96,11 +98,28 @@ class _Handler(BaseHTTPRequestHandler):
             with _lock:
                 snapshot_summary = dict(_state["summary"])
                 snapshot_repo = _state["repo"]
-            self._serve_json({**snapshot_summary, "repo": snapshot_repo})
+                snapshot_scan_running = _state["scan_running"]
+            self._serve_json({**snapshot_summary, "repo": snapshot_repo, "scan_running": snapshot_scan_running})
         elif path == "/api/snippet":
             self._serve_snippet(query)
         elif path == "/api/stream":
             self._serve_sse()
+        elif path == "/api/bench/check":
+            self._serve_bench_check()
+        elif path == "/api/bench/config":
+            with _lock:
+                self._serve_json({
+                    "bench_url": _state.get("bench_url", ""),
+                    "bench_user": _state.get("bench_user", "Administrator"),
+                    "bench_site": _state.get("bench_site", ""),
+                    "repo": _state.get("repo", ""),
+                })
+        elif path == "/api/report":
+            self._serve_report()
+        elif path == "/api/export/json":
+            self._serve_export_json()
+        elif path == "/api/export/sarif":
+            self._serve_export_sarif()
         else:
             self._404()
 
@@ -166,14 +185,14 @@ class _Handler(BaseHTTPRequestHandler):
             return
 
         path = self.path.split("?")[0]
-        if path == "/api/prove":
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length) if length else b"{}"
-            try:
-                data = json.loads(body)
-            except Exception:
-                data = {}
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length) if length else b"{}"
+        try:
+            data = json.loads(body)
+        except Exception:
+            data = {}
 
+        if path == "/api/prove":
             raw_count = data.get("count", 10)
             if raw_count == "all":
                 count: int | str = "all"
@@ -192,6 +211,50 @@ class _Handler(BaseHTTPRequestHandler):
                 self._serve_json({"status": "started", "count": count})
             else:
                 self._serve_json({"status": "already_running"})
+
+        elif path == "/api/bench/config":
+            with _lock:
+                if "bench_url" in data:
+                    _state["bench_url"] = str(data["bench_url"]).strip()
+                if "bench_port" in data and data["bench_port"]:
+                    try:
+                        _state["bench_url"] = f"http://localhost:{int(data['bench_port'])}"
+                    except (TypeError, ValueError):
+                        pass
+                if "bench_user" in data:
+                    _state["bench_user"] = str(data["bench_user"]).strip()
+                if "bench_password" in data:
+                    _state["bench_password"] = str(data["bench_password"]).strip()
+                if "bench_site" in data:
+                    _state["bench_site"] = str(data["bench_site"]).strip()
+            self._serve_json({"status": "saved"})
+
+        elif path == "/api/scan":
+            repo_path = str(data.get("repo_path", "")).strip()
+            if not repo_path:
+                self._serve_json({"error": "repo_path is required"}, status=400)
+                return
+            target = Path(repo_path)
+            if not target.exists():
+                self._serve_json({"error": f"Path '{repo_path}' does not exist"}, status=400)
+                return
+            with _lock:
+                if _state["scan_running"]:
+                    self._serve_json({"status": "already_running"})
+                    return
+                _state["scan_running"] = True
+
+            def _scan_worker():
+                try:
+                    _run_scan_in_background(target)
+                finally:
+                    with _lock:
+                        _state["scan_running"] = False
+                    _broadcast_sse({"type": "scan_done", "repo": str(target)})
+
+            threading.Thread(target=_scan_worker, daemon=True).start()
+            self._serve_json({"status": "started", "repo": str(target)})
+
         else:
             self._404()
 
@@ -298,6 +361,66 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
 
+    def _serve_bench_check(self):
+        from scanner.proof.bench_runner import diagnose_bench
+        with _lock:
+            bench_url = _state.get("bench_url", "")
+            bench_site = _state.get("bench_site", "")
+            bench_user = _state.get("bench_user", "Administrator")
+            bench_password = _state.get("bench_password", "admin")
+        try:
+            report = diagnose_bench(
+                base_url=bench_url,
+                username=bench_user,
+                password=bench_password,
+                site_name=bench_site,
+            )
+            self._serve_json(report)
+        except Exception as exc:
+            self._serve_json({"error": str(exc)}, status=500)
+
+    def _serve_report(self):
+        try:
+            from scanner.reporting import render_track_record
+            text = render_track_record("findings")
+            self._serve_json({"report": text})
+        except Exception as exc:
+            self._serve_json({"error": str(exc)}, status=500)
+
+    def _serve_export_json(self):
+        with _lock:
+            data = [dict(c) for c in _state["candidates"]]
+        body = json.dumps(data, default=str, indent=2).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Disposition", 'attachment; filename="frapast-findings.json"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_export_sarif(self):
+        try:
+            from scanner.reporting.sarif import candidates_to_sarif
+            with _lock:
+                candidates = [dict(c) for c in _state["candidates"]]
+                repo = _state.get("repo", ".")
+            sarif_doc = candidates_to_sarif(candidates, repo_root=repo)
+            body = json.dumps(sarif_doc, default=str, indent=2).encode("utf-8")
+        except Exception as exc:
+            body = json.dumps({"error": str(exc)}, default=str).encode("utf-8")
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Disposition", 'attachment; filename="frapast-findings.sarif"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     # ------------------------------------------------------------------
     # Proof trigger (runs in background thread)
     # ------------------------------------------------------------------
@@ -318,6 +441,54 @@ class _Handler(BaseHTTPRequestHandler):
 
         threading.Thread(target=_worker, daemon=True).start()
         return True
+
+
+# ---------------------------------------------------------------------------
+# Background scan worker
+# ---------------------------------------------------------------------------
+
+
+def _run_scan_in_background(repo: Path) -> None:
+    """Run a full static scan in background, updating _state and broadcasting SSE events."""
+    try:
+        from scanner.python import load as load_python
+        from scanner.schema import load as load_schema
+        from scanner.hooks import load as load_hooks
+        from scanner.rules import execute_rules
+
+        _broadcast_sse({"type": "scan_start", "repo": str(repo)})
+
+        python_index = load_python(repo)
+        schema_index = load_schema(repo)
+        hooks_index = load_hooks(repo)
+
+        candidates = execute_rules(
+            python_index=python_index,
+            schema_index=schema_index,
+            hooks_index=hooks_index,
+        )
+
+        with _lock:
+            _state["repo"] = str(repo.resolve())
+            _state["candidates"] = candidates
+            _state["summary"] = {
+                "total": len(candidates),
+                "proven": 0,
+                "refuted": 0,
+                "skipped": 0,
+                "errors": 0,
+                "proven_findings": [],
+            }
+            _state["running"] = False
+
+        _broadcast_sse({
+            "type": "scan_progress",
+            "count": len(candidates),
+            "repo": str(repo),
+        })
+
+    except Exception as exc:
+        _broadcast_sse({"type": "scan_error", "error": str(exc)})
 
 
 # ---------------------------------------------------------------------------
