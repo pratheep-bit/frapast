@@ -82,6 +82,8 @@ class _Handler(BaseHTTPRequestHandler):
 
         if path == "/" or path == "/index.html":
             self._serve_html()
+        elif not path.startswith("/api/") and (_STATIC_DIR / path.lstrip("/")).is_file():
+            self._serve_static_file(path.lstrip("/"))
         elif path == "/api/findings":
             # list(...) only copies the outer list — the dicts inside are the
             # SAME objects the worker mutates. Copy each dict too, under the
@@ -208,6 +210,37 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(html)))
         self.end_headers()
         self.wfile.write(html)
+
+    def _serve_static_file(self, rel_path: str):
+        target_path = (_STATIC_DIR / rel_path).resolve()
+        try:
+            target_path.relative_to(_STATIC_DIR.resolve())
+        except ValueError:
+            self._404()
+            return
+
+        if not target_path.is_file():
+            self._404()
+            return
+
+        ext = target_path.suffix.lower()
+        mime_types = {
+            ".html": "text/html; charset=utf-8",
+            ".css": "text/css; charset=utf-8",
+            ".js": "application/javascript; charset=utf-8",
+            ".svg": "image/svg+xml",
+            ".json": "application/json",
+            ".png": "image/png",
+            ".ico": "image/x-icon",
+        }
+        content_type = mime_types.get(ext, "application/octet-stream")
+        content = target_path.read_bytes()
+
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
 
     def _serve_json(self, data: dict, status: int = 200):
         body = json.dumps(data, default=str).encode("utf-8")
