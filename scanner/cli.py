@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "0.4.7"
+__version__ = "1.2.0"
 
 from scanner import ui
 from scanner.config import default_config, load_config
