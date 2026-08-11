@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import ast
+import re
+from collections.abc import Callable
 from pathlib import Path
 
+from scanner.logger import logger
 from scanner.python.models import (
 	CallRecord,
 	ClassLifecycleRecord,
@@ -19,6 +22,7 @@ from scanner.python.models import (
 	OutboundRequestRecord,
 	PermCheckRecord,
 	PythonParseError,
+	PythonParseErrorRecord,
 	PythonSymbolIndex,
 	QueryBuilderRecord,
 	SetValueRecord,
@@ -55,6 +59,12 @@ LIFECYCLE_METHODS = frozenset(
 	}
 )
 
+# Compiled once at import time instead of per ClassDef scanned — this ran
+# through `import re` and two re.sub() compiles for every class in every
+# file, which shows up in profiles on large monorepos.
+_CAPS_RUN_BOUNDARY_RE = re.compile(r"(?<=[A-Z])(?=[A-Z][a-z])")
+_LOWER_TO_UPPER_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+
 
 def discover_python_files(app_roots: str | Path | list[str | Path] | tuple[str | Path, ...]) -> list[SourceFile]:
 	roots = _normalize_roots(app_roots)
@@ -78,8 +88,6 @@ def discover_python_files(app_roots: str | Path | list[str | Path] | tuple[str |
 	return files
 
 
-from scanner.logger import logger
-
 def build_python_index(
 	files: list[SourceFile] | tuple[SourceFile, ...],
 	progress_callback: Callable[[int, int], None] | None = None,
@@ -93,18 +101,33 @@ def build_python_index(
 			text = source.path.read_text(encoding="utf-8")
 			tree = ast.parse(text, filename=str(source.path))
 			collector.collect(source, tree, text.splitlines())
-		except Exception as exc:
+		except (SyntaxError, UnicodeDecodeError, ValueError) as exc:
+			# Expected, routine failures (bad encoding, invalid syntax in a
+			# vendored/generated file). No traceback noise — just record it.
+			collector.parse_errors.append(PythonParseErrorRecord(file=source.relative_path, message=str(exc)))
 			logger.warning("Skipping %s due to parse error: %s", source.path, exc)
-			continue
+		except Exception:
+			# Anything else is unexpected — keep the scan alive but log with a
+			# full traceback so it's actually debuggable instead of being
+			# indistinguishable from a routine SyntaxError.
+			collector.parse_errors.append(PythonParseErrorRecord(file=source.relative_path, message="unexpected indexing error"))
+			logger.exception("Unexpected error indexing %s", source.path)
+	parse_error_count = len(collector.parse_errors)
+	if parse_error_count > 0:
+		logger.warning(
+			"Indexed %d/%d Python files cleanly (%d files skipped due to parse errors).",
+			total - parse_error_count, total, parse_error_count,
+		)
 	return collector.build()
 
 
 def load(
 	repo_path: str | Path,
 	progress_callback: Callable[[int, int], None] | None = None,
+	files: list[SourceFile] | tuple[SourceFile, ...] | None = None,
 ) -> PythonSymbolIndex:
-	files = discover_python_files(Path(repo_path))
-	return build_python_index(files, progress_callback=progress_callback)
+	resolved_files = files if files is not None else discover_python_files(Path(repo_path))
+	return build_python_index(resolved_files, progress_callback=progress_callback)
 
 
 def _normalize_roots(app_roots: str | Path | list[str | Path] | tuple[str | Path, ...]) -> list[Path]:
@@ -150,6 +173,7 @@ class _IndexCollector:
 		self.queries_in_loop: list[QueryInLoopRecord] = []
 		self.hardcoded_user_strings: list[HardcodedStringRecord] = []
 		self.unused_imports: list[UnusedImportRecord] = []
+		self.parse_errors: list[PythonParseErrorRecord] = []
 		self._document_subclass_names: set[str] = set()
 		self._non_document_bases: set[str] = set()
 
@@ -157,17 +181,24 @@ class _IndexCollector:
 		rel_path = source.relative_path
 		import_map: dict[str, str] = {}
 		for node in tree.body:
-			if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+			if isinstance(node, ast.ImportFrom) and node.module:
+				# Relative imports ("from .models import Y", node.level > 0) are
+				# the norm inside a Frappe app's own package and were previously
+				# skipped outright — meaning intra-app helper calls never
+				# resolved through import_map, a real source of missed
+				# reachability. Leading dots keep the target distinguishable
+				# from an absolute import of the same trailing name.
+				module_prefix = "." * node.level + node.module
 				for imported in node.names:
 					if imported.name != "*":
 						local_name = imported.asname or imported.name
-						target_name = f"{node.module}.{imported.name}"
+						target_name = f"{module_prefix}.{imported.name}"
 						import_map[local_name] = target_name
 						self.imports.append(
 							ImportRecord(
 								rel_path,
 								local_name,
-								node.module,
+								module_prefix,
 								imported.name,
 							)
 						)
@@ -194,12 +225,13 @@ class _IndexCollector:
 			elif isinstance(node, ast.ClassDef):
 				self._collect_class(source, node, lines, import_map=import_map)
 
+		self._collect_unused_imports(source, tree, import_map)
+
 	def _collect_class(
 		self, source: SourceFile, node: ast.ClassDef, lines: list[str], import_map: dict[str, str]
 	) -> None:
 		method_names: list[str] = []
 
-		known_base_names = {base_node.name for base_node in getattr(self, "_class_records_seen", ())}
 		is_document_subclass = any(
 			(isinstance(base, ast.Name) and (base.id.endswith("Document") or base.id in self._non_document_bases))
 			or (isinstance(base, ast.Attribute) and base.attr.endswith("Document"))
@@ -217,11 +249,10 @@ class _IndexCollector:
 			self._non_document_bases.add(node.name)
 
 		def _class_name_to_doctype(class_name: str) -> str:
-			import re
 			# Treat a run of capitals as one token (POSInvoice -> "POS Invoice", not "P O S Invoice"),
 			# then split before a capital that starts a new lowercase word.
-			spaced = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", class_name)
-			spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", spaced)
+			spaced = _CAPS_RUN_BOUNDARY_RE.sub(" ", class_name)
+			spaced = _LOWER_TO_UPPER_BOUNDARY_RE.sub(" ", spaced)
 			return spaced
 
 		doctype_name = _class_name_to_doctype(node.name) if is_document_subclass else None
@@ -326,6 +357,28 @@ class _IndexCollector:
 		self.queries_in_loop.extend(visitor.queries_in_loop)
 		self.hardcoded_user_strings.extend(visitor.hardcoded_user_strings)
 
+	def _collect_unused_imports(
+		self, source: SourceFile, tree: ast.Module, import_map: dict[str, str]
+	) -> None:
+		"""Flag imports whose bound local name is never referenced elsewhere in
+		the module. One pass over the tree, not one pass per import, to stay
+		O(nodes) instead of O(imports * nodes).
+		"""
+		used_names: set[str] = set()
+		for node in ast.walk(tree):
+			if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+				used_names.add(node.id)
+			elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+				used_names.add(node.value.id)
+
+		for local_name in import_map:
+			if local_name == "*" or local_name.startswith("_"):
+				continue
+			if local_name not in used_names:
+				self.unused_imports.append(
+					UnusedImportRecord(file=source.relative_path, local_name=local_name)
+				)
+
 	def build(self) -> PythonSymbolIndex:
 		return PythonSymbolIndex(
 			whitelisted_endpoints=tuple(self.whitelisted),
@@ -337,7 +390,7 @@ class _IndexCollector:
 			functions=tuple(self.functions),
 			calls=tuple(self.calls),
 			imports=tuple(self.imports),
-			unresolved=tuple(sorted(set(self.unresolved))),
+			unresolved=tuple(self.unresolved),
 			parser_backend=_parser_backend(),
 			enqueue_calls=tuple(self.enqueue_calls),
 			eval_exec_calls=tuple(self.eval_exec_calls),
@@ -355,6 +408,7 @@ class _IndexCollector:
 			queries_in_loop=tuple(self.queries_in_loop),
 			hardcoded_user_strings=tuple(self.hardcoded_user_strings),
 			unused_imports=tuple(self.unused_imports),
+			parse_errors=tuple(self.parse_errors),
 		)
 
 
@@ -533,8 +587,6 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 					self.symbol_id,
 				)
 			)
-		if name == "frappe.db.set_value" or name == "frappe.db.sql":
-			pass  # already handled above
 		# frappe.enqueue detection
 		if name == "frappe.enqueue":
 			has_dedupe = any(keyword.arg in {"deduplicate", "job_id", "queue_id"} for keyword in node.keywords)
@@ -545,7 +597,7 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		if name in {"eval", "exec"}:
 			controlled = False
 			if node.args:
-				controlled = _request_controlled(node.args[0], self.values, self.parameters)
+				controlled = _request_controlled(node.args[0], self.values, self.parameters, self.import_map)
 			self.eval_exec_calls.append(
 				EvalExecRecord(self.function, name, controlled, span, self.symbol_id)
 			)
@@ -565,9 +617,9 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 				elif isinstance(arg, ast.Dict):
 					controlled = False
 				elif isinstance(arg, ast.Name):
-					controlled = _request_controlled(arg, self.values, self.parameters)
+					controlled = _request_controlled(arg, self.values, self.parameters, self.import_map)
 				elif isinstance(arg, ast.Call):
-					controlled = _request_controlled(arg, self.values, self.parameters)
+					controlled = _request_controlled(arg, self.values, self.parameters, self.import_map)
 			if node.keywords:
 				for keyword in node.keywords:
 					if keyword.arg is None:  # **kwargs spread
@@ -629,7 +681,7 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		if name in {"frappe.msgprint", "frappe.throw"}:
 			uses_user_input = False
 			if node.args:
-				uses_user_input = _request_controlled(node.args[0], self.values, self.parameters)
+				uses_user_input = _request_controlled(node.args[0], self.values, self.parameters, self.import_map)
 			if uses_user_input:
 				self.msgprint_calls.append(
 					MsgprintRecord(self.function, uses_user_input, span, self.symbol_id)

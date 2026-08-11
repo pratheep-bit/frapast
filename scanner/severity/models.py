@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
 class SeverityScore:
 	"""Agnostic severity scoring."""
 	score: float
-	dimension_scores: dict[str, str | int | float | bool]
+	dimension_scores: dict[str, str | int | float | bool] = field(hash=False)
 
 
 PRIVILEGE_WEIGHTS = {

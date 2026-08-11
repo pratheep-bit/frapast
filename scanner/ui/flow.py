@@ -140,6 +140,9 @@ def run_proof_pipeline(
         bench_site_name=bench_site,
     )
 
+    from scanner.ledger_io import update_ledger_after_proof, index_ledger_entries
+    ledger_index = index_ledger_entries(findings_dir) if findings_dir is not None else None
+
     with ui.proof_progress(len(slice_), "Proving findings") as advance:
         for c in slice_:
             rule_id = c.get("rule_id", "")
@@ -158,7 +161,7 @@ def run_proof_pipeline(
             advance(f"{rule_id} in {func}")
 
             if findings_dir is not None:
-                update_ledger_after_proof(findings_dir, res)
+                update_ledger_after_proof(findings_dir, res, _index=ledger_index)
 
             if res.status == ProofStatus.PASSED:
                 c["proof_tier"] = res.proof_tier

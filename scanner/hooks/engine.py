@@ -3,7 +3,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from scanner.hooks.models import HookHandlerRecord, HookIndex, HookParseError
+from scanner.hooks.models import HookHandlerRecord, HookIndex
+from scanner.logger import logger
 from scanner.shared import SourceFile
 
 
@@ -34,8 +35,10 @@ def build_hook_index(files: list[SourceFile] | tuple[SourceFile, ...], app_order
 		app = _app_name(source)
 		try:
 			tree = ast.parse(source.path.read_text(encoding="utf-8"), filename=str(source.path))
-		except SyntaxError as exc:
-			raise HookParseError(f"parse_error: {source.path}: {exc.msg}") from exc
+		except (SyntaxError, UnicodeDecodeError, OSError) as exc:
+			logger.warning("Skipping %s due to parse error: %s", source.path, exc)
+			unresolved.append(f"{source.path}:parse_error")
+			continue
 		assignments = _literal_assignments(tree, source.path, unresolved)
 		doc_events = assignments.get("doc_events", {})
 		if isinstance(doc_events, dict):

@@ -231,10 +231,15 @@ class HardcodedStringRecord:
 
 
 @dataclass(frozen=True)
+class PythonParseErrorRecord:
+	file: str
+	message: str
+
+
+@dataclass(frozen=True)
 class UnusedImportRecord:
-	span: SourceSpan
-	module: str
-	imported_name: str
+	file: str
+	local_name: str
 
 
 @dataclass(frozen=True)
@@ -267,3 +272,5 @@ class PythonSymbolIndex:
 	queries_in_loop: tuple[QueryInLoopRecord, ...] = ()
 	hardcoded_user_strings: tuple[HardcodedStringRecord, ...] = ()
 	unused_imports: tuple[UnusedImportRecord, ...] = ()
+	parse_errors: tuple[PythonParseErrorRecord, ...] = ()
+

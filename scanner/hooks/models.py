@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -28,8 +28,8 @@ class HookCollisionRecord:
 @dataclass(frozen=True)
 class HookIndex:
 	handlers: tuple[HookHandlerRecord, ...]
-	permission_query_conditions: dict[str, str]
-	has_permission: dict[str, str]
+	permission_query_conditions: dict[str, str] = field(hash=False)
+	has_permission: dict[str, str] = field(hash=False)
 	unresolved: tuple[str, ...]
 
 	def handlers_for(self, doctype: str, event: str) -> tuple[HookHandlerRecord, ...]:

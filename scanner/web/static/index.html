@@ -2131,18 +2131,19 @@
     async function fetchSnippetLines(f) {
       if (f.snippetLoaded) return;
       f.snippetLoading = true;
+      f.snippetError = null;
       try {
         const fileParam = encodeURIComponent(f.file || '');
         const lineParam = parseInt(f.line, 10) || 1;
         const res = await fetch(`/api/snippet?file=${fileParam}&line=${lineParam}&before=2&after=3`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data.lines) && data.lines.length > 0) {
-            f.snippetLines = data.lines;
-          }
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.lines) && data.lines.length > 0) {
+          f.snippetLines = data.lines;
+        } else {
+          f.snippetError = (data && data.error) || 'Server returned no lines for this file.';
         }
       } catch (e) {
-        console.warn('Could not fetch real file snippet lines:', e);
+        f.snippetError = 'Could not reach the scanner server to load this file.';
       } finally {
         f.snippetLoading = false;
         f.snippetLoaded = true;
@@ -2220,9 +2221,6 @@
 
     function renderInlineCodeSnippetHtml(f) {
       const targetLine = parseInt(f.line, 10) || 1;
-      const startLine = Math.max(1, targetLine - 2);
-      const endLine = targetLine + 3;
-
       let lineRowsHtml = '';
 
       if (f.snippetLoading) {
@@ -2239,18 +2237,10 @@
           </div>`;
         }).join('');
       } else {
-        for (let currentLine = startLine; currentLine <= endLine; currentLine++) {
-          const isErrorLine = currentLine === targetLine;
-          const rowClass = isErrorLine ? 'code-line-row error-line' : 'code-line-row context-line';
-          const errorMarker = isErrorLine ? `<span class="error-marker-tag">VULNERABILITY</span>` : '';
-          const lineContent = isErrorLine ? (f.evidence || `// Evidence: ${f.function || 'vulnerable call'}`) : `# Line ${currentLine}`;
-          lineRowsHtml += `
-          <div class="${rowClass}">
-            <span class="line-num">${currentLine}</span>
-            <span class="line-code">${escapeHtml(lineContent)}</span>
-            ${errorMarker}
-          </div>`;
-        }
+        const reason = f.snippetError || 'Real source lines are unavailable for this finding.';
+        lineRowsHtml = `<div class="code-line-row context-line" style="padding: 12px; color: #b91c1c; font-style: italic;">
+          <span class="line-code">⚠ ${escapeHtml(reason)}</span>
+        </div>`;
       }
 
       return `

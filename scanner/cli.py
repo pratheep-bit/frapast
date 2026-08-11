@@ -6,7 +6,7 @@ import platform
 import sys
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path
 
@@ -32,7 +32,7 @@ from scanner.ui.theme import console
 class RepoScanResult:
 	repo_id: str
 	repo_path: Path
-	candidates: list[dict[str, object]]
+	candidates: list[dict[str, object]] = field(hash=False)
 	num_files: int
 	elapsed: float
 
@@ -55,10 +55,11 @@ def _get_version_string() -> str:
 def _load_indexes(
 	repo_path: Path,
 	progress_callback: Callable[[int, int], None] | None = None,
+	python_files: list | tuple | None = None,
 ):
 	schema = load_schema(repo_path)
 	hooks = load_hooks(repo_path)
-	python = load_python(repo_path, progress_callback=progress_callback)
+	python = load_python(repo_path, progress_callback=progress_callback, files=python_files)
 	return schema, hooks, python
 
 
@@ -188,17 +189,20 @@ def _scan_repo_with_severity(
 	show_progress: bool = False,
 ) -> tuple[list[dict[str, object]], int, float]:
 	t0 = time.perf_counter()
-	python_files_count = [0]
+
+	# Discover once, reuse everywhere. load_python() previously re-walked the
+	# repo internally on every call, so every scan paid for the directory
+	# walk twice. The file list is now also the single source of truth for
+	# num_files, instead of two different (and inconsistent) approximations
+	# depending on show_progress.
+	from scanner.python.engine import discover_python_files
+	python_files = discover_python_files(repo_path)
 
 	if show_progress:
 		with ui.scan_progress(f"scanning {repo_path.name or repo_path}") as cb:
-			def _progress(current: int, total: int) -> None:
-				python_files_count[0] = total
-				cb(current, total)
-
-			schema, hooks, python = _load_indexes(repo_path, progress_callback=_progress)
+			schema, hooks, python = _load_indexes(repo_path, progress_callback=cb, python_files=python_files)
 	else:
-		schema, hooks, python = _load_indexes(repo_path, progress_callback=None)
+		schema, hooks, python = _load_indexes(repo_path, progress_callback=None, python_files=python_files)
 
 	candidate_objs = execute_rules(schema, hooks, python)
 	if fp_log_path is not None and Path(fp_log_path).is_file():
@@ -219,9 +223,7 @@ def _scan_repo_with_severity(
 				c["severity"] = score.__dict__
 
 	elapsed = time.perf_counter() - t0
-	num_files = python_files_count[0] or len(python.functions)
-
-	return candidates, num_files, elapsed
+	return candidates, len(python_files), elapsed
 
 
 def scan(
@@ -347,11 +349,16 @@ def _build_parser() -> argparse.ArgumentParser:
 	scan_parser.add_argument("--write-ledger", action="store_true", help="Write findings to ledger directory")
 	scan_parser.add_argument("--ledger-dir", default="findings", help="Directory for findings YAML files")
 	scan_parser.add_argument("--repo-id", default="local", help="Repository identifier for ledger entries")
-	scan_parser.add_argument("--fp-log", default="findings/fp-log.yaml", help="Path to false-positive log")
+	scan_parser.add_argument("--fp-log", default=None, help="Path to false-positive log (default: findings/fp-log.yaml; for --config runs, falls back to each repo's own fp_log setting if not given)")
 	scan_parser.add_argument("--severity", action="store_true", help="Include severity scores in output")
 	scan_parser.add_argument("--diff", help="Scan only files modified relative to a git branch/commit (e.g. main, origin/main)")
 	scan_parser.add_argument("--limit", type=int, default=20, help="Maximum number of candidates to display in human output (default: 20; 0 for all)")
 	scan_parser.add_argument("--format", choices=["human", "yaml", "json", "sarif"], default="human", help="Output format (default: human)")
+	# Tier 2 bench configuration for scan --prove / --ui
+	scan_parser.add_argument("--bench-url", default="", help="Frappe bench base URL for Tier 2 HTTP/RPC proof (e.g. http://localhost:8000)")
+	scan_parser.add_argument("--bench-user", default="", help="Frappe username for Tier 2 bench authentication")
+	scan_parser.add_argument("--bench-password", default="", help="Frappe password for Tier 2 bench authentication")
+	scan_parser.add_argument("--bench-site", default="", help="Frappe site name (Host header) for multi-site bench setups")
 
 	prove_parser = subparsers.add_parser("prove", help="Run Tier 1 & Tier 2 proof verification")
 	prove_parser.add_argument("repo_path", nargs="?", default=".", help="Path to repository")
@@ -429,17 +436,29 @@ def _filter_candidates_by_diff(candidates: list[dict[str, object]], repo_path: P
 			capture_output=True,
 			text=True,
 			check=True,
+			timeout=30,
 		)
-		changed_files = set(res.stdout.splitlines())
-		if not changed_files:
-			return []
-		return [
-			c for c in candidates
-			if str(c.get("file", "")) in changed_files or any(str(c.get("file", "")).endswith(f) for f in changed_files)
-		]
-	except Exception as exc:
-		sys.stderr.write(f"Warning: failed to compute git diff against '{diff_ref}': {exc}\n")
+	except FileNotFoundError:
+		sys.stderr.write("Warning: 'git' executable not found — --diff filtering skipped, showing all candidates.\n")
 		return candidates
+	except subprocess.TimeoutExpired:
+		sys.stderr.write(f"Warning: git diff against '{diff_ref}' timed out — --diff filtering skipped.\n")
+		return candidates
+	except subprocess.CalledProcessError as exc:
+		# Most common cause: diff_ref doesn't exist (typo'd branch/commit).
+		# Failing the whole scan over a bad --diff value is worse than
+		# falling back unfiltered, but the reason should be visible.
+		stderr = (exc.stderr or "").strip()
+		sys.stderr.write(f"Warning: 'git diff {diff_ref}' failed ({stderr or exc}) — showing all candidates.\n")
+		return candidates
+
+	changed_files = set(res.stdout.splitlines())
+	if not changed_files:
+		return []
+	return [
+		c for c in candidates
+		if str(c.get("file", "")) in changed_files or any(str(c.get("file", "")).endswith(f) for f in changed_files)
+	]
 
 
 def _run_scan_command(args: argparse.Namespace) -> int:
@@ -451,6 +470,10 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 			write_ledger=args.write_ledger,
 			ledger_dir=args.ledger_dir,
 			launch_web=True,
+			bench_url=getattr(args, "bench_url", ""),
+			bench_user=getattr(args, "bench_user", ""),
+			bench_password=getattr(args, "bench_password", ""),
+			bench_site=getattr(args, "bench_site", ""),
 		)
 
 	if args.config:
@@ -491,6 +514,9 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		else:
 			for result in scan_results:
 				ui.render_results(result.repo_path, result.candidates, result.num_files, result.elapsed, limit=args.limit)
+
+		if args.prove:
+			return 1 if len(proven_findings) > 0 else 0
 		return 1 if total_candidates > 0 else 0
 
 	if not args.repo_path:
@@ -508,7 +534,8 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		sys.stderr.write(f"Error: No Python files found in '{args.repo_path}'\n")
 		return 2
 
-	fp_log_path = args.fp_log if Path(args.fp_log).is_file() else None
+	effective_fp_log = args.fp_log or "findings/fp-log.yaml"
+	fp_log_path = effective_fp_log if Path(effective_fp_log).is_file() else None
 	candidates, num_files, elapsed = _scan_repo_with_severity(
 		repo,
 		fp_log_path=fp_log_path,
@@ -537,11 +564,19 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		)
 	elif args.prove:
 		candidates_to_prove = candidates
+		bench_url = getattr(args, "bench_url", "")
+		bench_user = getattr(args, "bench_user", "")
+		bench_password = getattr(args, "bench_password", "")
+		bench_site = getattr(args, "bench_site", "")
 		proven_findings = _run_proof_verification(
 			candidates_to_prove,
 			repo,
 			args.repo_id,
 			findings_dir=Path(args.ledger_dir) if args.write_ledger else None,
+			bench_url=bench_url,
+			bench_user=bench_user,
+			bench_password=bench_password,
+			bench_site=bench_site,
 		)
 		if args.format in ("json", "yaml", "sarif"):
 			_write_json_or_yaml({"candidates": candidates, "proven": proven_findings}, args.format, repo)
@@ -551,6 +586,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 				f"{len(proven_findings)} / {len(candidates_to_prove)} candidates verified as PROVEN."
 			)
 			ui.render_results(repo, proven_findings or candidates_to_prove, num_files, elapsed, limit=args.limit)
+		return 1 if len(proven_findings) > 0 else 0
 	else:
 		if args.format in ("json", "yaml", "sarif"):
 			_write_json_or_yaml(output, args.format, repo)
@@ -561,7 +597,15 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 
 
 def _legacy_main(argv: list[str] | None = None) -> int:
-	"""Backward-compatible CLI for direct single repo_path argument: frapast /path/to/repo"""
+	"""Backward-compatible CLI for direct single repo_path argument: frapast /path/to/repo
+
+	This function was previously defined twice in this module. The later
+	definition silently shadowed this one at import time (Python raises no
+	error on function redefinition), so `--ui` was dead on arrival and TTY
+	sessions never got the interactive pipeline this docstring promises.
+	Consolidated into one implementation: interactive/UI when attached to a
+	TTY or --ui is passed, plain YAML-to-stdout otherwise for scripting/CI.
+	"""
 	parser = argparse.ArgumentParser(prog="frapast")
 	parser.add_argument("repo_path")
 	parser.add_argument("--write-ledger", action="store_true")
@@ -582,14 +626,22 @@ def _legacy_main(argv: list[str] | None = None) -> int:
 		sys.stderr.write(f"Error: No Python files found in '{args.repo_path}'\n")
 		return 2
 
-	from scanner.ui.flow import run_full_pipeline
-	return run_full_pipeline(
-		repo,
-		repo_id=args.repo_id,
-		write_ledger=args.write_ledger,
-		ledger_dir=args.ledger_dir,
-		launch_web=args.ui,
-	)
+	if args.ui or sys.stdout.isatty():
+		from scanner.ui.flow import run_full_pipeline
+		return run_full_pipeline(
+			repo,
+			repo_id=args.repo_id,
+			write_ledger=args.write_ledger,
+			ledger_dir=args.ledger_dir,
+			launch_web=args.ui,
+		)
+
+	fp_log_path = args.fp_log if Path(args.fp_log).is_file() else None
+	candidates = scan(args.repo_path, fp_log_path=fp_log_path, repo_id=args.repo_id)
+	print(yaml.safe_dump({"candidates": candidates}, sort_keys=False))
+	if args.write_ledger:
+		_write_candidates(candidates, Path(args.ledger_dir), args.repo_id)
+	return 1 if len(candidates) > 0 else 0
 
 
 def _run_post_scan_inspector_loop(repo: Path, candidates: list[dict]) -> None:
@@ -625,6 +677,8 @@ def _run_proof_verification(
 	proven_findings: list[dict] = []
 	if not candidates_to_prove:
 		return proven_findings
+	from scanner.ledger_io import update_ledger_after_proof, index_ledger_entries
+	ledger_index = index_ledger_entries(findings_dir) if findings_dir is not None else None
 	with ui.proof_progress(len(candidates_to_prove), "Verifying candidates") as advance:
 		for c in candidates_to_prove:
 			rule_id = c.get("rule_id", "")
@@ -640,7 +694,7 @@ def _run_proof_verification(
 			c["proof_error"] = res.error_message
 			advance(f"{rule_id} in {func}")
 			if findings_dir is not None:
-				update_ledger_after_proof(findings_dir, res)
+				update_ledger_after_proof(findings_dir, res, _index=ledger_index)
 			if res.status == ProofStatus.PASSED:
 				c["proof_tier"] = res.proof_tier
 				c["status"] = "proven"
@@ -660,7 +714,7 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 		write_ledger: bool = False,
 		ledger_dir: str = "findings",
 		repo_id: str = "local",
-		fp_log: str = "findings/fp-log.yaml",
+		fp_log: str | None = None,
 		prove: bool = False,
 		diff: str | None = None,
 	) -> None:
@@ -694,7 +748,7 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 			state["candidates"] = [c for result in scan_results for c in result.candidates]
 			state["repo"] = None
 			state["repo_id"] = "multi"
-			console.print(f"[muted]{total} total candidates across {len(results)} repos[/muted]\n")
+			console.print(f"[muted]{total} total candidates across {len(scan_results)} repos[/muted]\n")
 			return
 
 		repo = Path(path or ".")
@@ -706,7 +760,8 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 			console.print(f"[muted]no Python files found in '{repo}'[/muted]")
 			return
 
-		fp_log_path = fp_log if Path(fp_log).is_file() else None
+		effective_fp_log = fp_log or "findings/fp-log.yaml"
+		fp_log_path = effective_fp_log if Path(effective_fp_log).is_file() else None
 		candidates, num_files, elapsed = _scan_repo_with_severity(
 			repo, fp_log_path=fp_log_path, repo_id=repo_id, include_severity=True, show_progress=True,
 		)
@@ -868,7 +923,7 @@ def main(argv: list[str] | None = None) -> int:
 					f"{len(proven_findings)} / {len(candidates)} candidates verified as PROVEN."
 				)
 				ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit)
-			return 1 if candidates else 0
+			return 1 if proven_findings else 0
 		return 0
 
 	if args.command == "fix":
@@ -890,36 +945,8 @@ def main(argv: list[str] | None = None) -> int:
 	return 0
 
 
-def _legacy_main(argv: list[str] | None = None) -> int:
-	"""Backward-compatible CLI for single repo_path argument."""
-	parser = argparse.ArgumentParser(prog="frapast")
-	parser.add_argument("repo_path")
-	parser.add_argument("--write-ledger", action="store_true")
-	parser.add_argument("--ledger-dir", default="findings")
-	parser.add_argument("--repo-id", default="local")
-	parser.add_argument("--fp-log", default="findings/fp-log.yaml")
-	args = parser.parse_args(argv)
-
-	repo = Path(args.repo_path)
-	if not repo.exists():
-		sys.stderr.write(f"Error: path '{args.repo_path}' does not exist\n")
-		return 2
-
-	from scanner.python.engine import discover_python_files
-	py_files = discover_python_files(repo)
-	if not py_files:
-		sys.stderr.write(f"Error: No Python files found in '{args.repo_path}'\n")
-		return 2
-
-	candidates = scan(args.repo_path, fp_log_path=args.fp_log, repo_id=args.repo_id)
-	print(yaml.safe_dump({"candidates": candidates}, sort_keys=False))
-	if args.write_ledger:
-		_write_candidates(candidates, Path(args.ledger_dir), args.repo_id)
-	return 1 if len(candidates) > 0 else 0
-
-
 def _write_candidates(candidates: list[dict[str, object]], findings: Path, repo_id: str) -> None:
-	findings.mkdir(exist_ok=True)
+	findings.mkdir(parents=True, exist_ok=True)
 	with ledger_lock(findings):
 		for raw_candidate in candidates:
 			candidate = _strip_internal_candidate_fields(raw_candidate)

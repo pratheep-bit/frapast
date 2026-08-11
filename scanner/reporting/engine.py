@@ -30,9 +30,11 @@ def render_track_record(findings_dir: str | Path) -> str:
 	path = Path(findings_dir)
 	all_dirs = discover_all_findings_dirs(findings_dir)
 	findings = [
-		_load_finding(item)
+		f
 		for d in all_dirs
 		for item in sorted(d.glob("FR-*.yaml"))
+		for f in [_load_finding(item)]
+		if f is not None
 	]
 	counts = Counter(finding["status"] for finding in findings)
 	lines = [
@@ -121,8 +123,23 @@ def render_track_record(findings_dir: str | Path) -> str:
 	return "\n".join(lines) + "\n"
 
 
-def _load_finding(path: Path) -> dict[str, object]:
-	finding = yaml.safe_load(path.read_text(encoding="utf-8"))
+def _load_finding(path: Path) -> dict[str, object] | None:
+	"""Load a single ledger YAML entry.
+
+	Returns None (and logs a warning) if the file is corrupt, unreadable,
+	or missing the mandatory `status` field — rather than raising and crashing
+	the entire report command. The caller must filter None values out.
+	"""
+	try:
+		finding = yaml.safe_load(path.read_text(encoding="utf-8"))
+	except Exception as exc:
+		from scanner.logger import logger as _logger
+		_logger.warning("Skipping corrupt ledger entry %s: %s", path, exc)
+		return None
 	if not isinstance(finding, dict) or not isinstance(finding.get("status"), str):
-		raise ValueError(f"LEDGER_INVALID: {path}")
+		from scanner.logger import logger as _logger
+		_logger.warning(
+			"Skipping invalid ledger entry %s: missing or non-string 'status' field.", path
+		)
+		return None
 	return finding

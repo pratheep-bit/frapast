@@ -22,7 +22,7 @@ class CallEdge:
 
 @dataclass(frozen=True)
 class CallGraph:
-	edges: dict[str, tuple[str, ...]]
+	edges: dict[str, tuple[str, ...]] = field(hash=False)
 	unresolved: tuple[str, ...]
 	rich_edges: tuple[CallEdge, ...] = field(default_factory=tuple)
 	_cache: dict[str, object] = field(default_factory=dict, repr=False, compare=False)

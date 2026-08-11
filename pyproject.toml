@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "frapast"
-version = "0.4.8"
+version = "1.2.0"
 description = "Runtime-Proven Static Security Analysis Engine for Frappe & ERPNext"
 readme = "README.md"
 authors = [
@@ -47,3 +47,13 @@ scanner = [
     "rules/*.yaml",
     "web/static/*",
 ]
+
+# Top-level taxonomy files (shipped alongside the package at install time)
+[tool.setuptools.data-files]
+"share/frapast/taxonomy" = ["taxonomy/taxonomy_registry.yaml", "taxonomy/rule_severity_defaults.yaml"]
+
+[project.optional-dependencies]
+# pip install frapast[shell]  — enables the interactive REPL with history/tab-completion
+shell = ["prompt_toolkit>=3.0"]
+# pip install frapast[dev]  — test and lint dependencies
+dev  = ["pytest>=7.0", "ruff", "libcst>=1.0.0"]

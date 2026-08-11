@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import contextvars
 import re
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from scanner.callgraph import CallGraph, build_call_graph
@@ -10,6 +11,17 @@ from scanner.hooks import HookIndex
 from scanner.python import PythonSymbolIndex
 from scanner.schema import SchemaIndex
 from scanner.shared import stable_hash
+
+# Single source of truth for rule-function -> emitted taxonomy ID. Renames
+# happen here, not in docstrings, so a future function rename can't silently
+# desync from the ID it emits. _assert_taxonomy_consistency() enforces this
+# at import time instead of relying on someone reading a comment.
+RENAMED_TAXONOMY: dict[str, str] = {
+	"fr_corr_001_bare_except": "FR-HOOK-006",     # was FR-CORR-001
+	"fr_corr_002_mutable_default": "FR-HOOK-007", # was FR-CORR-002
+	"fr_xss_001": "FR-INJ-005",                   # was FR-XSS-001
+}
+
 
 
 HOOK_LIFECYCLE_METHODS = frozenset(
@@ -64,6 +76,11 @@ Rule = Callable[[SchemaIndex, HookIndex, PythonSymbolIndex, CallGraph], list[Can
 
 
 def fr_sqli_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
+	"""FR-SQLI-001: Unparameterized frappe.db.sql() built from request-controlled input.
+
+	Flags dynamic SQL strings reachable within one call-graph hop of a
+	whitelisted endpoint that lack parameter binding.
+	"""
 	reachable = _reachable_from_whitelisted(python, graph)
 	return [
 		_candidate(
@@ -81,6 +98,11 @@ def fr_sqli_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 
 
 def fr_sqli_002(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
+	"""FR-SQLI-002: Raw SQL against a submittable DocType with no docstatus filter.
+
+	Draft/cancelled rows can silently leak into query results that assume
+	only submitted documents matter.
+	"""
 	candidates: list[Candidate] = []
 	for call in python.sql_calls:
 		if call.query is None or "docstatus" in call.query.lower() or _is_non_runtime_path(call.span.file):
@@ -174,6 +196,11 @@ def fr_perm_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 
 
 def fr_perm_002(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
+	"""FR-PERM-002: ignore_permissions=True reachable from an unguarded whitelisted endpoint.
+
+	Excludes read-only helpers (get_all/get_list/get_value/count) and .insert()
+	calls, which are common, low-risk uses of the flag.
+	"""
 	permission_checks = {record.symbol_id for record in python.permission_checks}
 	safe_calls = {
 		"frappe.get_all", "frappe.get_list", "frappe.get_value", 
@@ -535,13 +562,28 @@ def fr_wkfl_004(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 
 	amended_from linking lets a cancelled doc become a new draft; if child-table
 	data or workflow_state aren't reset on amendment, stale state leaks.
+
+	Guard: only fires when the DocType JSON explicitly enables amendment
+	(`is_amendable = 1`). Without this check the rule fires on every controller
+	with on_submit, producing an overwhelming false-positive rate — most ERPNext
+	DocTypes are submittable but not amendable.
+
+	When no schema is available (e.g. scanning a bare Python repo without
+	DocType JSONs) the amendable set is empty and the rule produces no results,
+	which is a better default than drowning the report in FPs.
 	"""
+	amendable_names = schema.amendable_doctype_names()
 	candidates: list[Candidate] = []
 	for record in python.class_lifecycles:
 		if not record.has_on_submit:
 			continue
+		# Skip classes whose DocType is not configured as amendable.
+		# class_name is the bare class name (e.g. "SalesInvoice"), which matches
+		# the DocType name used in the schema index.
+		if amendable_names and record.class_name not in amendable_names:
+			continue
 		# Look for classes that handle submission but don't define an amend method
-		# or before_insert that would reset fields
+		# or before_insert that would reset fields on amendment.
 		method_set = set(record.methods)
 		has_amend_handler = "before_insert" in method_set or "after_insert" in method_set
 		if not has_amend_handler:
@@ -552,11 +594,12 @@ def fr_wkfl_004(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 					record.span.line_start,
 					record.class_name,
 					record.span.hash,
-					f"Submittable class '{record.class_name}' has on_submit but no before_insert/after_insert to handle amendment chain field resets.",
+					f"Amendable class '{record.class_name}' has on_submit but no before_insert/after_insert to handle amendment chain field resets.",
 					"Create a document, submit it, cancel it, amend it, and verify workflow_state and child tables are reset.",
 				)
 			)
 	return candidates
+
 
 
 # ---------------------------------------------------------------------------
@@ -614,14 +657,12 @@ def fr_inj_002(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex,
 
 
 def fr_xss_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
-	"""Unescaped user input rendered via frappe.msgprint/throw.
-
-	NOTE: taxonomy_id is FR-INJ-005 (renamed from FR-XSS-001).
-	"""
+	"""Unescaped user input rendered via frappe.msgprint/throw."""
+	rule_id = RENAMED_TAXONOMY["fr_xss_001"]
 	reachable = _reachable_from_whitelisted(python, graph)
 	return [
 		_candidate(
-			"FR-INJ-005",
+			rule_id,
 			record.span.file,
 			record.span.line_start,
 			record.function,
@@ -688,15 +729,11 @@ def fr_ssrf_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 _RESERVED_DOC_ATTRS = {"name", "creation", "modified", "modified_by", "owner", "docstatus", "idx", "parent", "parentfield", "parenttype", "doctype"}
 
 def fr_corr_001_bare_except(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
-	"""Bare except that swallows control flow, hiding real errors.
-
-	NOTE: taxonomy_id is FR-HOOK-006 (renamed from FR-CORR-001 — see
-	taxonomy_registry.yaml `extensions`). Function name is kept for git-blame
-	continuity but the emitted ID MUST match the registry, not the old name.
-	"""
+	"""Bare except that swallows control flow, hiding real errors."""
+	rule_id = RENAMED_TAXONOMY["fr_corr_001_bare_except"]
 	return [
 		_candidate(
-			"FR-HOOK-006", rec.span.file, rec.span.line_start, rec.symbol_id.rsplit(":", 1)[-1], rec.span.hash,
+			rule_id, rec.span.file, rec.span.line_start, rec.symbol_id.rsplit(":", 1)[-1], rec.span.hash,
 			"Bare except silently swallows all exceptions including framework signals.",
 			"Synthesize unit test to trigger exception",
 			fix_confidence="none",
@@ -706,13 +743,11 @@ def fr_corr_001_bare_except(schema: SchemaIndex, hooks: HookIndex, python: Pytho
 	]
 
 def fr_corr_002_mutable_default(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
-	"""Mutable default argument — classic shared-state bug.
-
-	NOTE: taxonomy_id is FR-HOOK-007 (renamed from FR-CORR-002).
-	"""
+	"""Mutable default argument — classic shared-state bug."""
+	rule_id = RENAMED_TAXONOMY["fr_corr_002_mutable_default"]
 	return [
 		_candidate(
-			"FR-HOOK-007", rec.span.file, rec.span.line_start, rec.symbol_id.rsplit(":", 1)[-1], rec.span.hash,
+			rule_id, rec.span.file, rec.span.line_start, rec.symbol_id.rsplit(":", 1)[-1], rec.span.hash,
 			f"Argument '{rec.arg_name}' defaults to a mutable {rec.default_kind}, which is shared across all calls.",
 			"Synthesize unit test to trigger shared state",
 			fix_confidence="high",
@@ -821,9 +856,35 @@ ALL_RULES: tuple[Rule, ...] = (
 )
 
 
+def _assert_taxonomy_consistency() -> None:
+	rule_names = {rule.__name__ for rule in ALL_RULES}
+	unknown = RENAMED_TAXONOMY.keys() - rule_names
+	if unknown:
+		raise AssertionError(f"RENAMED_TAXONOMY references unknown rule functions: {unknown}")
+
+_assert_taxonomy_consistency()
+
+
+@dataclass
+class _RuleCache:
+	reachable: dict[tuple[int, int], set[str]] = field(default_factory=dict)
+	endpoint_reachable: dict[tuple[int, int, str], set[str]] = field(default_factory=dict)
+
+
+# Scoped per execute_rules() call via contextvars instead of a module-level
+# dict, so concurrent scans (threads, asyncio tasks) can't corrupt each
+# other's cache or read stale entries from a prior run.
+_rule_cache_var: contextvars.ContextVar[_RuleCache | None] = contextvars.ContextVar(
+	"_rule_cache_var", default=None
+)
+
+
 def clear_rule_caches() -> None:
-	_REACHABLE_CACHE.clear()
-	_ENDPOINT_REACHABLE_CACHE.clear()
+	"""No-op stub kept for backwards compatibility.
+
+	Rule caches are now scoped per execute_rules() invocation via contextvars.
+	"""
+	pass
 
 
 def execute_rules(
@@ -832,11 +893,27 @@ def execute_rules(
 	python: PythonSymbolIndex,
 	call_graph: CallGraph | None = None,
 ) -> list[Candidate]:
-	clear_rule_caches()
-	graph = call_graph or build_call_graph(python)
-	candidates = [candidate for rule in ALL_RULES for candidate in rule(schema, hooks, python, graph)]
-	candidates = _filter_suppressed_candidates(candidates, python)
-	return _deduplicate(candidates)
+	from scanner.logger import logger as _logger
+	token = _rule_cache_var.set(_RuleCache())
+	try:
+		graph = call_graph or build_call_graph(python)
+		candidates: list[Candidate] = []
+		for rule in ALL_RULES:
+			try:
+				candidates.extend(rule(schema, hooks, python, graph))
+			except Exception as exc:
+				# A single rule failure must not abort the scan. Log the error so it
+				# is visible in CI output and --log-level debug without crashing.
+				_logger.warning(
+					"Rule %s raised an unexpected exception and was skipped: %s: %s",
+					getattr(rule, "__name__", repr(rule)),
+					type(exc).__name__,
+					exc,
+				)
+		candidates = _filter_suppressed_candidates(candidates, python)
+		return _deduplicate(candidates)
+	finally:
+		_rule_cache_var.reset(token)
 
 
 def _filter_suppressed_candidates(candidates: list[Candidate], python: PythonSymbolIndex) -> list[Candidate]:
@@ -904,23 +981,20 @@ def _candidate(
 	)
 
 
-_REACHABLE_CACHE: dict[tuple[int, int], tuple[object, object, set[str]]] = {}
-
 def _reachable_from_whitelisted(python: PythonSymbolIndex, graph: CallGraph) -> set[str]:
+	cache = _rule_cache_var.get()
 	cache_key = (id(python), id(graph))
-	cached = _REACHABLE_CACHE.get(cache_key)
-	if cached is not None and cached[0] is python and cached[1] is graph:
-		return cached[2]
+	if cache is not None and cache_key in cache.reachable:
+		return cache.reachable[cache_key]
 	result = {
 		symbol_id
 		for endpoint in python.whitelisted_endpoints
 		for symbol_id in graph.reachable_from(endpoint.symbol_id, max_hops=1)
 	}
-	_REACHABLE_CACHE[cache_key] = (python, graph, result)
+	if cache is not None:
+		cache.reachable[cache_key] = result
 	return result
 
-
-_ENDPOINT_REACHABLE_CACHE: dict[tuple[int, int, str], tuple[object, object, set[str]]] = {}
 
 def _has_unchecked_whitelisted_path(
 	sink_id: str,
@@ -928,22 +1002,21 @@ def _has_unchecked_whitelisted_path(
 	graph: CallGraph,
 	permission_checks: set[str],
 ) -> bool:
+	cache = _rule_cache_var.get()
 	for endpoint in python.whitelisted_endpoints:
-		if sink_id == endpoint.symbol_id:
-			pass
-		elif sink_id in graph.edges.get(endpoint.symbol_id, ()):
-			pass
-		else:
+		is_direct_sink = sink_id == endpoint.symbol_id
+		is_one_hop_sink = sink_id in graph.edges.get(endpoint.symbol_id, ())
+		if not (is_direct_sink or is_one_hop_sink):
 			continue
 		
 		# If the endpoint or its 1-hop helpers have a permission check, it's considered guarded
 		cache_key = (id(python), id(graph), endpoint.symbol_id)
-		cached = _ENDPOINT_REACHABLE_CACHE.get(cache_key)
-		if cached is not None and cached[0] is python and cached[1] is graph:
-			endpoint_reachable = cached[2]
+		if cache is not None and cache_key in cache.endpoint_reachable:
+			endpoint_reachable = cache.endpoint_reachable[cache_key]
 		else:
 			endpoint_reachable = set(graph.reachable_from(endpoint.symbol_id, max_hops=1))
-			_ENDPOINT_REACHABLE_CACHE[cache_key] = (python, graph, endpoint_reachable)
+			if cache is not None:
+				cache.endpoint_reachable[cache_key] = endpoint_reachable
 		
 		if not (endpoint_reachable & permission_checks):
 			return True
@@ -961,19 +1034,19 @@ def _query_mentions_table(query: str, table_name: str) -> bool:
 
 
 def _is_workflow_engine_path(path: str) -> bool:
-	parts = {part.lower() for part in path.split("/")}
+	parts = {part.lower() for part in path.replace("\\", "/").split("/")}
 	return "workflow" in parts or "workflow_action" in parts
 
 
 def _is_non_runtime_path(path: str) -> bool:
-	parts = [part.lower() for part in path.split("/")]
+	parts = [part.lower() for part in path.replace("\\", "/").split("/")]
 	filename = parts[-1] if parts else ""
 	return "patches" in parts or "tests" in parts or filename.startswith("test_")
 
 
 def _is_report_path(path: str) -> bool:
 	"""Detect Script Report / Query Report files."""
-	parts = [part.lower() for part in path.split("/")]
+	parts = [part.lower() for part in path.replace("\\", "/").split("/")]
 	return "report" in parts or any(part.endswith("_report") for part in parts)
 
 

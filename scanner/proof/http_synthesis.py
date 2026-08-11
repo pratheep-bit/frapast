@@ -16,10 +16,15 @@ Design rules:
 """
 from __future__ import annotations
 
+import os
+import tempfile
 import textwrap
+from collections.abc import Callable
 from pathlib import Path
 
 from scanner.proof.models import PROOF_MODE_MARKER, VALID_PROOF_MODES
+
+_SynthFn = Callable[[str, dict], str | None]
 
 
 # ---------------------------------------------------------------------------
@@ -39,19 +44,6 @@ def synthesize_http_rpc_reproducer(
     HTTP-provable strategy or the required finding metadata is missing.
     """
     rule_id: str = finding_data.get("rule_id", "")
-
-    _SYNTHESIS_MAP: dict[str, _SynthFn] = {
-        "FR-PERM-001": _synth_perm_001,
-        "FR-PERM-002": _synth_perm_002,
-        "FR-PERM-003": _synth_perm_003,
-        "FR-SQLI-001": _synth_sqli_001,
-        "FR-SQLI-003": _synth_sqli_003,
-        "FR-SQLI-004": _synth_sqli_004,
-        "FR-INJ-001":  _synth_inj_001,
-        "FR-INJ-002":  _synth_inj_002,
-        "FR-CSRF-001": _synth_csrf_001,
-        "FR-SSRF-001": _synth_ssrf_001,
-    }
 
     fn = _SYNTHESIS_MAP.get(rule_id)
     if fn is None:
@@ -81,10 +73,21 @@ _SynthFn = Callable[[str, dict], str | None]
 
 
 def _write_reproducer(path: Path, body: str) -> None:
-    """Write a reproducer script atomically with the PROOF_MODE marker on line 1."""
-    # Marker must be line 1; body already includes it from synth functions
-    path.write_text(body, encoding="utf-8")
-    path.chmod(0o755)
+    """Actually atomic now: write to a temp file in the same directory, chmod
+    it, then os.replace() into place. Previously wrote straight to the
+    destination — a killed writer, or a reader racing it, could see a
+    truncated .sh file despite this docstring's promise."""
+    directory = path.parent
+    directory.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=directory, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(body)
+        os.chmod(tmp_name, 0o755)
+        os.replace(tmp_name, path)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
 
 
 def _base_imports() -> str:
@@ -104,9 +107,9 @@ def _base_imports() -> str:
 
 
 def _wrap_in_bash(py_code: str) -> str:
-    """Wrap a Python proof program in a bash heredoc so it runs as a .sh script."""
-    # escape any single quotes already in the python code
-    escaped = py_code.replace("'", "'\"'\"'")
+    """No quote-escaping needed: the quoted heredoc delimiter ('PYEOF') tells
+    bash not to expand anything inside the body. (`escaped` was computed and
+    never used — dead code from an earlier unquoted-heredoc approach.)"""
     return f"#!/usr/bin/env bash\n{PROOF_MODE_MARKER} http_rpc\npython3 - <<'PYEOF'\n{py_code}\nPYEOF\n"
 
 
@@ -495,3 +498,17 @@ def _synth_ssrf_001(finding_id: str, data: dict) -> str | None:
         sys.exit(1)
     """)
     return _wrap_in_bash(py)
+
+
+_SYNTHESIS_MAP: dict[str, _SynthFn] = {
+    "FR-PERM-001": _synth_perm_001,
+    "FR-PERM-002": _synth_perm_002,
+    "FR-PERM-003": _synth_perm_003,
+    "FR-SQLI-001": _synth_sqli_001,
+    "FR-SQLI-003": _synth_sqli_003,
+    "FR-SQLI-004": _synth_sqli_004,
+    "FR-INJ-001":  _synth_inj_001,
+    "FR-INJ-002":  _synth_inj_002,
+    "FR-CSRF-001": _synth_csrf_001,
+    "FR-SSRF-001": _synth_ssrf_001,
+}

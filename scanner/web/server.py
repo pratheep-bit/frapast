@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import json
 import queue
+import sys
 import threading
 import time
 import webbrowser
 import urllib.parse
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from pathlib import Path
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path, PureWindowsPath
 
 PORT = 7777
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -41,8 +42,22 @@ _state: dict = {
     "running": False,
 }
 
-# SSE event queue — each item is a string (SSE line) or None (close)
-_sse_queue: queue.Queue = queue.Queue()
+# Per-client SSE broadcast registry
+_sse_clients: set[queue.Queue] = set()
+_sse_clients_lock = threading.Lock()
+
+
+def _broadcast_sse(event: dict) -> None:
+    payload = json.dumps(event, default=str)
+    with _sse_clients_lock:
+        dead = []
+        for q in _sse_clients:
+            try:
+                q.put_nowait(payload)
+            except queue.Full:
+                dead.append(q)
+        for q in dead:
+            _sse_clients.discard(q)
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +69,12 @@ class _Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # silence default logging
         pass
 
+    def _is_trusted_origin(self) -> bool:
+        origin = self.headers.get("Origin")
+        if origin is None:
+            return True
+        return origin in (f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}")
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
@@ -62,9 +83,18 @@ class _Handler(BaseHTTPRequestHandler):
         if path == "/" or path == "/index.html":
             self._serve_html()
         elif path == "/api/findings":
-            self._serve_json({"candidates": _state["candidates"], "repo": _state["repo"]})
+            # list(...) only copies the outer list — the dicts inside are the
+            # SAME objects the worker mutates. Copy each dict too, under the
+            # same lock the worker now uses (see _run_proof_in_background).
+            with _lock:
+                snapshot_candidates = [dict(c) for c in _state["candidates"]]
+                snapshot_repo = _state["repo"]
+            self._serve_json({"candidates": snapshot_candidates, "repo": snapshot_repo})
         elif path == "/api/stats":
-            self._serve_json({**_state["summary"], "repo": _state["repo"]})
+            with _lock:
+                snapshot_summary = dict(_state["summary"])
+                snapshot_repo = _state["repo"]
+            self._serve_json({**snapshot_summary, "repo": snapshot_repo})
         elif path == "/api/snippet":
             self._serve_snippet(query)
         elif path == "/api/stream":
@@ -80,17 +110,24 @@ class _Handler(BaseHTTPRequestHandler):
 
         try:
             target_line = int(line_str)
-            before = int(before_str)
-            after = int(after_str)
+            before = max(0, min(int(before_str), 50))
+            after = max(0, min(int(after_str), 50))
         except ValueError:
+            self._serve_json({"error": "Invalid line number", "lines": []})
+            return
+
+        if target_line < 1:
             self._serve_json({"error": "Invalid line number", "lines": []})
             return
 
         repo_root = Path(_state.get("repo", ""))
         file_path = _resolve_file_path(repo_root, rel_file)
 
-        if not file_path or not file_path.is_file():
-            self._serve_json({"error": f"File {rel_file} not found on disk", "lines": []})
+        if not file_path:
+            self._serve_json({
+                "error": f"Could not confidently resolve {rel_file} within the scanned repo",
+                "lines": [],
+            })
             return
 
         try:
@@ -121,44 +158,11 @@ class _Handler(BaseHTTPRequestHandler):
             "lines": res_lines,
         })
 
-
-def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
-    if not rel_file:
-        return None
-    p = Path(rel_file)
-    if p.is_absolute() and p.is_file():
-        return p
-
-    # 1. Try direct join with repo_root
-    cand = repo_root / p
-    if cand.is_file():
-        return cand
-
-    # 2. Try current working directory
-    cand_cwd = Path.cwd() / p
-    if cand_cwd.is_file():
-        return cand_cwd
-
-    # 3. Try subpath matching (strip leading components)
-    parts = p.parts
-    for i in range(len(parts)):
-        sub = Path(*parts[i:])
-        if (repo_root / sub).is_file():
-            return repo_root / sub
-
-    # 4. Search recursively by filename in repo_root
-    fname = p.name
-    if repo_root.exists():
-        matches = list(repo_root.rglob(fname))
-        if matches:
-            for m in matches:
-                if str(m).endswith(rel_file):
-                    return m
-            return matches[0]
-
-    return None
-
     def do_POST(self):
+        if not self._is_trusted_origin():
+            self._serve_json({"error": "Cross-origin requests are not allowed."}, status=403)
+            return
+
         path = self.path.split("?")[0]
         if path == "/api/prove":
             length = int(self.headers.get("Content-Length", 0))
@@ -167,9 +171,25 @@ def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
                 data = json.loads(body)
             except Exception:
                 data = {}
-            count = data.get("count", 10)
-            self._trigger_proof(count)
-            self._serve_json({"status": "started", "count": count})
+
+            raw_count = data.get("count", 10)
+            if raw_count == "all":
+                count: int | str = "all"
+            else:
+                try:
+                    count = int(raw_count)
+                except (TypeError, ValueError):
+                    self._serve_json({"error": "count must be a positive integer or 'all'"}, status=400)
+                    return
+                if count < 1:
+                    self._serve_json({"error": "count must be a positive integer or 'all'"}, status=400)
+                    return
+
+            started = self._trigger_proof(count)
+            if started:
+                self._serve_json({"status": "started", "count": count})
+            else:
+                self._serve_json({"status": "already_running"})
         else:
             self._404()
 
@@ -189,37 +209,57 @@ def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
         self.end_headers()
         self.wfile.write(html)
 
-    def _serve_json(self, data: dict):
+    def _serve_json(self, data: dict, status: int = 200):
         body = json.dumps(data, default=str).encode("utf-8")
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        # Restrict to same-origin rather than wildcard so that a malicious tab
+        # open in the same browser cannot silently fetch and exfiltrate findings.
+        self.send_header("Access-Control-Allow-Origin", f"http://localhost:{PORT}")
         self.end_headers()
         self.wfile.write(body)
 
     def _serve_sse(self):
+        # EventSource can't set custom request headers, but the browser still
+        # sends a real Origin header on the underlying request — the same one
+        # _is_trusted_origin() already checks for POST. A wildcard ACAO opts
+        # every origin out of CORS, letting any tab open in the same browser
+        # read live scan results via a localhost-CORS / DNS-rebinding attack.
+        # Origin-gate it the same way POST already is.
+        if not self._is_trusted_origin():
+            self.send_response(403)
+            self.end_headers()
+            return
+        origin = self.headers.get("Origin") or f"http://localhost:{PORT}"
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "keep-alive")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", origin)
         self.end_headers()
+
+        client_q: queue.Queue = queue.Queue(maxsize=200)
+        with _sse_clients_lock:
+            _sse_clients.add(client_q)
+
         try:
             while True:
                 try:
-                    event = _sse_queue.get(timeout=30)
+                    payload = client_q.get(timeout=30)
                 except queue.Empty:
-                    # Keep-alive ping
                     self.wfile.write(b": ping\n\n")
                     self.wfile.flush()
                     continue
-                if event is None:
+                if payload is None:
                     break
-                self.wfile.write(f"data: {event}\n\n".encode("utf-8"))
+                self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
                 self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError):
             pass
+        finally:
+            with _sse_clients_lock:
+                _sse_clients.discard(client_q)
 
     def _404(self):
         self.send_response(404)
@@ -229,10 +269,10 @@ def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
     # Proof trigger (runs in background thread)
     # ------------------------------------------------------------------
 
-    def _trigger_proof(self, count):
+    def _trigger_proof(self, count) -> bool:
         with _lock:
             if _state["running"]:
-                return  # already running
+                return False
             _state["running"] = True
 
         def _worker():
@@ -241,9 +281,10 @@ def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
             finally:
                 with _lock:
                     _state["running"] = False
-                _sse_queue.put(json.dumps({"type": "done", "summary": _state["summary"]}))
+                _broadcast_sse({"type": "done", "summary": _state["summary"]})
 
         threading.Thread(target=_worker, daemon=True).start()
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -254,8 +295,10 @@ def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
 def _run_proof_in_background(count: int | str) -> None:
     """Run proof pipeline, sending SSE events for each result."""
     from scanner.ui.results import candidate_score
-    from scanner.ui.flow import run_proof_pipeline
+    from scanner.proof.orchestrator import ProofOrchestrator
     from scanner.proof.models import ProofStatus
+    from scanner.cli import _finding_id, _candidate_repo_id
+    from dataclasses import replace as dc_replace
 
     candidates = _state["candidates"]
     repo = Path(_state["repo"])
@@ -270,12 +313,13 @@ def _run_proof_in_background(count: int | str) -> None:
     proven = refuted = skipped = errors = 0
     proven_findings: list[dict] = []
 
-    from scanner.proof.orchestrator import ProofOrchestrator
-    from scanner.proof.models import ProofStatus
-    from scanner.cli import _finding_id, _candidate_repo_id
-    from dataclasses import replace as dc_replace
-
-    orchestrator = ProofOrchestrator(workspace_root=repo)
+    orchestrator = ProofOrchestrator(
+        workspace_root=repo,
+        bench_url=_state.get("bench_url", ""),
+        bench_user=_state.get("bench_user", ""),
+        bench_password=_state.get("bench_password", ""),
+        bench_site_name=_state.get("bench_site", ""),
+    )
 
     for idx, c in enumerate(slice_, 1):
         rule_id = c.get("rule_id", "")
@@ -283,28 +327,41 @@ def _run_proof_in_background(count: int | str) -> None:
         loc_hash = str(c.get("code_location_hash", ""))
         crid = _candidate_repo_id(c, "local")
         fid = _finding_id(c, crid)
-        c["id"] = fid
 
-        res = orchestrator.prove_candidate(fid, candidate_data=c)
-        if loc_hash:
-            res = dc_replace(res, code_location_hash=loc_hash)
+        status_val = "error"
+        updates: dict = {"id": fid}
+        try:
+            res = orchestrator.prove_candidate(fid, candidate_data={**c, "id": fid})
+            if loc_hash:
+                res = dc_replace(res, code_location_hash=loc_hash)
 
-        status_val = getattr(res.status, "value", str(res.status))
-        c["proof_status"] = status_val
+            status_val = getattr(res.status, "value", str(res.status))
+            updates["proof_status"] = status_val
 
-        if res.status == ProofStatus.PASSED:
-            c["proof_tier"] = res.proof_tier
-            c["status"] = "proven"
-            proven += 1
-            proven_findings.append(c)
-        elif res.status == ProofStatus.FAILED:
-            refuted += 1
-        elif res.status == ProofStatus.SKIPPED:
-            skipped += 1
-        else:
+            if res.status == ProofStatus.PASSED:
+                updates.update(proof_tier=res.proof_tier, status="proven", proof_status="proven")
+                proven += 1
+            elif res.status == ProofStatus.FAILED:
+                updates.update(status="refuted", proof_status="refuted")
+                refuted += 1
+            elif res.status == ProofStatus.SKIPPED:
+                updates.update(status="skipped", proof_status="skipped")
+                skipped += 1
+            else:
+                updates["status"] = status_val
+                errors += 1
+        except Exception as e:
+            updates.update(status="error", proof_status="error", proof_error=str(e))
             errors += 1
 
-        # Emit SSE event for this finding
+        # Apply every field for this candidate as one atomic step under the
+        # same lock the reader uses, so /api/findings never sees this dict
+        # mid-update or racing a key insertion.
+        with _lock:
+            c.update(updates)
+            if updates.get("status") == "proven":
+                proven_findings.append(c)
+
         event = {
             "type": "progress",
             "index": idx,
@@ -317,9 +374,17 @@ def _run_proof_in_background(count: int | str) -> None:
             "status": status_val,
             "tier": c.get("proof_tier", 0),
         }
-        _sse_queue.put(json.dumps(event))
+        with _lock:
+            _state["summary"] = {
+                "total": total,
+                "proven": proven,
+                "refuted": refuted,
+                "skipped": skipped,
+                "errors": errors,
+                "proven_findings": proven_findings,
+            }
+        _broadcast_sse(event)
 
-    # Update global state
     with _lock:
         _state["summary"] = {
             "total": total,
@@ -336,6 +401,16 @@ def _run_proof_in_background(count: int | str) -> None:
 # ---------------------------------------------------------------------------
 
 
+class QuietThreadingHTTPServer(ThreadingHTTPServer):
+    """Subclass of ThreadingHTTPServer that suppresses harmless client disconnects."""
+
+    def handle_error(self, request: object, client_address: object) -> None:
+        _, exc, _ = sys.exc_info()
+        if isinstance(exc, (ConnectionResetError, BrokenPipeError, ConnectionAbortedError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def start_server(
     repo: Path,
     candidates: list[dict],
@@ -347,23 +422,117 @@ def start_server(
     port: int = PORT,
     open_browser: bool = True,
 ) -> None:
-    """Start the web dashboard server (blocking until Ctrl-C)."""
+    """Start local web server on PORT in background thread, then open browser."""
     with _lock:
-        _state["repo"] = str(repo)
+        _state["repo"] = str(repo.resolve())
         _state["candidates"] = candidates
+        _state["bench_url"] = bench_url
+        _state["bench_user"] = bench_user
+        _state["bench_password"] = bench_password
+        _state["bench_site"] = bench_site
+        _state["summary"] = {
+            "total": len(candidates), "proven": 0, "refuted": 0, "skipped": 0, "errors": 0,
+            "proven_findings": [],
+        }
+        _state["running"] = False
 
-    server = HTTPServer(("localhost", port), _Handler)
+    server = None
+    for try_port in range(port, port + 10):
+        try:
+            server = QuietThreadingHTTPServer(("127.0.0.1", try_port), _Handler)
+            port = try_port
+            break
+        except OSError:
+            continue
+
+    if server is None:
+        print(f"\n❌ Could not start dashboard on ports {port}-{port+9}: All addresses in use.")
+        print("   Stop existing instances or free the port.\n")
+        return
+
+    server.daemon_threads = True
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+
     url = f"http://localhost:{port}"
-
-    from scanner.ui.theme import console
-    console.print(f"\n[bold cyan]🌐 Web dashboard running at[/bold cyan] [underline]{url}[/underline]")
-    console.print("[muted]Press Ctrl+C to stop the server.[/muted]\n")
+    print(f"\n🌐 Web dashboard running at {url}")
+    print("Press Ctrl+C to stop the server.\n")
 
     if open_browser:
-        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+        try:
+            webbrowser.open(url)
+        except Exception:
+            # Silently ignore failures — headless / SSH / container environments
+            # have no display and webbrowser.open raises OSError or spawns a
+            # subprocess that immediately fails. The server is still running;
+            # the user can navigate to the URL manually.
+            pass
 
     try:
-        server.serve_forever()
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
-        console.print("\n[muted]Web server stopped.[/muted]")
-        server.server_close()
+        print("\nStopping web dashboard server...")
+        server.shutdown()
+
+
+def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
+    if not rel_file:
+        return None
+
+    try:
+        repo_root_resolved = repo_root.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+
+    def _within_repo(candidate: Path) -> Path | None:
+        try:
+            resolved = candidate.resolve(strict=True)
+        except (OSError, RuntimeError):
+            return None
+        if resolved == repo_root_resolved or repo_root_resolved in resolved.parents:
+            return resolved
+        return None
+
+    p = Path(rel_file)
+
+    # Reject absolute input outright — a finding's "file" should always be
+    # repo-relative. Absolute paths are never trusted from the client.
+    # Check both POSIX and Windows absolute formats regardless of runner OS.
+    if p.is_absolute() or PureWindowsPath(rel_file).is_absolute() or rel_file.startswith(("/", "\\")):
+        return None
+
+    # 1. Direct join with repo_root
+    cand = _within_repo(repo_root / p)
+    if cand:
+        return cand
+
+    # 2. Strip leading path components (handles findings recorded with
+    #    a differing prefix, e.g. "app/scanner/x.py" vs "scanner/x.py")
+    parts = p.parts
+    for i in range(1, len(parts)):
+        sub = Path(*parts[i:])
+        cand = _within_repo(repo_root / sub)
+        if cand:
+            return cand
+
+    # 3. Search by filename within repo_root only — require the match to
+    #    be unambiguous. If multiple files share the basename, refuse to
+    #    guess; the caller must be told rather than silently shown the
+    #    wrong file.
+    fname = p.name
+    if fname:
+        candidates = [
+            m for m in repo_root_resolved.rglob(fname)
+            if m.is_file() and _within_repo(m)
+        ]
+        exact_suffix = [m for m in candidates if str(m).endswith(rel_file)]
+        if len(exact_suffix) == 1:
+            return exact_suffix[0]
+        if len(exact_suffix) == 0 and len(candidates) == 1:
+            return candidates[0]
+        # 0 matches, or ambiguous (>1) matches — both are "can't resolve
+        # confidently" cases, not "pick one and hope."
+        return None
+
+    return None

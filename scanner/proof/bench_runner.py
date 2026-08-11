@@ -31,6 +31,19 @@ from scanner.proof.http_synthesis import synthesize_http_rpc_reproducer
 from scanner.proof.models import ProofResult, ProofStatus
 
 
+def auto_detect_bench_url(ports: tuple[int, ...] = (8000, 8001, 8005, 8002, 8003, 8004)) -> str | None:
+    """Probes standard Frappe Bench localhost ports. Returns the first reachable URL or None."""
+    for port in ports:
+        url = f"http://localhost:{port}"
+        try:
+            client = FrappeHTTPClient(url, timeout=2)
+            if client.ping():
+                return url
+        except Exception:
+            continue
+    return None
+
+
 class BenchRunner:
     """Executes Tier 2 HTTP/RPC proofs against a live Frappe bench.
 
@@ -57,10 +70,10 @@ class BenchRunner:
         reproducers_dir: str | Path = "runtime/reproducers",
     ) -> None:
         # Honour environment variable overrides (useful in Docker / CI contexts)
-        self.base_url = os.environ.get("FRAPAST_BENCH_URL", base_url)
-        self.username = os.environ.get("FRAPAST_BENCH_USER", username)
-        self.password = os.environ.get("FRAPAST_BENCH_PWD", password)
-        self.site_name = os.environ.get("FRAPAST_SITE_NAME", site_name)
+        self.base_url = os.environ.get("FRAPAST_BENCH_URL") or base_url or "http://localhost:8000"
+        self.username = os.environ.get("FRAPAST_BENCH_USER") or username
+        self.password = os.environ.get("FRAPAST_BENCH_PWD") or password
+        self.site_name = os.environ.get("FRAPAST_SITE_NAME") or site_name
         self.timeout = timeout
         self.dry_run = dry_run
         self.workspace_root = Path(workspace_root)
@@ -103,7 +116,24 @@ class BenchRunner:
         )
         reproducer_path_str = str(reproducer_path) if reproducer_path else ""
 
-        # Step 2 — check bench reachability
+        # Step 2 — dry run short-circuits BEFORE the reachability check now.
+        # Gating dry_run behind is_bench_alive() meant CI environments with no
+        # bench running — the exact case dry_run exists for — got SKIPPED and
+        # never reached this branch at all.
+        if self.dry_run:
+            return ProofResult(
+                finding_id=finding_id,
+                status=ProofStatus.DRY_RUN,
+                proof_tier=2,
+                exit_code=None,
+                stdout="[dry-run] would execute HTTP proof against " + self.base_url,
+                stderr="",
+                duration_seconds=time.perf_counter() - t0,
+                reproducer_path=reproducer_path_str,
+                error_message=None,
+            )
+
+        # Step 3 — check bench reachability
         if not self.is_bench_alive():
             return ProofResult(
                 finding_id=finding_id,
@@ -119,20 +149,6 @@ class BenchRunner:
                     "Tier 2 proof skipped. Start the bench with `make site-serve` "
                     "or set FRAPAST_BENCH_URL to the correct URL."
                 ),
-            )
-
-        # Step 3 — dry run short-circuit
-        if self.dry_run:
-            return ProofResult(
-                finding_id=finding_id,
-                status=ProofStatus.DRY_RUN,
-                proof_tier=2,
-                exit_code=None,
-                stdout="[dry-run] would execute HTTP proof against " + self.base_url,
-                stderr="",
-                duration_seconds=time.perf_counter() - t0,
-                reproducer_path=reproducer_path_str,
-                error_message=None,
             )
 
         # Step 4 — execute the proof via FrappeHTTPClient
@@ -155,25 +171,54 @@ class BenchRunner:
         func_name: str = candidate_data.get("function", "")
         api_method = func_name.replace("/", ".").strip(".")
 
+        if not self.username or not self.password:
+            return ProofResult(
+                finding_id=finding_id,
+                status=ProofStatus.SKIPPED,
+                proof_tier=2,
+                exit_code=None,
+                stdout="",
+                stderr="",
+                duration_seconds=time.perf_counter() - t0,
+                reproducer_path=reproducer_path_str,
+                error_message=(
+                    "Tier 2 HTTP proof skipped: no bench credentials configured. "
+                    "Provide --bench-user and --bench-password CLI options, "
+                    "or set FRAPAST_BENCH_USER and FRAPAST_BENCH_PWD in your environment."
+                ),
+            )
+
         stdout_lines: list[str] = []
         stderr_lines: list[str] = []
 
         try:
-            # Authenticate
-            try:
-                client.login(self.username, self.password)
-                stdout_lines.append(f"Authenticated as {self.username} at {self.base_url}")
-            except FrappeAuthError as exc:
+            # Authenticate with 1 retry on transient bench errors
+            authenticated = False
+            for attempt in range(2):
+                try:
+                    client.login(self.username, self.password)
+                    stdout_lines.append(f"Authenticated as {self.username} at {self.base_url}")
+                    authenticated = True
+                    break
+                except FrappeAuthError:
+                    break
+                except FrappeHTTPError:
+                    if attempt == 0:
+                        time.sleep(0.2)
+                        continue
+                    break
+
+            if not authenticated:
                 return ProofResult(
                     finding_id=finding_id,
                     status=ProofStatus.SKIPPED,
                     proof_tier=2,
                     exit_code=None,
                     stdout="",
-                    stderr=str(exc),
+                    stderr="Authentication failed (credentials redacted — check FRAPAST_BENCH_USER / FRAPAST_BENCH_PWD).",
                     duration_seconds=time.perf_counter() - t0,
                     reproducer_path=reproducer_path_str,
-                    error_message=f"Authentication failed: {exc}",
+                    error_message="Tier 2 proof skipped: bench authentication failed. Verify credentials and re-run.",
                 )
 
             # Dispatch per-rule proof
@@ -275,13 +320,30 @@ class BenchRunner:
         stderr.append(f"No Tier 2 HTTP proof strategy for rule {rule_id}")
         return False, stdout, stderr
 
+    def _safe_post(
+        self,
+        client: FrappeHTTPClient,
+        method: str,
+        data: dict | None = None,
+        include_csrf: bool = True,
+        as_guest: bool = False,
+    ) -> FrappeResponse:
+        """Execute HTTP post/guest call safely, catching FrappeHTTPError exceptions."""
+        from scanner.proof.http_client import FrappeHTTPError, FrappeResponse
+        try:
+            if as_guest:
+                return client.call_as_guest(method, data)
+            return client.post(method, data, include_csrf=include_csrf)
+        except FrappeHTTPError as exc:
+            return FrappeResponse(status=exc.status, body=exc.body)
+
     # ------------------------------------------------------------------
     # Per-rule proof implementations
     # ------------------------------------------------------------------
 
     def _proof_perm_001(self, method: str, client: FrappeHTTPClient, stdout: list, stderr: list) -> tuple[bool, list, list]:
         """FR-PERM-001: call endpoint as Guest; proven if returns 200 without permission error."""
-        resp = client.call_as_guest(method)
+        resp = self._safe_post(client, method, as_guest=True)
         stdout.append(f"Guest call to {method}: HTTP {resp.status}")
         if resp.status == 200 and not resp.is_permission_error:
             stdout.append("PROVEN: endpoint returned 200 for unauthenticated caller — permission check missing")
@@ -291,7 +353,7 @@ class BenchRunner:
 
     def _proof_perm_002(self, method: str, client: FrappeHTTPClient, stdout: list, stderr: list) -> tuple[bool, list, list]:
         """FR-PERM-002: authenticated low-priv call; proven if returns 200 for restricted data."""
-        resp = client.post(method)
+        resp = self._safe_post(client, method)
         stdout.append(f"Authenticated call to {method}: HTTP {resp.status}")
         if resp.status == 200 and not resp.is_permission_error:
             stdout.append("POTENTIAL PROOF: endpoint returned 200 — ignore_permissions may bypass role check")
@@ -301,7 +363,7 @@ class BenchRunner:
 
     def _proof_perm_003(self, method: str, client: FrappeHTTPClient, stdout: list, stderr: list) -> tuple[bool, list, list]:
         """FR-PERM-003: probe if_owner bypass via mutation endpoint."""
-        resp = client.post(method, {"name": "__probe__", "field": "__sentinel__"})
+        resp = self._safe_post(client, method, {"name": "__probe__", "field": "__sentinel__"})
         stdout.append(f"Mutation call to {method}: HTTP {resp.status}")
         if resp.status == 200 and not resp.is_permission_error:
             stdout.append("POTENTIAL PROOF: write succeeded without ownership validation")
@@ -313,7 +375,7 @@ class BenchRunner:
         """FR-SQLI-001: inject SQL payload and check for DB error in response."""
         payloads = ["' OR '1'='1", "'; SELECT SLEEP(1); --"]
         for payload in payloads:
-            resp = client.post(method, {"filters": payload, "name": payload})
+            resp = self._safe_post(client, method, {"filters": payload, "name": payload})
             body_str = str(resp.body)
             if any(s in body_str for s in ("ProgrammingError", "OperationalError", "1064", "syntax error")):
                 stdout.append(f"PROVEN: SQL error in response to injection payload {payload!r}")
@@ -323,7 +385,7 @@ class BenchRunner:
 
     def _proof_sqli_003(self, method: str, client: FrappeHTTPClient, stdout: list, stderr: list) -> tuple[bool, list, list]:
         """FR-SQLI-003: set_value endpoint is reachable; validate() hooks bypassed."""
-        resp = client.post(method)
+        resp = self._safe_post(client, method)
         stdout.append(f"set_value endpoint {method}: HTTP {resp.status}")
         if resp.status == 200:
             stdout.append("POTENTIAL PROOF: set_value endpoint is reachable — validate() hooks bypassed")
@@ -333,7 +395,7 @@ class BenchRunner:
     def _proof_sqli_004(self, method: str, client: FrappeHTTPClient, stdout: list, stderr: list) -> tuple[bool, list, list]:
         """FR-SQLI-004: dynamic table name injection via frappe.qb."""
         injection = "tabUser`; SELECT SLEEP(1); --"
-        resp = client.post(method, {"doctype": injection})
+        resp = self._safe_post(client, method, {"doctype": injection})
         body_str = str(resp.body)
         if any(s in body_str for s in ("ProgrammingError", "OperationalError", "1064")):
             stdout.append("PROVEN: SQL error via dynamic table name in frappe.qb")
@@ -343,7 +405,7 @@ class BenchRunner:
     def _proof_inj_001(self, method: str, client: FrappeHTTPClient, stdout: list, stderr: list) -> tuple[bool, list, list]:
         """FR-INJ-001: mass assignment via extra kwargs."""
         payload = {"name": "__probe__", "__islocal": 1, "owner": "hacker@example.com"}
-        resp = client.post(method, payload)
+        resp = self._safe_post(client, method, payload)
         stdout.append(f"Mass-assign call to {method}: HTTP {resp.status}")
         if resp.status == 200 and not resp.is_permission_error:
             stdout.append("POTENTIAL PROOF: endpoint accepted unexpected fields — mass assignment possible")
@@ -353,7 +415,7 @@ class BenchRunner:
     def _proof_inj_002(self, method: str, client: FrappeHTTPClient, stdout: list, stderr: list) -> tuple[bool, list, list]:
         """FR-INJ-002: eval() payload sentinel."""
         sentinel = "__frapast_probe_7f3a__"
-        resp = client.post(method, {"code": sentinel, "expr": sentinel})
+        resp = self._safe_post(client, method, {"code": sentinel, "expr": sentinel})
         if sentinel in str(resp.body) or resp.status == 200:
             stdout.append("POTENTIAL PROOF: eval payload may have been executed")
             return True, stdout, stderr
@@ -361,7 +423,7 @@ class BenchRunner:
 
     def _proof_csrf_001(self, method: str, client: FrappeHTTPClient, stdout: list, stderr: list) -> tuple[bool, list, list]:
         """FR-CSRF-001: POST without CSRF token — proven if returns 200 instead of 417."""
-        resp = client.post(method, include_csrf=False)
+        resp = self._safe_post(client, method, include_csrf=False)
         stdout.append(f"No-CSRF call to {method}: HTTP {resp.status}")
         if resp.status == 417 or "CSRFTokenError" in str(resp.body):
             stdout.append("REFUTED: CSRF protection enforced (HTTP 417)")
@@ -374,7 +436,7 @@ class BenchRunner:
     def _proof_ssrf_001(self, method: str, client: FrappeHTTPClient, stdout: list, stderr: list) -> tuple[bool, list, list]:
         """FR-SSRF-001: user-controlled URL accepted without validation."""
         target = f"{self.base_url}/api/method/ping"
-        resp = client.post(method, {"url": target, "endpoint": target})
+        resp = self._safe_post(client, method, {"url": target, "endpoint": target})
         stdout.append(f"SSRF probe to {method}: HTTP {resp.status}")
         if resp.status == 200:
             stdout.append("POTENTIAL PROOF: endpoint accepted URL param — SSRF possible (verify with external listener)")

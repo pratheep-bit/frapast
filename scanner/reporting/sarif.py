@@ -4,6 +4,15 @@ import json
 from pathlib import Path
 
 
+def _tool_version() -> str:
+	"""Return the installed frapast version, falling back gracefully."""
+	try:
+		from scanner import __version__
+		return __version__
+	except Exception:
+		return "unknown"
+
+
 def export_sarif(candidates: list[dict[str, object]], repo_path: Path) -> str:
 	"""Convert candidate findings into OASIS SARIF v2.1.0 JSON format."""
 	rules_meta: dict[str, dict] = {}
@@ -55,7 +64,10 @@ def export_sarif(candidates: list[dict[str, object]], repo_path: Path) -> str:
 				"tool": {
 					"driver": {
 						"name": "frapast",
-						"version": "0.3.0",
+						# Dynamic version — always reflects the installed package.
+						# Previously hardcoded as "0.3.0" which caused phantom
+						# version regressions in GitHub Code Scanning on every run.
+						"version": _tool_version(),
 						"informationUri": "https://github.com/pratheep-bit/frapast",
 						"rules": list(rules_meta.values()),
 					}

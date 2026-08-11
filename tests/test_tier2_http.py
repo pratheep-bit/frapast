@@ -449,7 +449,8 @@ class TestBenchRunnerOffline(unittest.TestCase):
 
 class TestOrchestratorTier2Dispatch(unittest.TestCase):
 
-    def test_prove_candidate_returns_skipped_for_http_rpc_without_bench(self):
+    @patch("scanner.proof.bench_runner.auto_detect_bench_url", return_value=None)
+    def test_prove_candidate_returns_skipped_for_http_rpc_without_bench(self, _mock_auto):
         """Tier 2 reproducers SKIPPED cleanly when no bench URL provided."""
         from scanner.proof.orchestrator import ProofOrchestrator
         with tempfile.TemporaryDirectory() as td:
@@ -479,7 +480,8 @@ class TestOrchestratorTier2Dispatch(unittest.TestCase):
             # Should run (passed or failed) — never SKIPPED due to missing bench
             self.assertNotEqual(result.status, ProofStatus.SKIPPED)
 
-    def test_bench_configured_flag(self):
+    @patch("scanner.proof.bench_runner.auto_detect_bench_url", return_value=None)
+    def test_bench_configured_flag(self, _mock_auto):
         from scanner.proof.orchestrator import ProofOrchestrator
         with tempfile.TemporaryDirectory() as td:
             orch_no_bench = ProofOrchestrator(workspace_root=Path(td))

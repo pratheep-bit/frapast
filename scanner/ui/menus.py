@@ -8,6 +8,7 @@ terminal UI library to function.
 
 from __future__ import annotations
 
+from scanner.ui.results import candidate_score as _score
 from scanner.ui.theme import ACCENT, console
 
 try:
@@ -104,10 +105,6 @@ def select_bug_to_view(candidates: list[dict]) -> int | None:
 	if not candidates:
 		return None
 
-	def _score(c: dict) -> float:
-		sev = c.get("severity")
-		return float(sev.get("score", 0.0)) if isinstance(sev, dict) else 0.0
-
 	sorted_cands = sorted(candidates, key=_score, reverse=True)
 	choices = []
 	for idx, c in enumerate(sorted_cands[:30], 1):
@@ -149,10 +146,6 @@ def select_bug_to_view(candidates: list[dict]) -> int | None:
 
 def select_proof_scope(candidates: list[dict]) -> list[dict]:
 	"""Ask the user which candidates to run runtime proof verification against."""
-	def _score(c: dict) -> float:
-		sev = c.get("severity")
-		return float(sev.get("score", 0.0)) if isinstance(sev, dict) else 0.0
-
 	sorted_candidates = sorted(candidates, key=_score, reverse=True)
 	choices = [
 		"Top 10 high-severity candidates (recommended for large repos)",

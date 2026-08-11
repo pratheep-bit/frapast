@@ -4,7 +4,7 @@ from scanner.config import ScanConfig, RepoConfig, load_config
 from scanner.logger import logger
 from scanner.rules import Candidate, execute_rules, clear_rule_caches
 
-__version__ = "0.1.0"
+__version__ = "1.2.0"
 
 __all__ = [
 	"Candidate",

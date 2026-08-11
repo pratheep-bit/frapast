@@ -104,7 +104,19 @@ def _imported_candidates(
 	module_path = imported.module.replace(".", "/")
 	accepted_suffixes = (f"{module_path}.py", f"{module_path}/__init__.py")
 	candidate_ids = methods_by_name.get(imported.imported_name, ())
-	return [fid for fid in candidate_ids if function_files.get(fid, "").endswith(accepted_suffixes)]
+	return [
+		fid for fid in candidate_ids
+		if _path_ends_at_boundary(function_files.get(fid, ""), accepted_suffixes)
+	]
+
+
+def _path_ends_at_boundary(path: str, suffixes: tuple[str, ...]) -> bool:
+	"""str.endswith() alone matches across path-segment boundaries: module
+	'myapp/utils.py' wrongly matches file 'core_myapp/utils.py' since the
+	latter ends with the former as a plain substring. That silently wires a
+	call edge to the wrong app's same-named module — real false reachability
+	in any repo with two apps sharing a module suffix (e.g. 'hr'/'core_hr')."""
+	return any(path == s or path.endswith("/" + s) for s in suffixes)
 
 
 def _resolve_dotted_path_to_symbol_id(
