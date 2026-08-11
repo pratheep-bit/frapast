@@ -22,6 +22,7 @@ import queue
 import threading
 import time
 import webbrowser
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -54,17 +55,76 @@ class _Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        path = self.path.split("?")[0]
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        query = urllib.parse.parse_qs(parsed.query)
+
         if path == "/" or path == "/index.html":
             self._serve_html()
         elif path == "/api/findings":
             self._serve_json({"candidates": _state["candidates"], "repo": _state["repo"]})
         elif path == "/api/stats":
             self._serve_json({**_state["summary"], "repo": _state["repo"]})
+        elif path == "/api/snippet":
+            self._serve_snippet(query)
         elif path == "/api/stream":
             self._serve_sse()
         else:
             self._404()
+
+    def _serve_snippet(self, query: dict):
+        rel_file = query.get("file", [""])[0]
+        line_str = query.get("line", ["1"])[0]
+        before_str = query.get("before", ["2"])[0]
+        after_str = query.get("after", ["3"])[0]
+
+        try:
+            target_line = int(line_str)
+            before = int(before_str)
+            after = int(after_str)
+        except ValueError:
+            self._serve_json({"error": "Invalid line number", "lines": []})
+            return
+
+        repo_root = Path(_state.get("repo", ""))
+        file_path = Path(rel_file)
+        if not file_path.is_absolute():
+            file_path = repo_root / file_path
+
+        if not file_path.is_file():
+            file_path = Path.cwd() / rel_file
+
+        if not file_path.is_file():
+            self._serve_json({"error": "File not found", "lines": []})
+            return
+
+        try:
+            content = file_path.read_text(encoding="utf-8", errors="replace")
+            all_lines = content.splitlines()
+        except Exception as e:
+            self._serve_json({"error": str(e), "lines": []})
+            return
+
+        start_line = max(1, target_line - before)
+        end_line = min(len(all_lines), target_line + after)
+
+        res_lines = []
+        for lnum in range(start_line, end_line + 1):
+            idx = lnum - 1
+            code_str = all_lines[idx] if 0 <= idx < len(all_lines) else ""
+            res_lines.append({
+                "num": lnum,
+                "code": code_str,
+                "is_error": (lnum == target_line)
+            })
+
+        self._serve_json({
+            "file": rel_file,
+            "line": target_line,
+            "start_line": start_line,
+            "end_line": end_line,
+            "lines": res_lines,
+        })
 
     def do_POST(self):
         path = self.path.split("?")[0]

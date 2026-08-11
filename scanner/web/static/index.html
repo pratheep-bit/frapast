@@ -681,8 +681,11 @@
     /* =====================================================================
      EXPANDABLE CODE DROPDOWN ROW
      ===================================================================== */
+    /* =====================================================================
+     EXPANDABLE CODE DROPDOWN ROW — CLEAN WHITE THEME
+     ===================================================================== */
     tbody tr.code-dropdown-row {
-      background: #090d16 !important;
+      background: #f8fafc !important;
     }
 
     tbody tr.code-dropdown-row td {
@@ -693,9 +696,9 @@
     }
 
     .code-expansion-container {
-      padding: 12px 18px 16px 48px;
-      background: #0d1117;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 14px 20px 18px 48px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
       line-height: 1.6;
@@ -706,13 +709,13 @@
       align-items: center;
       justify-content: space-between;
       margin-bottom: 10px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
       font-family: 'Inter', -apple-system, sans-serif;
     }
 
     .code-expansion-file {
-      color: #38bdf8;
+      color: #0284c7;
       font-weight: 600;
       font-size: 12px;
       display: flex;
@@ -721,49 +724,53 @@
     }
 
     .code-expansion-meta {
-      color: #94a3b8;
+      color: #64748b;
       font-size: 11px;
+      font-weight: 500;
     }
 
     .code-expansion-block {
-      background: #040d21;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
       border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       overflow: hidden;
     }
 
     .code-line-row {
       display: flex;
       align-items: center;
-      padding: 3px 12px;
+      padding: 4px 12px;
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
       transition: background 0.15s ease;
     }
 
     .code-line-row.context-line {
-      color: #64748b;
+      color: #334155;
+      background: #ffffff;
     }
 
     .code-line-row.error-line {
-      background: rgba(239, 68, 68, 0.22);
-      border-left: 4px solid #ef4444;
-      color: #fca5a5;
+      background: #fef2f2;
+      border-left: 4px solid #dc2626;
+      color: #991b1b;
       font-weight: 600;
     }
 
     .code-line-row.error-line .line-num {
-      color: #ef4444;
+      color: #dc2626;
       font-weight: 700;
     }
 
     .line-num {
-      width: 44px;
+      width: 48px;
       flex-shrink: 0;
       text-align: right;
       padding-right: 16px;
       user-select: none;
-      color: #475569;
+      color: #94a3b8;
+      font-size: 11px;
     }
 
     .line-code {
@@ -773,7 +780,7 @@
     }
 
     .error-marker-tag {
-      background: #ef4444;
+      background: #dc2626;
       color: #ffffff;
       font-size: 9px;
       font-weight: 700;
@@ -799,7 +806,7 @@
     }
 
     .expand-toggle-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.05);
       color: var(--text-main);
     }
 
@@ -808,7 +815,7 @@
     }
 
     tbody tr.row-expanded {
-      background: rgba(56, 189, 248, 0.05);
+      background: #f1f5f9;
     }
 
     /* =====================================================================
@@ -2121,11 +2128,37 @@
       els.resultsSummary.textContent = 'Failed to load findings.';
     }
 
+    async function fetchSnippetLines(f) {
+      if (f.snippetLoaded) return;
+      f.snippetLoading = true;
+      try {
+        const fileParam = encodeURIComponent(f.file || '');
+        const lineParam = parseInt(f.line, 10) || 1;
+        const res = await fetch(`/api/snippet?file=${fileParam}&line=${lineParam}&before=2&after=3`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.lines) && data.lines.length > 0) {
+            f.snippetLines = data.lines;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch real file snippet lines:', e);
+      } finally {
+        f.snippetLoading = false;
+        f.snippetLoaded = true;
+        renderTable();
+      }
+    }
+
     function toggleRowExpansion(key) {
       if (state.expandedKeys.has(key)) {
         state.expandedKeys.delete(key);
       } else {
         state.expandedKeys.add(key);
+        const f = state.findings.get(key);
+        if (f && !f.snippetLoaded && !f.snippetLoading) {
+          fetchSnippetLines(f);
+        }
       }
       renderTable();
     }
@@ -2187,50 +2220,37 @@
 
     function renderInlineCodeSnippetHtml(f) {
       const targetLine = parseInt(f.line, 10) || 1;
-      const startLine = Math.max(1, targetLine - 2); // 2 lines before
-      const endLine = targetLine + 3;                 // 3 lines after
-
-      let codeLines = [];
-      if (Array.isArray(f.code_snippet) && f.code_snippet.length > 0) {
-        codeLines = f.code_snippet;
-      } else if (f.evidence) {
-        const rawLines = String(f.evidence).trim().split('\n');
-        codeLines = rawLines;
-      }
+      const startLine = Math.max(1, targetLine - 2);
+      const endLine = targetLine + 3;
 
       let lineRowsHtml = '';
-      for (let currentLine = startLine; currentLine <= endLine; currentLine++) {
-        const isErrorLine = currentLine === targetLine || (f.end_line && currentLine >= targetLine && currentLine <= f.end_line);
-        let lineContent = '';
 
-        if (codeLines.length > 0) {
-          const relativeIdx = currentLine - startLine;
-          if (relativeIdx >= 0 && relativeIdx < codeLines.length) {
-            lineContent = codeLines[relativeIdx];
-          } else if (isErrorLine) {
-            lineContent = f.evidence || `// Vulnerable execution detected in ${f.function || 'function'}`;
-          } else {
-            lineContent = `// Context line ${currentLine}`;
-          }
-        } else {
-          if (isErrorLine) {
-            lineContent = f.evidence || `// Potential security vulnerability detected at line ${targetLine}`;
-          } else if (currentLine < targetLine) {
-            lineContent = `// Context line ${currentLine} (before error line)`;
-          } else {
-            lineContent = `// Context line ${currentLine} (after error line)`;
-          }
+      if (f.snippetLoading) {
+        lineRowsHtml = `<div class="code-line-row context-line" style="padding: 12px; font-style: italic;"><span class="line-code" style="color: #64748b;">Loading exact source code lines from disk…</span></div>`;
+      } else if (Array.isArray(f.snippetLines) && f.snippetLines.length > 0) {
+        lineRowsHtml = f.snippetLines.map((l) => {
+          const isErr = l.is_error;
+          const rowCls = isErr ? 'code-line-row error-line' : 'code-line-row context-line';
+          const tag = isErr ? `<span class="error-marker-tag">VULNERABILITY LINE ${l.num}</span>` : '';
+          return `<div class="${rowCls}">
+            <span class="line-num">${l.num}</span>
+            <span class="line-code">${escapeHtml(l.code)}</span>
+            ${tag}
+          </div>`;
+        }).join('');
+      } else {
+        for (let currentLine = startLine; currentLine <= endLine; currentLine++) {
+          const isErrorLine = currentLine === targetLine;
+          const rowClass = isErrorLine ? 'code-line-row error-line' : 'code-line-row context-line';
+          const errorMarker = isErrorLine ? `<span class="error-marker-tag">VULNERABILITY</span>` : '';
+          const lineContent = isErrorLine ? (f.evidence || `// Evidence: ${f.function || 'vulnerable call'}`) : `# Line ${currentLine}`;
+          lineRowsHtml += `
+          <div class="${rowClass}">
+            <span class="line-num">${currentLine}</span>
+            <span class="line-code">${escapeHtml(lineContent)}</span>
+            ${errorMarker}
+          </div>`;
         }
-
-        const rowClass = isErrorLine ? 'code-line-row error-line' : 'code-line-row context-line';
-        const errorMarker = isErrorLine ? '<span class="error-marker-tag">VULNERABILITY</span>' : '';
-
-        lineRowsHtml += `
-        <div class="${rowClass}">
-          <span class="line-num">${currentLine}</span>
-          <span class="line-code">${escapeHtml(lineContent)}</span>
-          ${errorMarker}
-        </div>`;
       }
 
       return `
@@ -2241,7 +2261,7 @@
             ${escapeHtml(f.file)}:${targetLine} (${escapeHtml(f.rule_id)})
           </div>
           <div class="code-expansion-meta">
-            Displaying lines ${startLine}–${endLine} (2 lines before & 3 lines after error line ${targetLine})
+            Exact file source code (2 lines before & 3 lines after error line ${targetLine})
           </div>
         </div>
         <div class="code-expansion-block">
