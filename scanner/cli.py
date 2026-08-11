@@ -313,7 +313,7 @@ def _config_findings_dir(config_path: str | Path, requested_ledger_dir: str | Pa
 	return Path(requested_ledger_dir)
 
 
-KNOWN_COMMANDS = {"scan", "prove", "report", "fp-report", "fix", "pr", "shell"}
+KNOWN_COMMANDS = {"scan", "prove", "report", "fp-report", "fix", "pr", "shell", "bench-check"}
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -394,6 +394,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
 	shell_parser = subparsers.add_parser("shell", help="Launch the interactive frapast shell")
 	shell_parser.add_argument("repo_path", nargs="?", help="Repository to pre-load as the shell's working target")
+
+	bench_check_parser = subparsers.add_parser("bench-check", help="Diagnose local Frappe Bench connectivity, site routing, and authentication")
+	bench_check_parser.add_argument("--bench-url", default="", help="Frappe bench base URL (e.g. http://localhost:8000)")
+	bench_check_parser.add_argument("--bench-user", default="", help="Frappe username")
+	bench_check_parser.add_argument("--bench-password", default="", help="Frappe password")
+	bench_check_parser.add_argument("--bench-site", default="", help="Frappe site name")
 
 	return parser
 
@@ -940,6 +946,37 @@ def main(argv: list[str] | None = None) -> int:
 		from scanner.fp_analyzer import print_report
 		print_report(args.findings_dir)
 		return 0
+
+	if args.command == "bench-check":
+		from scanner.proof.bench_runner import diagnose_bench
+		rep = diagnose_bench(
+			base_url=getattr(args, "bench_url", ""),
+			username=getattr(args, "bench_user", ""),
+			password=getattr(args, "bench_password", ""),
+			site_name=getattr(args, "bench_site", ""),
+		)
+		console.print("\n[bold cyan]🔍 Frappe Bench Diagnostic Report[/bold cyan]")
+		reach_status = "[green]REACHABLE[/green]" if rep["reachable"] else "[red]UNREACHABLE[/red]"
+		site_status = "[green]VALID[/green]" if rep["site_valid"] else "[red]404 / INVALID[/red]"
+		auth_status = "[green]SUCCESS[/green]" if rep["authenticated"] else "[yellow]NOT AUTHENTICATED[/yellow]"
+		
+		console.print(f" 🌐 Bench URL:       {rep['url']} ({reach_status})")
+		console.print(f" 🏠 Bench Site:      {rep['site']} ({site_status})")
+		console.print(f" 🔑 Authentication:  {rep['user']} ({auth_status})")
+
+		if rep["issues"]:
+			console.print(f"\n[bold red]❌ Found {len(rep['issues'])} Configuration Issues:[/bold red]")
+			for idx, issue in enumerate(rep["issues"], 1):
+				console.print(f" [red]{idx}. {issue}[/red]")
+
+		if rep["remediations"]:
+			console.print("\n[bold yellow]🛠️ Copy-Paste Remediation Steps to Fix:[/bold yellow]")
+			for rem in rep["remediations"]:
+				console.print(f" ➜ [cyan]{rem}[/cyan]")
+		else:
+			console.print("\n[bold green]✅ Bench is 100% ready for Tier 2 HTTP/RPC Proof Verification![/bold green]")
+		console.print()
+		return 0 if (rep["reachable"] and rep["site_valid"] and rep["authenticated"]) else 1
 
 	parser.print_help()
 	return 0

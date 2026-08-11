@@ -44,6 +44,88 @@ def auto_detect_bench_url(ports: tuple[int, ...] = (8000, 8001, 8005, 8002, 8003
     return None
 
 
+def diagnose_bench(
+    base_url: str = "",
+    username: str = "",
+    password: str = "",
+    site_name: str = "",
+) -> dict[str, object]:
+    """Probes local bench ports, checks site routing, and verifies authentication.
+
+    Returns a diagnostic report dictionary with exact remediation steps.
+    """
+    target_url = base_url or os.environ.get("FRAPAST_BENCH_URL") or auto_detect_bench_url() or "http://localhost:8000"
+    user = username or os.environ.get("FRAPAST_BENCH_USER") or "Administrator"
+    pwd = password or os.environ.get("FRAPAST_BENCH_PWD") or "admin"
+    site = site_name or os.environ.get("FRAPAST_BENCH_SITE_NAME") or ""
+
+    report: dict[str, object] = {
+        "url": target_url,
+        "site": site or "(default)",
+        "user": user,
+        "reachable": False,
+        "site_valid": False,
+        "authenticated": False,
+        "port_collisions": [],
+        "issues": [],
+        "remediations": [],
+    }
+
+    import socket
+    found_bench = False
+    for port in (8000, 8005, 8001, 8002, 8003, 8004):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1)
+        res = s.connect_ex(("127.0.0.1", port))
+        s.close()
+        if res == 0:
+            probe_client = FrappeHTTPClient(f"http://localhost:{port}", site_name=site, timeout=2)
+            try:
+                if probe_client.ping():
+                    if not found_bench:
+                        target_url = f"http://localhost:{port}"
+                        report["url"] = target_url
+                        found_bench = True
+            except Exception:
+                report["port_collisions"].append(port)
+
+    client = FrappeHTTPClient(target_url, site_name=site, timeout=3)
+    try:
+        ping_ok = client.ping()
+        report["reachable"] = ping_ok
+        report["site_valid"] = True
+    except FrappeConnectionError as e:
+        report["issues"].append(f"Cannot connect to bench at {target_url}: {e}")
+        report["remediations"].append(
+            "Start your bench server: 'cd ~/frappe-bench && bench start' or pass --bench-url http://localhost:8005"
+        )
+        return report
+    except FrappeHTTPError as e:
+        if e.status_code == 404 and "does not exist" in str(e):
+            report["reachable"] = True
+            report["site_valid"] = False
+            report["issues"].append(
+                f"Frappe bench site resolution failed for Host '{site or '127.0.0.1'}' (HTTP 404: 127.0.0.1 does not exist)"
+            )
+            report["remediations"].append(
+                "Pass your site name explicitly with --bench-site <sitename> (e.g. --bench-site mysite.local) or set default site: 'bench use mysite.local'"
+            )
+            return report
+
+    try:
+        client.login(user, pwd)
+        report["authenticated"] = True
+    except FrappeAuthError as e:
+        report["issues"].append(f"Authentication failed for user '{user}': {e}")
+        report["remediations"].append(
+            f"Reset admin password on bench: 'bench --site {site or '<sitename>'} set-admin-password admin' or pass --bench-password <pwd>"
+        )
+    except Exception as e:
+        report["issues"].append(f"Login error: {e}")
+
+    return report
+
+
 class BenchRunner:
     """Executes Tier 2 HTTP/RPC proofs against a live Frappe bench.
 
