@@ -313,6 +313,14 @@ def _config_findings_dir(config_path: str | Path, requested_ledger_dir: str | Pa
 	return Path(requested_ledger_dir)
 
 
+def _extract_bench_url(args: argparse.Namespace) -> str:
+	bench_url = getattr(args, "bench_url", "")
+	bench_port = getattr(args, "bench_port", None)
+	if not bench_url and bench_port:
+		return f"http://localhost:{bench_port}"
+	return bench_url
+
+
 KNOWN_COMMANDS = {"scan", "prove", "report", "fp-report", "fix", "pr", "shell", "bench-check"}
 
 
@@ -356,6 +364,7 @@ def _build_parser() -> argparse.ArgumentParser:
 	scan_parser.add_argument("--format", choices=["human", "yaml", "json", "sarif"], default="human", help="Output format (default: human)")
 	# Tier 2 bench configuration for scan --prove / --ui
 	scan_parser.add_argument("--bench-url", default="", help="Frappe bench base URL for Tier 2 HTTP/RPC proof (e.g. http://localhost:8000)")
+	scan_parser.add_argument("--bench-port", "--port", type=int, default=None, help="Frappe bench webserver port (e.g. 8005 or 8000)")
 	scan_parser.add_argument("--bench-user", default="", help="Frappe username for Tier 2 bench authentication")
 	scan_parser.add_argument("--bench-password", default="", help="Frappe password for Tier 2 bench authentication")
 	scan_parser.add_argument("--bench-site", default="", help="Frappe site name (Host header) for multi-site bench setups")
@@ -370,6 +379,7 @@ def _build_parser() -> argparse.ArgumentParser:
 	prove_parser.add_argument("--limit", type=int, default=20, help="Maximum number of candidates to display in human output")
 	# Tier 2 bench configuration
 	prove_parser.add_argument("--bench-url", default="", help="Frappe bench base URL for Tier 2 HTTP/RPC proof (e.g. http://localhost:8000)")
+	prove_parser.add_argument("--bench-port", "--port", type=int, default=None, help="Frappe bench webserver port (e.g. 8005 or 8000)")
 	prove_parser.add_argument("--bench-user", default="", help="Frappe username for Tier 2 bench authentication")
 	prove_parser.add_argument("--bench-password", default="", help="Frappe password for Tier 2 bench authentication")
 	prove_parser.add_argument("--bench-site", default="", help="Frappe site name (Host header) for multi-site bench setups")
@@ -397,6 +407,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 	bench_check_parser = subparsers.add_parser("bench-check", help="Diagnose local Frappe Bench connectivity, site routing, and authentication")
 	bench_check_parser.add_argument("--bench-url", default="", help="Frappe bench base URL (e.g. http://localhost:8000)")
+	bench_check_parser.add_argument("--bench-port", "--port", type=int, default=None, help="Frappe bench webserver port (e.g. 8005 or 8000)")
 	bench_check_parser.add_argument("--bench-user", default="", help="Frappe username")
 	bench_check_parser.add_argument("--bench-password", default="", help="Frappe password")
 	bench_check_parser.add_argument("--bench-site", default="", help="Frappe site name")
@@ -476,7 +487,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 			write_ledger=args.write_ledger,
 			ledger_dir=args.ledger_dir,
 			launch_web=True,
-			bench_url=getattr(args, "bench_url", ""),
+			bench_url=_extract_bench_url(args),
 			bench_user=getattr(args, "bench_user", ""),
 			bench_password=getattr(args, "bench_password", ""),
 			bench_site=getattr(args, "bench_site", ""),
@@ -501,6 +512,10 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 				_write_candidates(result.candidates, ledger_dir, result.repo_id)
 		proven_findings: list[dict[str, object]] = []
 		if args.prove:
+			bench_url = _extract_bench_url(args)
+			bench_user = getattr(args, "bench_user", "")
+			bench_password = getattr(args, "bench_password", "")
+			bench_site = getattr(args, "bench_site", "")
 			for result in scan_results:
 				proven_findings.extend(
 					_run_proof_verification(
@@ -508,6 +523,10 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 						result.repo_path,
 						result.repo_id,
 						findings_dir=ledger_dir if args.write_ledger else None,
+						bench_url=bench_url,
+						bench_user=bench_user,
+						bench_password=bench_password,
+						bench_site=bench_site,
 					)
 				)
 		results = {result.repo_id: result.candidates for result in scan_results}
@@ -570,7 +589,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		)
 	elif args.prove:
 		candidates_to_prove = candidates
-		bench_url = getattr(args, "bench_url", "")
+		bench_url = _extract_bench_url(args)
 		bench_user = getattr(args, "bench_user", "")
 		bench_password = getattr(args, "bench_password", "")
 		bench_site = getattr(args, "bench_site", "")
@@ -878,7 +897,7 @@ def main(argv: list[str] | None = None) -> int:
 	if args.command == "prove":
 		repo = Path(args.repo_path)
 		# Collect Tier 2 bench configuration from CLI args
-		bench_url = getattr(args, "bench_url", "")
+		bench_url = _extract_bench_url(args)
 		bench_user = getattr(args, "bench_user", "")
 		bench_password = getattr(args, "bench_password", "")
 		bench_site = getattr(args, "bench_site", "")
@@ -951,6 +970,7 @@ def main(argv: list[str] | None = None) -> int:
 		from scanner.proof.bench_runner import diagnose_bench
 		rep = diagnose_bench(
 			base_url=getattr(args, "bench_url", ""),
+			bench_port=getattr(args, "bench_port", None),
 			username=getattr(args, "bench_user", ""),
 			password=getattr(args, "bench_password", ""),
 			site_name=getattr(args, "bench_site", ""),

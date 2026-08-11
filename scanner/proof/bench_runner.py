@@ -46,6 +46,7 @@ def auto_detect_bench_url(ports: tuple[int, ...] = (8000, 8001, 8005, 8002, 8003
 
 def diagnose_bench(
     base_url: str = "",
+    bench_port: int | str | None = None,
     username: str = "",
     password: str = "",
     site_name: str = "",
@@ -54,6 +55,9 @@ def diagnose_bench(
 
     Returns a diagnostic report dictionary with exact remediation steps.
     """
+    if not base_url and bench_port:
+        base_url = f"http://localhost:{bench_port}"
+
     target_url = base_url or os.environ.get("FRAPAST_BENCH_URL") or auto_detect_bench_url() or "http://localhost:8000"
     user = username or os.environ.get("FRAPAST_BENCH_USER") or "Administrator"
     pwd = password or os.environ.get("FRAPAST_BENCH_PWD") or "admin"
@@ -73,7 +77,17 @@ def diagnose_bench(
 
     import socket
     found_bench = False
-    for port in (8000, 8005, 8001, 8002, 8003, 8004):
+    ports_to_probe = []
+    if bench_port:
+        try:
+            ports_to_probe.append(int(bench_port))
+        except (ValueError, TypeError):
+            pass
+    for p in (8000, 8005, 8001, 8002, 8003, 8004):
+        if p not in ports_to_probe:
+            ports_to_probe.append(p)
+
+    for port in ports_to_probe:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(1)
         res = s.connect_ex(("127.0.0.1", port))
