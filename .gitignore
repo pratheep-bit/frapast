@@ -21,9 +21,11 @@ ENV/
 .coverage
 htmlcov/
 
-# Logs
+# Logs & Temporary Scan Artifacts
 *.log
 build/
 *.egg-info/
 __pycache__/
 dist/
+findings/
+runtime/
