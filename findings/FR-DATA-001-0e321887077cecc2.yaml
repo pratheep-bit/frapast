@@ -1,0 +1,18 @@
+id: FR-DATA-001-0e321887077cecc2
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/material_request/test_material_request.py
+function: TestMaterialRequest.test_multi_uom_for_purchase
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: cb7da9386c2667fb
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Item'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'

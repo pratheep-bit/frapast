@@ -1,0 +1,18 @@
+id: FR-DATA-001-2707fa4ba7e34fef
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/purchase_receipt/test_purchase_receipt.py
+function: TestPurchaseReceipt.test_tax_account_heads_on_item_repost_without_lcv
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: e4475bcd074e3e6f
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Company'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'

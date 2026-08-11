@@ -1,0 +1,19 @@
+id: FR-DATA-001-50be0a8491a55319
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/buying/doctype/supplier_scorecard_period/supplier_scorecard_period.py
+function: SupplierScorecardPeriod.validate
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 8e2718acbd930163
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''validate_criteria_weights'' does not exist on DocType ''Supplier Scorecard
+  Period'' (resolution confidence: medium). Proof recipe: Synthesize unit test to
+  trigger AttributeError'

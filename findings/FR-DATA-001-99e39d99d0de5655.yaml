@@ -1,0 +1,24 @@
+id: FR-DATA-001-99e39d99d0de5655
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/delivery_note/test_delivery_note.py
+function: TestDeliveryNote.test_delivery_note_legacy_serial_no_valuation
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: dbbb5e3612c7943a
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''db_set'' does not exist on DocType ''Stock Ledger Entry'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 11cf7e4b4247e154
+reproducer_hash: 11cf7e4b4247e154

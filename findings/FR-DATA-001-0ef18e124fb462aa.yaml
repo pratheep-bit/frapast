@@ -1,0 +1,24 @@
+id: FR-DATA-001-0ef18e124fb462aa
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/crm/doctype/lead/lead.py
+function: Lead.create_contact
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6ecd49a13b1acff1
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''set_full_name'' does not exist on DocType ''Lead'' (resolution confidence:
+  medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: c07641aec0598350
+reproducer_hash: c07641aec0598350

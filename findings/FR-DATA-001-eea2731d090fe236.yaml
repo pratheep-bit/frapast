@@ -1,0 +1,28 @@
+id: FR-DATA-001-eea2731d090fe236
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/buying/doctype/purchase_order/test_purchase_order.py
+function: TestPurchaseOrder.test_advance_paid_upon_payment_entry_cancellation
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 72063363f2bff7ea
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''cancel'' does not exist on DocType ''Payment Entry'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 01dc04fc51c5f86b
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 01dc04fc51c5f86b
+reproducer_hash: 01dc04fc51c5f86b

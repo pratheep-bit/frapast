@@ -1,0 +1,18 @@
+id: FR-DATA-001-6198a7747482ed7c
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/production_plan/test_production_plan.py
+function: TestProductionPlan.test_transfer_and_purchase_mrp_for_purchase_uom
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: c5d323f6eff3f0ae
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Item'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'

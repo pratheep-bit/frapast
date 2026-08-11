@@ -1,0 +1,18 @@
+id: FR-DATA-001-084a5b418f7930ca
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/pos_profile/pos_profile.py
+function: POSProfile.validate_disabled
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: e98df7ba10287fdb
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''get_doc_before_save'' does not exist on DocType ''POS Profile'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

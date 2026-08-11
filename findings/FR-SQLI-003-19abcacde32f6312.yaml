@@ -1,0 +1,19 @@
+id: FR-SQLI-003-19abcacde32f6312
+taxonomy_id: FR-SQLI-003
+rule_id: FR-SQLI-003
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/process_payment_reconciliation/process_payment_reconciliation.py
+function: trigger_job_for_doc
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: cross_doctype
+code_location_hash: 03bf143fb8ab6aeb
+discovered: '2026-08-10'
+proven: null
+notes: 'frappe.db.set_value writes to ''status'' bypassing controller validate/before_save
+  hooks. Proof recipe: Invoke the endpoint, then verify the target doctype''s validate()
+  was not triggered and derived fields are stale.'

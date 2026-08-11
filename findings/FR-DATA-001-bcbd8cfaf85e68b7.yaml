@@ -1,0 +1,18 @@
+id: FR-DATA-001-bcbd8cfaf85e68b7
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/payment_request/payment_request.py
+function: cancel_old_payment_requests
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 5f4c2c1b07064d75
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''flags'' does not exist on DocType ''Payment Request'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

@@ -1,0 +1,18 @@
+id: FR-DATA-001-c9dbb5876f641c28
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_entry/stock_entry.py
+function: StockEntry.update_items_from_bin_details
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 4d411c8a06efdec6
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''get'' does not exist on DocType ''Stock Entry'' (resolution confidence:
+  medium). Proof recipe: Synthesize unit test to trigger AttributeError'

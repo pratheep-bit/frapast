@@ -1,0 +1,24 @@
+id: FR-DATA-001-ff4deeed4151a84d
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/crm/doctype/email_campaign/email_campaign.py
+function: EmailCampaign.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 1058d98e0b169792
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''set_date'' does not exist on DocType ''Email Campaign'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1723d68974c459fd
+reproducer_hash: 1723d68974c459fd

@@ -1,0 +1,25 @@
+id: FR-INJ-001-86a87e05e7fe335f
+taxonomy_id: FR-INJ-001
+rule_id: FR-INJ-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/support/doctype/service_level_agreement/service_level_agreement.py
+function: reset_service_level_agreement
+status: candidate
+proof_tier: 2
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: framework_wide
+code_location_hash: 75697629e5269975
+discovered: '2026-08-10'
+proven: null
+notes: "Request-controlled data flows directly into frappe.get_doc() \u2014 mass assignment\
+  \ risk. Proof recipe: Pass unexpected fields (owner, docstatus, name) through the\
+  \ endpoint and verify they are rejected."
+status_history:
+- date: '2026-08-10'
+  status: candidate
+  proof_tier: 2
+  reproducer_hash: 1e2c44535e3ed46d
+reproducer_hash: 1e2c44535e3ed46d

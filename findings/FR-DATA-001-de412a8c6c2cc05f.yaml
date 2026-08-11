@@ -1,0 +1,18 @@
+id: FR-DATA-001-de412a8c6c2cc05f
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/purchase_invoice/test_purchase_invoice.py
+function: TestPurchaseInvoice.test_offsetting_entries_for_accounting_dimensions
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6668a75ed8a71592
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Accounting Dimension'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

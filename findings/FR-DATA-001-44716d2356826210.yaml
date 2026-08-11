@@ -1,0 +1,24 @@
+id: FR-DATA-001-44716d2356826210
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/repost_accounting_ledger/repost_accounting_ledger.py
+function: RepostAccountingLedger.generate_preview_data
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 26e7d6068c68f412
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''gl_entries'' does not exist on DocType ''Repost Accounting Ledger''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 95af3505303f69d2
+reproducer_hash: 95af3505303f69d2

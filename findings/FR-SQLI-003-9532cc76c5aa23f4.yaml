@@ -1,0 +1,19 @@
+id: FR-SQLI-003-9532cc76c5aa23f4
+taxonomy_id: FR-SQLI-003
+rule_id: FR-SQLI-003
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/cheque_print_template/cheque_print_template.py
+function: create_or_update_cheque_print_format
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: cross_doctype
+code_location_hash: c815fa67da38b6b3
+discovered: '2026-08-10'
+proven: null
+notes: 'frappe.db.set_value writes to ''has_print_format'' bypassing controller validate/before_save
+  hooks. Proof recipe: Invoke the endpoint, then verify the target doctype''s validate()
+  was not triggered and derived fields are stale.'

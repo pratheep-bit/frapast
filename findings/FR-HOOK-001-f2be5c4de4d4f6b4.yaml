@@ -1,0 +1,25 @@
+id: FR-HOOK-001-f2be5c4de4d4f6b4
+taxonomy_id: FR-HOOK-001
+rule_id: FR-HOOK-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/bank_guarantee/bank_guarantee.py
+function: BankGuarantee
+status: proven
+proof_tier: 1
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: 6297c1265b80185c
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: "Class 'BankGuarantee' defines on_submit but not on_cancel \u2014 submit side-effects\
+  \ are not reversed on cancel. Proof recipe: Submit a document, then cancel it, and\
+  \ verify all side effects (ledger entries, stock, etc.) are fully reversed."
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6e21627a115e544a
+reproducer_hash: 6e21627a115e544a

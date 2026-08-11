@@ -1,0 +1,28 @@
+id: FR-DATA-001-6ca9288c3e75f9c1
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/selling/doctype/sales_order/sales_order.py
+function: SalesOrder.onload
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 8a4c776e80e1ecb5
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''set_onload'' does not exist on DocType ''Sales Order'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: d75fa2cb9a9068e1
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 9dbb2fbd0a5446ad
+reproducer_hash: 9dbb2fbd0a5446ad

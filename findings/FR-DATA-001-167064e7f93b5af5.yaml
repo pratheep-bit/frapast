@@ -1,0 +1,24 @@
+id: FR-DATA-001-167064e7f93b5af5
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/bisect_accounting_statements/bisect_accounting_statements.py
+function: BisectAccountingStatements.build_tree
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6676d02bf2b6a79c
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''bfs'' does not exist on DocType ''Bisect Accounting Statements'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: a50df708860e5a13
+reproducer_hash: a50df708860e5a13

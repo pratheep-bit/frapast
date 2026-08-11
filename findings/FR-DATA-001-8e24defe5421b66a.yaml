@@ -1,0 +1,29 @@
+id: FR-DATA-001-8e24defe5421b66a
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/workstation/workstation.py
+function: Workstation.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 49b65ab2e02f8ae3
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_duplicate_operating_component'' does not exist on DocType
+  ''Workstation'' (resolution confidence: medium). Proof recipe: Synthesize unit test
+  to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 3b3f7f1484de2aaa
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 04ba2a2189e59c31
+reproducer_hash: 04ba2a2189e59c31

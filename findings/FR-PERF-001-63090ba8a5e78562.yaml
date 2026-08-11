@@ -1,0 +1,24 @@
+id: FR-PERF-001-63090ba8a5e78562
+taxonomy_id: FR-PERF-001
+rule_id: FR-PERF-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/work_order/test_work_order.py
+function: TestWorkOrder.test_work_order_material_transferred_qty_with_process_loss
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 3d42ec1fcc8d813a
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'frappe.get_doc() is called once per loop iteration over a query result. Proof
+  recipe: Synthetic load test to measure N+1 overhead'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: be6a1e0ef173cce4
+reproducer_hash: be6a1e0ef173cce4

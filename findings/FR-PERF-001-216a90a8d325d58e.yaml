@@ -1,0 +1,24 @@
+id: FR-PERF-001-216a90a8d325d58e
+taxonomy_id: FR-PERF-001
+rule_id: FR-PERF-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/work_order/services/reservation.py
+function: WorkOrderStockReservation.release_reserved_qty_for_subcontract_transfer
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 7bd352f8ce5dc9ae
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'frappe.get_doc() is called once per loop iteration over a query result. Proof
+  recipe: Synthetic load test to measure N+1 overhead'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: d33dbe38d0d9f029
+reproducer_hash: d33dbe38d0d9f029

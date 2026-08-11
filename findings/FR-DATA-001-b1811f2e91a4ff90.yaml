@@ -1,0 +1,24 @@
+id: FR-DATA-001-b1811f2e91a4ff90
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/bank_clearance/test_bank_clearance.py
+function: TestBankClearance.test_update_clearance_date_on_si
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6163a3349a01c0d3
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''update_clearance_date'' does not exist on DocType ''Bank Clearance''
+  (resolution confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 294ccc9497248cac
+reproducer_hash: 294ccc9497248cac

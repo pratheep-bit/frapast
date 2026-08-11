@@ -1,0 +1,19 @@
+id: FR-SQLI-002-a7eeb759b59941a1
+taxonomy_id: FR-SQLI-002
+rule_id: FR-SQLI-002
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/report/general_ledger/general_ledger.py
+function: get_gl_entries
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_exposure
+blast_radius: cross_doctype
+code_location_hash: c13693e6f12ae47d
+discovered: '2026-08-10'
+proven: null
+notes: 'Raw SQL references submittable GL Entry without a docstatus filter. Proof
+  recipe: Seed draft, submitted, and cancelled records; invoke the query over HTTP
+  and verify cancelled or draft records cannot change the result.'

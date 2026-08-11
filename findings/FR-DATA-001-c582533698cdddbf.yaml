@@ -1,0 +1,32 @@
+id: FR-DATA-001-c582533698cdddbf
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_entry/stock_entry.py
+function: StockEntry.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: e223528147c931c7
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''calculate_rate_and_amount'' does not exist on DocType ''Stock Entry''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: db2b6c990c9d8632
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: db2b6c990c9d8632
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: db2b6c990c9d8632
+reproducer_hash: db2b6c990c9d8632

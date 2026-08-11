@@ -1,0 +1,28 @@
+id: FR-DATA-001-d67af6429bec4554
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/budget/budget.py
+function: Budget.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 7907df045835693f
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_applicable_for'' does not exist on DocType ''Budget'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 2c9ff02946d38d4a
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 63d1ae612c9d3999
+reproducer_hash: 63d1ae612c9d3999

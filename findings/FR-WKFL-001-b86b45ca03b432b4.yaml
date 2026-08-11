@@ -1,0 +1,19 @@
+id: FR-WKFL-001-b86b45ca03b432b4
+taxonomy_id: FR-WKFL-001
+rule_id: FR-WKFL-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_reposting_settings/stock_reposting_settings.py
+function: StockRepostingSettings.convert_to_item_wh_reposting
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: 8d7117fc816fca38
+discovered: '2026-08-10'
+proven: null
+notes: 'Mutation on submittable ''Repost Item Valuation'' via set_value without docstatus
+  guard. Proof recipe: Create submitted and cancelled records, invoke the endpoint,
+  and verify mutations are blocked on non-draft documents.'

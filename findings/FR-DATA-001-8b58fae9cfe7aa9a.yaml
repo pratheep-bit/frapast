@@ -1,0 +1,25 @@
+id: FR-DATA-001-8b58fae9cfe7aa9a
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/assets/doctype/asset_shift_allocation/asset_shift_allocation.py
+function: AssetShiftAllocation.fetch_and_set_depr_schedule
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 4367d733814a12b5
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''asset_depr_schedule_doc'' does not exist on DocType ''Asset Shift
+  Allocation'' (resolution confidence: medium). Proof recipe: Synthesize unit test
+  to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 29dfe4c3b03edca7
+reproducer_hash: 29dfe4c3b03edca7

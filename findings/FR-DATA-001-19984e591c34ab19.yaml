@@ -1,0 +1,25 @@
+id: FR-DATA-001-19984e591c34ab19
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/accounting_dimension/accounting_dimension.py
+function: AccountingDimension.validate_doctype
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 861a3df73d0413a6
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_document_type_change'' does not exist on DocType ''Accounting
+  Dimension'' (resolution confidence: medium). Proof recipe: Synthesize unit test
+  to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: b289de8a8cba5dc7
+reproducer_hash: b289de8a8cba5dc7

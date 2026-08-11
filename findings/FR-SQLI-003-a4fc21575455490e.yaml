@@ -1,0 +1,19 @@
+id: FR-SQLI-003-a4fc21575455490e
+taxonomy_id: FR-SQLI-003
+rule_id: FR-SQLI-003
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/projects/doctype/project/project.py
+function: set_project_status
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: cross_doctype
+code_location_hash: de251c28ed2e6b47
+discovered: '2026-08-10'
+proven: null
+notes: 'frappe.db.set_value writes to ''status'' bypassing controller validate/before_save
+  hooks. Proof recipe: Invoke the endpoint, then verify the target doctype''s validate()
+  was not triggered and derived fields are stale.'

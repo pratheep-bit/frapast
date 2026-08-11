@@ -1,0 +1,24 @@
+id: FR-DATA-001-e1117f09e1058033
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/patches/v12_0/update_end_date_and_status_in_email_campaign.py
+function: execute
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: cace21f93eeda6e5
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''db_set'' does not exist on DocType ''Email Campaign'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ae3fb953bdcbda24
+reproducer_hash: ae3fb953bdcbda24

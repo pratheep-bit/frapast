@@ -1,0 +1,24 @@
+id: FR-DATA-001-9fea7e4162ea71e1
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/selling/doctype/customer/test_customer.py
+function: TestCustomer.test_customer_credit_limit_on_change
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: c0c01339b2db646e
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''save'' does not exist on DocType ''Customer'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 51241bad38061675
+reproducer_hash: 51241bad38061675

@@ -1,0 +1,24 @@
+id: FR-DATA-001-77b03db108119cf6
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/bom/bom.py
+function: BOM.update_bom_creator_status
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 9e1f90ff63193d0c
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''set_status'' does not exist on DocType ''BOM Creator'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 0e2151ed5872cf7c
+reproducer_hash: 0e2151ed5872cf7c

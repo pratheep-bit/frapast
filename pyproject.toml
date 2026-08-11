@@ -43,7 +43,7 @@ include = ["scanner*"]
 
 [tool.setuptools.package-data]
 scanner = [
-    "taxonomy_registry.yaml",
+    "taxonomy/*.yaml",
     "rules/*.yaml",
     "web/static/*",
 ]

@@ -1,0 +1,18 @@
+id: FR-DATA-001-cbe3831ad112d7b5
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/subcontracting/doctype/subcontracting_inward_order/subcontracting_inward_order.py
+function: SubcontractingInwardOrder.update_subcontracted_quantity_in_so
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: c5d323f6eff3f0ae
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Sales Order Item'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

@@ -1,0 +1,25 @@
+id: FR-DATA-001-c0b3e859b8b78d2b
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/tax_withholding_category/tax_withholding_category.py
+function: TaxWithholdingCategory.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: d4282a8311817f25
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_thresholds'' does not exist on DocType ''Tax Withholding
+  Category'' (resolution confidence: medium). Proof recipe: Synthesize unit test to
+  trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: f511e3283b8bed91
+reproducer_hash: f511e3283b8bed91

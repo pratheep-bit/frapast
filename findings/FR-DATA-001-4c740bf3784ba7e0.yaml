@@ -1,0 +1,24 @@
+id: FR-DATA-001-4c740bf3784ba7e0
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/payment_reconciliation/payment_reconciliation.py
+function: PaymentReconciliation.calculate_difference_on_allocation_change
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 54b3b4fa5dedc142
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get_difference_amount'' does not exist on DocType ''Payment Reconciliation''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: f87780837ccab43f
+reproducer_hash: f87780837ccab43f

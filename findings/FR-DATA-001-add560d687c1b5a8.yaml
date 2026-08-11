@@ -1,0 +1,25 @@
+id: FR-DATA-001-add560d687c1b5a8
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/stock_ledger.py
+function: update_entries_after.calculate_valuation_for_serial_batch_bundle
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 08902e1ddfa04322
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''calculate_qty_and_amount'' does not exist on DocType ''Serial and
+  Batch Bundle'' (resolution confidence: high). Proof recipe: Synthesize unit test
+  to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1a010116588bbd41
+reproducer_hash: 1a010116588bbd41

@@ -1,0 +1,28 @@
+id: FR-DATA-001-165c58c8dbf60a7f
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/share_transfer/share_transfer.py
+function: ShareTransfer.on_submit
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: cf0ee0f0d7e76730
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get_shareholder_doc'' does not exist on DocType ''Share Transfer''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: fe14bb37cfd37b61
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: fe14bb37cfd37b61
+reproducer_hash: fe14bb37cfd37b61

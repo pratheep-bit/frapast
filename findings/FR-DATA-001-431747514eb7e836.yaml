@@ -1,0 +1,25 @@
+id: FR-DATA-001-431747514eb7e836
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/subscription_plan/subscription_plan.py
+function: SubscriptionPlan.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6d8b89723502e74d
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_interval_count'' does not exist on DocType ''Subscription
+  Plan'' (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger
+  AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1bbe980788efe03f
+reproducer_hash: 1bbe980788efe03f

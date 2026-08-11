@@ -1,0 +1,24 @@
+id: FR-PERF-001-0754611b3696469b
+taxonomy_id: FR-PERF-001
+rule_id: FR-PERF-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/deferred_revenue.py
+function: process_deferred_accounting
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 21406f0bf7c44f28
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'frappe.get_doc() is called once per loop iteration over a query result. Proof
+  recipe: Synthetic load test to measure N+1 overhead'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 9618fd65974a8c41
+reproducer_hash: 9618fd65974a8c41

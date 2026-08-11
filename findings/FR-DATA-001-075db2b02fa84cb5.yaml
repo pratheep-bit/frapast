@@ -1,0 +1,25 @@
+id: FR-DATA-001-075db2b02fa84cb5
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/support/doctype/service_level_agreement/service_level_agreement.py
+function: ServiceLevelAgreement.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 0d0bb70319aa1875
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''check_support_and_resolution'' does not exist on DocType ''Service
+  Level Agreement'' (resolution confidence: medium). Proof recipe: Synthesize unit
+  test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 55547f5ae8ce18df
+reproducer_hash: 55547f5ae8ce18df

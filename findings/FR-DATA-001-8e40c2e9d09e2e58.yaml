@@ -1,0 +1,19 @@
+id: FR-DATA-001-8e40c2e9d09e2e58
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/purchase_receipt/purchase_receipt.py
+function: PurchaseReceipt.validate
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: f26e08779af0a14e
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''validate_with_previous_doc'' does not exist on DocType ''Purchase
+  Receipt'' (resolution confidence: medium). Proof recipe: Synthesize unit test to
+  trigger AttributeError'

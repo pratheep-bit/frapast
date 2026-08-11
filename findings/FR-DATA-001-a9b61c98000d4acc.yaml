@@ -1,0 +1,19 @@
+id: FR-DATA-001-a9b61c98000d4acc
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/purchase_receipt/purchase_receipt.py
+function: PurchaseReceipt.validate
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: eb931549891781b4
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''check_for_on_hold_or_closed_status'' does not exist on DocType ''Purchase
+  Receipt'' (resolution confidence: medium). Proof recipe: Synthesize unit test to
+  trigger AttributeError'

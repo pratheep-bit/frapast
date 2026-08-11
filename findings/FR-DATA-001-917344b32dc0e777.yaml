@@ -1,0 +1,18 @@
+id: FR-DATA-001-917344b32dc0e777
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/accounting_dimension/test_accounting_dimension.py
+function: TestAccountingDimension.test_mandatory
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 7c7bb216a8a2c674
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Accounting Dimension'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

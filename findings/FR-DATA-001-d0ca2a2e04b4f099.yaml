@@ -1,0 +1,18 @@
+id: FR-DATA-001-d0ca2a2e04b4f099
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/setup/doctype/employee/test_employee.py
+function: TestEmployee.test_employee_status_left
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 4f7116b2601e79a3
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Employee'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'

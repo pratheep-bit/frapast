@@ -1,0 +1,18 @@
+id: FR-DATA-001-5d4642488cf5a04c
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/bank_statement_import_log/bank_statement_import_log.py
+function: update_column_mapping
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 77d0e2eb08c33e98
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Bank Statement Import Log'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

@@ -1,0 +1,24 @@
+id: FR-DATA-001-f1d8717fbc75eff3
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/assets/doctype/asset_category/asset_category.py
+function: AssetCategory.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 8af1c1170442e642
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_finance_books'' does not exist on DocType ''Asset Category''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ec6180d1555ee60f
+reproducer_hash: ec6180d1555ee60f

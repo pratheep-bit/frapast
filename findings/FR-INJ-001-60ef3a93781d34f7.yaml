@@ -1,0 +1,29 @@
+id: FR-INJ-001-60ef3a93781d34f7
+taxonomy_id: FR-INJ-001
+rule_id: FR-INJ-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/journal_entry/mapper.py
+function: get_payment_entry_against_invoice
+status: candidate
+proof_tier: 2
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: framework_wide
+code_location_hash: bddf9fc9d0ff591d
+discovered: '2026-08-10'
+proven: null
+notes: "Request-controlled data flows directly into frappe.get_doc() \u2014 mass assignment\
+  \ risk. Proof recipe: Pass unexpected fields (owner, docstatus, name) through the\
+  \ endpoint and verify they are rejected."
+status_history:
+- date: '2026-08-10'
+  status: candidate
+  proof_tier: 2
+  reproducer_hash: 3c4e35bf7b128226
+- date: '2026-08-10'
+  status: candidate
+  proof_tier: 2
+  reproducer_hash: fb51cb03e359e83c
+reproducer_hash: fb51cb03e359e83c

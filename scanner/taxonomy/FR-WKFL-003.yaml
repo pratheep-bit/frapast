@@ -1,0 +1,9 @@
+id: FR-WKFL-003
+name: status versus docstatus desync
+description: >
+  Lifecycle code updates status and docstatus inconsistently.
+ast_confidence: partial
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+detector_status: partial

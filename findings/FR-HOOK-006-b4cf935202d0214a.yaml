@@ -1,0 +1,40 @@
+id: FR-HOOK-006-b4cf935202d0214a
+taxonomy_id: FR-HOOK-006
+rule_id: FR-HOOK-006
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/patches/v13_0/create_accounting_dimensions_in_orders.py
+function: execute
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 1599d356907d1c92
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Bare except silently swallows all exceptions including framework signals.
+  Proof recipe: Synthesize unit test to trigger exception'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 46e3ae4d3afbfef9
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: b9da0f5444cf5a1b
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 604edf3548edc8b3
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 517d9b9c54d42493
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: cea8e5e5d20aac12
+reproducer_hash: cea8e5e5d20aac12

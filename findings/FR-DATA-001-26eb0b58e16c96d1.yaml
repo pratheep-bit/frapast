@@ -1,0 +1,28 @@
+id: FR-DATA-001-26eb0b58e16c96d1
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/routing/test_routing.py
+function: TestRouting.test_sequence_id
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 8eb03955ae317300
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''append'' does not exist on DocType ''Job Card'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 3600b55231c336f1
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 95dfcfd919c514ba
+reproducer_hash: 95dfcfd919c514ba

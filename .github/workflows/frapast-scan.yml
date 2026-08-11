@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run frapAST Security Action
-        uses: pratheep-bit/frapast@main
+        uses: pratheep-bit/frapast@v0.4.8
         with:
           path: '.'
           sarif: 'true'

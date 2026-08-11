@@ -1,0 +1,25 @@
+id: FR-DATA-001-d20149a4dba8025a
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/subcontracting/doctype/subcontracting_order/subcontracting_order.py
+function: SubcontractingOrder.update_status
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 73cc045853e20b07
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''update_ordered_qty_for_subcontracting'' does not exist on DocType
+  ''Subcontracting Order'' (resolution confidence: medium). Proof recipe: Synthesize
+  unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 9dbb2fbd0a5446ad
+reproducer_hash: 9dbb2fbd0a5446ad

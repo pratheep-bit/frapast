@@ -1,0 +1,28 @@
+id: FR-DATA-001-68f4e3b0e80adbe5
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/accounting_dimension/test_accounting_dimension.py
+function: TestAccountingDimension.test_dimension_against_journal_entry
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 12dfe7390ac188c4
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get'' does not exist on DocType ''GL Entry'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 65f3021a677f999a
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 65f3021a677f999a
+reproducer_hash: 65f3021a677f999a

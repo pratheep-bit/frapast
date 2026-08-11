@@ -1,0 +1,18 @@
+id: FR-HOOK-006-e816a38dd85d3282
+taxonomy_id: FR-HOOK-006
+rule_id: FR-HOOK-006
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/patches/v14_0/create_accounting_dimensions_in_subcontracting_doctypes.py
+function: execute
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 1599d356907d1c92
+discovered: '2026-08-10'
+proven: null
+notes: 'Bare except silently swallows all exceptions including framework signals.
+  Proof recipe: Synthesize unit test to trigger exception'

@@ -1,0 +1,24 @@
+id: FR-DATA-001-e0176b7371d3a724
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/quality_management/doctype/quality_review/quality_review.py
+function: QualityReview.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 02c3f00efab179c0
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''append'' does not exist on DocType ''Quality Review'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 503fb6e89e12266a
+reproducer_hash: 503fb6e89e12266a

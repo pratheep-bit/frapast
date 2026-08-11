@@ -1,0 +1,25 @@
+id: FR-DATA-001-cdb446bbeed71e76
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/controllers/stock_controller.py
+function: StockController.update_stock_reservation_entries
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: c698c3da76fb0dfe
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''update_reserved_qty_in_voucher'' does not exist on DocType ''Stock
+  Reservation Entry'' (resolution confidence: high). Proof recipe: Synthesize unit
+  test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: cabb715e06de48e6
+reproducer_hash: cabb715e06de48e6

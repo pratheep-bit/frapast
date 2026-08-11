@@ -1,0 +1,24 @@
+id: FR-HOOK-006-147ab6cfdb53579f
+taxonomy_id: FR-HOOK-006
+rule_id: FR-HOOK-006
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/pricing_rule/utils.py
+function: filter_pricing_rule_based_on_condition
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: fa9315a9de0d5b56
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Bare except silently swallows all exceptions including framework signals.
+  Proof recipe: Synthesize unit test to trigger exception'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: d279b5d8cfd2c0ef
+reproducer_hash: d279b5d8cfd2c0ef

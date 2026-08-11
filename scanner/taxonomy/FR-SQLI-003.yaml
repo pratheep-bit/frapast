@@ -1,0 +1,9 @@
+id: FR-SQLI-003
+name: Direct writes skipping controller hooks
+description: >
+  Direct database writes bypass controller validation hooks.
+ast_confidence: partial
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+detector_status: partial

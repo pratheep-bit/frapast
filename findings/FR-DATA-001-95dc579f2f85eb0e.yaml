@@ -1,0 +1,28 @@
+id: FR-DATA-001-95dc579f2f85eb0e
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/bom_creator/bom_creator.py
+function: BOMCreator.delete_node
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: d96f832116ebf0e4
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''set_rate_for_items'' does not exist on DocType ''BOM Creator'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 90622061cea6403f
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 90622061cea6403f
+reproducer_hash: 90622061cea6403f

@@ -1,0 +1,18 @@
+id: FR-SQLI-004-dea5402cbf992c27
+taxonomy_id: FR-SQLI-004
+rule_id: FR-SQLI-004
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/selling/report/payment_terms_status_for_sales_order/payment_terms_status_for_sales_order.py
+function: get_descendants_of
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: rce
+blast_radius: cross_doctype
+code_location_hash: 8aaa1965f9ba20b2
+discovered: '2026-08-10'
+proven: null
+notes: 'frappe.qb uses a dynamic (non-literal) table/column name. Proof recipe: Supply
+  a crafted table name through the endpoint and verify it cannot alter the query structure.'

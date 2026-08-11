@@ -1,0 +1,25 @@
+id: FR-DATA-001-103fbcaa56f12c5c
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/crm/doctype/appointment_booking_settings/appointment_booking_settings.py
+function: AppointmentBookingSettings.validate_availability_of_slots
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 21390b05dfd1f009
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_from_and_to_time'' does not exist on DocType ''Appointment
+  Booking Settings'' (resolution confidence: medium). Proof recipe: Synthesize unit
+  test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 30076599226a662f
+reproducer_hash: 30076599226a662f

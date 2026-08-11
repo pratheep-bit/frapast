@@ -1,0 +1,25 @@
+id: FR-DATA-001-ca797a83b4815673
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/material_request/material_request.py
+function: MaterialRequest.on_cancel
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: b3d19a08cb7b6d8d
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''update_requested_qty_in_production_plan'' does not exist on DocType
+  ''Material Request'' (resolution confidence: medium). Proof recipe: Synthesize unit
+  test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 23f2dc875dd8bd47
+reproducer_hash: 23f2dc875dd8bd47

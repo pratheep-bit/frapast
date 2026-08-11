@@ -1,0 +1,18 @@
+id: FR-DATA-001-3c0fcb7d475ac559
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_ledger_entry/stock_ledger_entry.py
+function: StockLedgerEntry.validate_mandatory
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 1adc178f565103a0
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''meta'' does not exist on DocType ''Stock Ledger Entry'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

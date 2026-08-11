@@ -1,0 +1,24 @@
+id: FR-DATA-001-26a46933d6768cde
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/account/test_account.py
+function: TestAccount.test_validate_account_currency
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 24728cd428d99cdc
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''save'' does not exist on DocType ''Account'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 30cdf67f16e4865e
+reproducer_hash: 30cdf67f16e4865e

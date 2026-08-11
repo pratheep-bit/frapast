@@ -1,0 +1,88 @@
+id: FR-DATA-001-558c8d3f457173a8
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/bank_statement_import_log/bank_statement_import_log.py
+function: BankStatementImportLog.apply_pdf_tables
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: a0ca181911d2fbbb
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''save'' does not exist on DocType ''Bank Statement Import Log'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: fd7e385f7fd2d8a7
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: fd7e385f7fd2d8a7
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: a50df708860e5a13
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6e41a92abfd9880c
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6e41a92abfd9880c
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6e41a92abfd9880c
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: cc06c3e266ce2b08
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: cc06c3e266ce2b08
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 90622061cea6403f
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 90622061cea6403f
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 78b55fbddfaa94d9
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 505fe4ad6b984021
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1b3a73c5ed0743a6
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1b3a73c5ed0743a6
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: a2e8ec35c0cf0e9f
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: f81fff8e2df5ed13
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 4b9e8958e8ab6001
+reproducer_hash: 4b9e8958e8ab6001

@@ -1,0 +1,18 @@
+id: FR-DATA-001-eca651bb0c996733
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/item_alternative/test_item_alternative.py
+function: TestItemAlternative.test_alternative_item_for_subcontract_rm
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: b0c85890be174eb4
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''submit'' does not exist on DocType ''Stock Entry'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'

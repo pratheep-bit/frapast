@@ -1,0 +1,25 @@
+id: FR-DATA-001-4c62132c99090531
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/tests/utils.py
+function: BootStrapTestData.update_stock_settings
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 206c3f2de7d2d7b6
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''set_qty_in_transactions_based_on_serial_no_input'' does not exist
+  on DocType ''Stock Settings'' (resolution confidence: high). Proof recipe: Synthesize
+  unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 871c8340815a5f98
+reproducer_hash: 871c8340815a5f98

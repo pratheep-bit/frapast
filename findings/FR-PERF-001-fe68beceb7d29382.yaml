@@ -1,0 +1,24 @@
+id: FR-PERF-001-fe68beceb7d29382
+taxonomy_id: FR-PERF-001
+rule_id: FR-PERF-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/period_closing_voucher/period_closing_voucher.py
+function: PeriodClosingVoucher.cancel_process_pcv_docs
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: d0bb9bdba68094a8
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'frappe.get_doc() is called once per loop iteration over a query result. Proof
+  recipe: Synthetic load test to measure N+1 overhead'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: bf78c37a0a302fd7
+reproducer_hash: bf78c37a0a302fd7

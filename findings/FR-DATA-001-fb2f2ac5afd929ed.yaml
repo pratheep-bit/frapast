@@ -1,0 +1,24 @@
+id: FR-DATA-001-fb2f2ac5afd929ed
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/selling/doctype/sms_center/sms_center.py
+function: SMSCenter.send_sms
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: af4efd15c9bd9219
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get_receiver_nos'' does not exist on DocType ''SMS Center'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: e8dae3c8690f0268
+reproducer_hash: e8dae3c8690f0268

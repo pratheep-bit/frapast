@@ -7,7 +7,9 @@ import sys
 from pathlib import Path
 import yaml
 
-REGISTRY = Path(__file__).parent / "taxonomy_registry.yaml"
+REGISTRY = Path(__file__).parent / "taxonomy" / "taxonomy_registry.yaml"
+if not REGISTRY.exists():
+	REGISTRY = Path(__file__).parent / "taxonomy_registry.yaml"
 RULES_DIR = Path(__file__).parent / "rules"
 
 PLACEHOLDER_MARKERS = ("FILL IN", "TBD")

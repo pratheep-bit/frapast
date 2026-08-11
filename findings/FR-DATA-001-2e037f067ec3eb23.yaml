@@ -1,0 +1,24 @@
+id: FR-DATA-001-2e037f067ec3eb23
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/projects/doctype/timesheet/timesheet.py
+function: Timesheet.update_task_and_project
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 385424cbb4b10ec8
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''update_project'' does not exist on DocType ''Project'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1d118024f437f485
+reproducer_hash: 1d118024f437f485

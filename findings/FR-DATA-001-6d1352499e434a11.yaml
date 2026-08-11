@@ -1,0 +1,24 @@
+id: FR-DATA-001-6d1352499e434a11
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/regional/italy/utils.py
+function: sales_invoice_validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 34577c111187158b
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''is_public_administration'' does not exist on DocType ''Customer''
+  (resolution confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 5e103ad261505ace
+reproducer_hash: 5e103ad261505ace

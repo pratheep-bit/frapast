@@ -1,0 +1,24 @@
+id: FR-DATA-001-b3d882a6dd5bf691
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/erpnext_integrations/doctype/plaid_settings/plaid_settings.py
+function: add_institution
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: fd3dfdb27474d181
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''save'' does not exist on DocType ''Bank'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ed7a9690c575bba3
+reproducer_hash: ed7a9690c575bba3

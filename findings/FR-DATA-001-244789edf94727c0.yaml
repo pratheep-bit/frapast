@@ -1,0 +1,24 @@
+id: FR-DATA-001-244789edf94727c0
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/telephony/doctype/call_log/call_log.py
+function: CallLog.before_insert
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6ec10d8b19575f7c
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get'' does not exist on DocType ''Call Log'' (resolution confidence:
+  medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 31bb6575c7f1d2e5
+reproducer_hash: 31bb6575c7f1d2e5

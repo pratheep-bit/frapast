@@ -1,0 +1,25 @@
+id: FR-DATA-001-9c55727576d581c7
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/item_variant_settings/item_variant_settings.py
+function: ItemVariantSettings.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 12fc2f2f85179538
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''invalid_fields_for_copy_fields_in_variants'' does not exist on DocType
+  ''Item Variant Settings'' (resolution confidence: medium). Proof recipe: Synthesize
+  unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 4b9e8958e8ab6001
+reproducer_hash: 4b9e8958e8ab6001

@@ -1,0 +1,18 @@
+id: FR-DATA-001-240edf339169fb61
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/setup/install.py
+function: setup_repost_defaults
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 869ea14c05d0bfd2
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Accounts Settings'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

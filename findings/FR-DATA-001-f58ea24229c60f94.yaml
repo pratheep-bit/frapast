@@ -1,0 +1,18 @@
+id: FR-DATA-001-f58ea24229c60f94
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/bank_transaction/bank_transaction.py
+function: BankTransaction.validate
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 99a56a79b3e992f8
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''validate_duplicate_references'' does not exist on DocType ''Bank Transaction''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

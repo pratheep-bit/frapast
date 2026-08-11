@@ -1,0 +1,25 @@
+id: FR-DATA-001-2fbaf9c430db6cc8
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/regional/doctype/lower_deduction_certificate/lower_deduction_certificate.py
+function: LowerDeductionCertificate.validate_supplier_against_tax_category
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 325dd40f72110a9f
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''are_dates_overlapping'' does not exist on DocType ''Lower Deduction
+  Certificate'' (resolution confidence: medium). Proof recipe: Synthesize unit test
+  to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 55990807ead83a7b
+reproducer_hash: 55990807ead83a7b

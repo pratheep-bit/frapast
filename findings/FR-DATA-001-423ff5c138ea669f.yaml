@@ -1,0 +1,18 @@
+id: FR-DATA-001-423ff5c138ea669f
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/production_plan/production_plan.py
+function: ProductionPlan.on_submit
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: e247428a82411933
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''update_sales_order'' does not exist on DocType ''Production Plan''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

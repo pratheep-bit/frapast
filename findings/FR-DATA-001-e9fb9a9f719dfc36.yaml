@@ -1,0 +1,48 @@
+id: FR-DATA-001-e9fb9a9f719dfc36
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/payment_entry/test_payment_entry.py
+function: TestPaymentEntry.test_outstanding_orders_no_split_when_allocate_disabled
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 457277046a4cd96f
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''save'' does not exist on DocType ''Payment Terms Template'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: f009102d28c8f9b1
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: f009102d28c8f9b1
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: f009102d28c8f9b1
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: f009102d28c8f9b1
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ee17de8366e0637b
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ee17de8366e0637b
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: dc74ab1480e51da2
+reproducer_hash: dc74ab1480e51da2

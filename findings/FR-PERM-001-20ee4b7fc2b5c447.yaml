@@ -1,0 +1,25 @@
+id: FR-PERM-001-20ee4b7fc2b5c447
+taxonomy_id: FR-PERM-001
+rule_id: FR-PERM-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/tax_rule/tax_rule.py
+function: get_party_details
+status: candidate
+proof_tier: 2
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: single_doctype
+code_location_hash: fbc76b9470407799
+discovered: '2026-08-10'
+proven: null
+notes: 'Whitelisted endpoint has no permission check in body or within one hop. Proof
+  recipe: Invoke the endpoint as a low-privilege user and verify access is rejected
+  for unauthorized documents.'
+status_history:
+- date: '2026-08-10'
+  status: candidate
+  proof_tier: 2
+  reproducer_hash: 447ec1cfca298e17
+reproducer_hash: 447ec1cfca298e17

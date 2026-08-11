@@ -1,0 +1,24 @@
+id: FR-DATA-001-ec5052b3d444edb8
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/selling/page/point_of_sale/point_of_sale.py
+function: search_by_term
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 4ef3f06e53cf005c
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get'' does not exist on DocType ''Item'' (resolution confidence: high).
+  Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 517811075f1c50ab
+reproducer_hash: 517811075f1c50ab

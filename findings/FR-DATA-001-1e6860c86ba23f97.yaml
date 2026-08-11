@@ -1,0 +1,18 @@
+id: FR-DATA-001-1e6860c86ba23f97
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/assets/doctype/asset/test_asset.py
+function: set_depreciation_settings_in_company
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: ca16c243a1e33e01
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Company'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'

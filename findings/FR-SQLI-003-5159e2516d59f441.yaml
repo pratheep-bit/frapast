@@ -1,0 +1,19 @@
+id: FR-SQLI-003-5159e2516d59f441
+taxonomy_id: FR-SQLI-003
+rule_id: FR-SQLI-003
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/buying/report/supplier_quotation_comparison/supplier_quotation_comparison.py
+function: set_default_supplier
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: cross_doctype
+code_location_hash: 32e655e1012ccab6
+discovered: '2026-08-10'
+proven: null
+notes: 'frappe.db.set_value writes to ''default_supplier'' bypassing controller validate/before_save
+  hooks. Proof recipe: Invoke the endpoint, then verify the target doctype''s validate()
+  was not triggered and derived fields are stale.'

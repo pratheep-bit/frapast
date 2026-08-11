@@ -1,0 +1,24 @@
+id: FR-DATA-001-4c6f3d840969d5f2
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/promotional_scheme/promotional_scheme.py
+function: PromotionalScheme.get_invalid_pricing_rules
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 9b3687d1c1e67cfe
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get'' does not exist on DocType ''Promotional Scheme'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 63d1ae612c9d3999
+reproducer_hash: 63d1ae612c9d3999

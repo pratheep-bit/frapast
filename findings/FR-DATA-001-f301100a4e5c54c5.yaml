@@ -1,0 +1,19 @@
+id: FR-DATA-001-f301100a4e5c54c5
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/subcontracting/doctype/subcontracting_receipt/subcontracting_receipt.py
+function: SubcontractingReceipt.on_cancel
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 8a52d60ad9be2e0d
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''delete_auto_created_batches'' does not exist on DocType ''Subcontracting
+  Receipt'' (resolution confidence: medium). Proof recipe: Synthesize unit test to
+  trigger AttributeError'

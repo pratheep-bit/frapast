@@ -1,0 +1,25 @@
+id: FR-DATA-001-055249bf0aff1838
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/setup/doctype/transaction_deletion_record/transaction_deletion_record.py
+function: TransactionDeletionRecord.delete_child_tables
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 09def0bc16c5da4f
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''_get_child_tables'' does not exist on DocType ''Transaction Deletion
+  Record'' (resolution confidence: medium). Proof recipe: Synthesize unit test to
+  trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1b3a73c5ed0743a6
+reproducer_hash: 1b3a73c5ed0743a6

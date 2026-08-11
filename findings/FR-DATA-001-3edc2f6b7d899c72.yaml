@@ -1,0 +1,24 @@
+id: FR-DATA-001-3edc2f6b7d899c72
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_entry/services/disassemble.py
+function: DisassembleStockEntry.update_disassembled_order
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 932dcd8d277df99b
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''run_method'' does not exist on DocType ''Work Order'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 0a2356c169e596c7
+reproducer_hash: 0a2356c169e596c7

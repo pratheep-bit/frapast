@@ -1,0 +1,25 @@
+id: FR-DATA-001-bea1e4fcf56cc199
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/repost_item_valuation/repost_item_valuation.py
+function: RepostItemValuation.before_cancel
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: de463fac52d7dc44
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''check_pending_repost_against_cancelled_transaction'' does not exist
+  on DocType ''Repost Item Valuation'' (resolution confidence: medium). Proof recipe:
+  Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 180ddfe983515a3d
+reproducer_hash: 180ddfe983515a3d

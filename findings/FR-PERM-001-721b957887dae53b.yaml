@@ -1,0 +1,19 @@
+id: FR-PERM-001-721b957887dae53b
+taxonomy_id: FR-PERM-001
+rule_id: FR-PERM-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/inventory_dimension/inventory_dimension.py
+function: get_parent_fields
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: single_doctype
+code_location_hash: 9299fa27b68f5df6
+discovered: '2026-08-10'
+proven: null
+notes: 'Whitelisted endpoint has no permission check in body or within one hop. Proof
+  recipe: Invoke the endpoint as a low-privilege user and verify access is rejected
+  for unauthorized documents.'

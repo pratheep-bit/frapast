@@ -1,0 +1,18 @@
+id: FR-DATA-001-bb50e16c1a9a7570
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/bank_clearance/test_bank_clearance.py
+function: TestBankClearance.test_bank_clearance_with_loan
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 1f4434b05b8feaad
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''get_payment_entries'' does not exist on DocType ''Bank Clearance''
+  (resolution confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

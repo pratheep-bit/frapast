@@ -1,0 +1,25 @@
+id: FR-PERM-001-1e4f081e1c5a9134
+taxonomy_id: FR-PERM-001
+rule_id: FR-PERM-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/subscription_plan/subscription_plan.py
+function: get_plan_rate
+status: candidate
+proof_tier: 2
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: single_doctype
+code_location_hash: 6485aaebd1ef7721
+discovered: '2026-08-10'
+proven: null
+notes: 'Whitelisted endpoint has no permission check in body or within one hop. Proof
+  recipe: Invoke the endpoint as a low-privilege user and verify access is rejected
+  for unauthorized documents.'
+status_history:
+- date: '2026-08-10'
+  status: candidate
+  proof_tier: 2
+  reproducer_hash: bbf2656028457098
+reproducer_hash: bbf2656028457098

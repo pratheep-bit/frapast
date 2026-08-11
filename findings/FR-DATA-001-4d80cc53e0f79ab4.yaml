@@ -1,0 +1,18 @@
+id: FR-DATA-001-4d80cc53e0f79ab4
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/setup/install.py
+function: update_pegged_currencies
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 77d0e2eb08c33e98
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Pegged Currencies'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

@@ -1,0 +1,24 @@
+id: FR-DATA-001-af42d1d92c6f8a0d
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/controllers/subcontracting_controller.py
+function: SubcontractingController.set_subcontracting_order_status
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: a4bb4960f2deff93
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''update_status'' does not exist on DocType ''Subcontracting Order''
+  (resolution confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 94787b86cb0c9d94
+reproducer_hash: 94787b86cb0c9d94

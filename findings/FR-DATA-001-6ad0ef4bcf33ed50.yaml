@@ -1,0 +1,24 @@
+id: FR-DATA-001-6ad0ef4bcf33ed50
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/subcontracting/doctype/subcontracting_inward_order/subcontracting_inward_order.py
+function: SubcontractingInwardOrder.update_status
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: ecff284f59f30bf6
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''db_set'' does not exist on DocType ''Subcontracting Inward Order''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ec4708062f252265
+reproducer_hash: ec4708062f252265

@@ -1,0 +1,24 @@
+id: FR-DATA-001-2bc4802848da5f1f
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/patches/v13_0/item_naming_series_not_mandatory.py
+function: execute
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 9ba283ca28b3a44d
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get'' does not exist on DocType ''Stock Settings'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: b1a3a481dc07efa0
+reproducer_hash: b1a3a481dc07efa0

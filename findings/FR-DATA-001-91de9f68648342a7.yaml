@@ -1,0 +1,28 @@
+id: FR-DATA-001-91de9f68648342a7
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/pos_closing_entry/test_pos_closing_entry.py
+function: TestPOSClosingEntry.test_pos_closing_for_required_accounting_dimension_in_pos_profile
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 7c7bb216a8a2c674
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''save'' does not exist on DocType ''Accounting Dimension'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 65f3021a677f999a
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 24f25fa624eb5bf8
+reproducer_hash: 24f25fa624eb5bf8

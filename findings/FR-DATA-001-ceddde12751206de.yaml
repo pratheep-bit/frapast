@@ -1,0 +1,25 @@
+id: FR-DATA-001-ceddde12751206de
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_settings/stock_settings.py
+function: StockSettings.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 0600e16a04ee1778
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_serial_and_batch_no_settings'' does not exist on DocType
+  ''Stock Settings'' (resolution confidence: medium). Proof recipe: Synthesize unit
+  test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6ca1ee1c5294f8ae
+reproducer_hash: 6ca1ee1c5294f8ae

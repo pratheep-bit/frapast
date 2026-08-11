@@ -1,0 +1,18 @@
+id: FR-DATA-001-2a25b68cde33e9a2
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/assets/doctype/location/location.py
+function: Location.remove_ancestor_location_features
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6d2aeaed6913ccf3
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''feature_seperator'' does not exist on DocType ''Location'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

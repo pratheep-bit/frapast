@@ -1,0 +1,18 @@
+id: FR-DATA-001-673a0b28c2d3388e
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/payment_ledger_entry/payment_ledger_entry.py
+function: PaymentLedgerEntry.validate_dimensions_for_pl_and_bs
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 16c47231c288ceb8
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''get'' does not exist on DocType ''Payment Ledger Entry'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

@@ -1,0 +1,24 @@
+id: FR-DATA-001-c826bff53a3503fa
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/tax_withholding_entry/tax_withholding_entry.py
+function: TaxWithholdingEntry._adjust_against_old_entries
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: c82895a094ace1ee
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''precision'' does not exist on DocType ''Tax Withholding Entry'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 3e15e402fbf8d35e
+reproducer_hash: 3e15e402fbf8d35e

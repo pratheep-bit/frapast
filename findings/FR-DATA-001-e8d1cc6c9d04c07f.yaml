@@ -1,0 +1,18 @@
+id: FR-DATA-001-e8d1cc6c9d04c07f
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/work_order/test_work_order.py
+function: TestWorkOrder.test_job_card
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 5fc71653974d4128
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''submit'' does not exist on DocType ''Job Card'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'

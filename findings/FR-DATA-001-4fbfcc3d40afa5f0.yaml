@@ -1,0 +1,24 @@
+id: FR-DATA-001-4fbfcc3d40afa5f0
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/sales_invoice/sales_invoice.py
+function: SalesInvoice.update_project
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 70b4bd7c5f71df6c
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''db_update'' does not exist on DocType ''Project'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 57b15cea62762df0
+reproducer_hash: 57b15cea62762df0

@@ -1,0 +1,24 @@
+id: FR-DATA-001-47e89f46d411861c
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/item_attribute/item_attribute.py
+function: ItemAttribute.on_update
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: dd404b55577f2479
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''set_enabled_disabled_in_items'' does not exist on DocType ''Item Attribute''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: e66f3f267a86cec3
+reproducer_hash: e66f3f267a86cec3

@@ -1,0 +1,25 @@
+id: FR-DATA-001-5f37f3bba02a05f2
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_entry/stock_entry.py
+function: StockEntry._get_rm_cost_for_manufacture
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 27b1b8dc9bc57d42
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''_validate_no_raw_materials_in_manufacture_entry'' does not exist on
+  DocType ''Stock Entry'' (resolution confidence: medium). Proof recipe: Synthesize
+  unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: db2b6c990c9d8632
+reproducer_hash: db2b6c990c9d8632

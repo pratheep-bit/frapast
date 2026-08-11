@@ -1,0 +1,28 @@
+id: FR-DATA-001-0f154eef53245df6
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/bom_update_tool/test_bom_update_tool.py
+function: TestBOMUpdateTool.test_bom_cost
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 1f67152aec452aab
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''load_from_db'' does not exist on DocType ''BOM'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: fd7a1ea760f5679e
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: fd7a1ea760f5679e
+reproducer_hash: fd7a1ea760f5679e

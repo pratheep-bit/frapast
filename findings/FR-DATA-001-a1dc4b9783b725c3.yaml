@@ -1,0 +1,25 @@
+id: FR-DATA-001-a1dc4b9783b725c3
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/pos_invoice_merge_log/pos_invoice_merge_log.py
+function: POSInvoiceMergeLog.process_merging_into_sales_invoice
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: ba0f63041da18234
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''merge_pos_invoice_into'' does not exist on DocType ''POS Invoice Merge
+  Log'' (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger
+  AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 84cf12a4aadb54c8
+reproducer_hash: 84cf12a4aadb54c8

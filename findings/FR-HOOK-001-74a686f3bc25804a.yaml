@@ -1,0 +1,26 @@
+id: FR-HOOK-001-74a686f3bc25804a
+taxonomy_id: FR-HOOK-001
+rule_id: FR-HOOK-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/process_subscription/process_subscription.py
+function: ProcessSubscription
+status: proven
+proof_tier: 1
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: c543a25d57263160
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: "Class 'ProcessSubscription' defines on_submit but not on_cancel \u2014 submit\
+  \ side-effects are not reversed on cancel. Proof recipe: Submit a document, then\
+  \ cancel it, and verify all side effects (ledger entries, stock, etc.) are fully\
+  \ reversed."
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: e2d304670434deca
+reproducer_hash: e2d304670434deca

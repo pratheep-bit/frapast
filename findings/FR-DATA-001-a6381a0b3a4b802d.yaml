@@ -1,0 +1,18 @@
+id: FR-DATA-001-a6381a0b3a4b802d
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/patches/v11_0/add_default_dispatch_notification_template.py
+function: execute
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 1b284febf9d5f713
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Delivery Settings'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

@@ -1,0 +1,18 @@
+id: FR-DATA-001-b6be5e3b9feb5f2f
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/setup/doctype/transaction_deletion_record/transaction_deletion_record.py
+function: TransactionDeletionRecord.import_to_delete_template_method
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: a0ca181911d2fbbb
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Transaction Deletion Record'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

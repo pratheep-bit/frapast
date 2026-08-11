@@ -1,0 +1,18 @@
+id: FR-DATA-001-255617fec53b1d56
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_closing_entry/stock_closing_entry.py
+function: StockClosingEntry.regenerate_closing_balance
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: a6639f55e382a25f
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''enqueue_job'' does not exist on DocType ''Stock Closing Entry'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

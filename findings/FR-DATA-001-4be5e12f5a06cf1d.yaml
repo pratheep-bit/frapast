@@ -1,0 +1,24 @@
+id: FR-DATA-001-4be5e12f5a06cf1d
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/subscription/subscription.py
+function: Subscription.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 2ba6dc1796faff9a
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_party_billing_currency'' does not exist on DocType ''Subscription''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6e41a92abfd9880c
+reproducer_hash: 6e41a92abfd9880c

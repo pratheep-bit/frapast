@@ -1,0 +1,25 @@
+id: FR-DATA-001-d75903df512a2943
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/job_card/job_card.py
+function: JobCard.make_stock_entry_for_semi_fg_item
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 62d08af99738f42c
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''populate_manufacture_stock_entry'' does not exist on DocType ''Job
+  Card'' (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger
+  AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 78b55fbddfaa94d9
+reproducer_hash: 78b55fbddfaa94d9

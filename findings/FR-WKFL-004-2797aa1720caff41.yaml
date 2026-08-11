@@ -1,0 +1,19 @@
+id: FR-WKFL-004-2797aa1720caff41
+taxonomy_id: FR-WKFL-004
+rule_id: FR-WKFL-004
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_entry/services/material_transfer.py
+function: MaterialRequestStockEntry
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: 7847a6df7d942516
+discovered: '2026-08-10'
+proven: null
+notes: 'Submittable class ''MaterialRequestStockEntry'' has on_submit but no before_insert/after_insert
+  to handle amendment chain field resets. Proof recipe: Create a document, submit
+  it, cancel it, amend it, and verify workflow_state and child tables are reset.'

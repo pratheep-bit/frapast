@@ -1,0 +1,28 @@
+id: FR-DATA-001-5ef5aa1e4f7c7296
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/bom_creator/bom_creator.py
+function: BOMCreator.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: b182946575f06534
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_finished_good'' does not exist on DocType ''BOM Creator''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 90622061cea6403f
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 046f36c06a338b7a
+reproducer_hash: 046f36c06a338b7a

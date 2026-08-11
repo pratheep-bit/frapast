@@ -1,0 +1,24 @@
+id: FR-DATA-001-7a7bb4a8fe4426e6
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_entry/stock_entry.py
+function: StockEntry.__init__
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 096db664d62aad36
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''_configure_purpose_class'' does not exist on DocType ''Stock Entry''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: db2b6c990c9d8632
+reproducer_hash: db2b6c990c9d8632

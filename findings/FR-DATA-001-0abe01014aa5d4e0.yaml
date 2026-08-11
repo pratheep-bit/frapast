@@ -1,0 +1,28 @@
+id: FR-DATA-001-0abe01014aa5d4e0
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/warehouse/test_warehouse.py
+function: TestWarehouse.test_group_non_group_conversion
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 9fd7f9ff64189430
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''reload'' does not exist on DocType ''Warehouse'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 3f0e50c9367da9a6
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 3f0e50c9367da9a6
+reproducer_hash: 3f0e50c9367da9a6

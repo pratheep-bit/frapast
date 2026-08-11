@@ -1,0 +1,25 @@
+id: FR-DATA-001-558b4472517f6d41
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/patches/v11_0/remove_barcodes_field_from_copy_fields_to_variants.py
+function: execute
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: eea451872d389ffe
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''remove_invalid_fields_for_copy_fields_in_variants'' does not exist
+  on DocType ''Item Variant Settings'' (resolution confidence: high). Proof recipe:
+  Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: e651b5a7eabb45e6
+reproducer_hash: e651b5a7eabb45e6

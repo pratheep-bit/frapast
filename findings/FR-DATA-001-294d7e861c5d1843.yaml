@@ -1,0 +1,18 @@
+id: FR-DATA-001-294d7e861c5d1843
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/payment_request/test_payment_request.py
+function: TestPaymentRequestV2Gateway.test_customer_without_primary_address
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: d10edba70b3a0ac2
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''db_set'' does not exist on DocType ''Customer'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'

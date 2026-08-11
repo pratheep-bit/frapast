@@ -1,0 +1,24 @@
+id: FR-DATA-001-6e5c3a16b72f2385
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/assets/doctype/asset/depreciation.py
+function: get_value_after_depreciation_on_disposal_date
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 3c0180b4f6cab2e2
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''precision'' does not exist on DocType ''Asset'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 990598ffaf0dc54c
+reproducer_hash: 990598ffaf0dc54c

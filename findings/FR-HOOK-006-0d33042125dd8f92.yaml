@@ -1,0 +1,28 @@
+id: FR-HOOK-006-0d33042125dd8f92
+taxonomy_id: FR-HOOK-006
+rule_id: FR-HOOK-006
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/patches/v15_0/unset_incorrect_additional_discount_percentage.py
+function: get_semantic_version
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: b3e5a9b6d74df431
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Bare except silently swallows all exceptions including framework signals.
+  Proof recipe: Synthesize unit test to trigger exception'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 66e531850d3f0b73
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 698294a6f4f07739
+reproducer_hash: 698294a6f4f07739

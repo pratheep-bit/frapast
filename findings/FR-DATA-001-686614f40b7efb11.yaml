@@ -1,0 +1,24 @@
+id: FR-DATA-001-686614f40b7efb11
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/bom_update_log/bom_updation_utils.py
+function: update_cost_in_boms
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 5381e117bd1af3e3
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''db_update'' does not exist on DocType ''BOM'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: e16f502ec5b17aa1
+reproducer_hash: e16f502ec5b17aa1

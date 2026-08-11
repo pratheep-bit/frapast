@@ -1,0 +1,18 @@
+id: FR-DATA-001-28f5aa4f3694e326
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/advance_payment_ledger_entry/advance_payment_ledger_entry.py
+function: AdvancePaymentLedgerEntry.on_update
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: eb1a672332750b93
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''flags'' does not exist on DocType ''Advance Payment Ledger Entry''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

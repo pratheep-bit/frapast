@@ -1,0 +1,25 @@
+id: FR-INJ-001-661fd716db550f48
+taxonomy_id: FR-INJ-001
+rule_id: FR-INJ-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/pricing_rule/pricing_rule.py
+function: get_pricing_rule_for_item
+status: candidate
+proof_tier: 2
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: framework_wide
+code_location_hash: 540b25c739245c67
+discovered: '2026-08-10'
+proven: null
+notes: "Request-controlled data flows directly into frappe.get_doc() \u2014 mass assignment\
+  \ risk. Proof recipe: Pass unexpected fields (owner, docstatus, name) through the\
+  \ endpoint and verify they are rejected."
+status_history:
+- date: '2026-08-10'
+  status: candidate
+  proof_tier: 2
+  reproducer_hash: aa68537a9ced0543
+reproducer_hash: aa68537a9ced0543

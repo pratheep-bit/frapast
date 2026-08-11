@@ -1,0 +1,24 @@
+id: FR-DATA-001-495d6574e5e7732e
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_ledger_entry/stock_ledger_entry.py
+function: StockLedgerEntry.validate_serial_batch_no_bundle
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 0b2063feb6d762fb
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''throw_error_message'' does not exist on DocType ''Stock Ledger Entry''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1d2b2ef240c739bc
+reproducer_hash: 1d2b2ef240c739bc

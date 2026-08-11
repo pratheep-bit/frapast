@@ -1,0 +1,19 @@
+id: FR-WKFL-004-78e1b278387850f8
+taxonomy_id: FR-WKFL-004
+rule_id: FR-WKFL-004
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/delivery_trip/delivery_trip.py
+function: DeliveryTrip
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: 8b98e6715b8e762e
+discovered: '2026-08-10'
+proven: null
+notes: 'Submittable class ''DeliveryTrip'' has on_submit but no before_insert/after_insert
+  to handle amendment chain field resets. Proof recipe: Create a document, submit
+  it, cancel it, amend it, and verify workflow_state and child tables are reset.'

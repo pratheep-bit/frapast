@@ -1,0 +1,18 @@
+id: FR-DATA-001-471b6a3c86063596
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/subcontracting/doctype/subcontracting_receipt/subcontracting_receipt.py
+function: SubcontractingReceipt.on_submit
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 73f465a7de394940
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''update_job_card'' does not exist on DocType ''Subcontracting Receipt''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

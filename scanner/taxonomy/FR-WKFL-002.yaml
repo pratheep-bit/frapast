@@ -1,0 +1,9 @@
+id: FR-WKFL-002
+name: Direct workflow_state mutation
+description: >
+  Code writes workflow_state outside the workflow engine.
+ast_confidence: low
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+detector_status: implemented

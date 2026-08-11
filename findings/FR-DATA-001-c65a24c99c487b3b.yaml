@@ -1,0 +1,18 @@
+id: FR-DATA-001-c65a24c99c487b3b
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/master_production_schedule/master_production_schedule.py
+function: MasterProductionSchedule.fetch_materials_requests
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: e70264fd290ebb9e
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''is_new'' does not exist on DocType ''Master Production Schedule''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

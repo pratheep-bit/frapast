@@ -1,0 +1,18 @@
+id: FR-DATA-001-e56c31048c3bdda4
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/landed_cost_voucher/test_landed_cost_voucher.py
+function: TestLandedCostVoucher._cancel_and_delete_pi
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6e6331ef2b9917d3
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''cancel'' does not exist on DocType ''Purchase Invoice'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

@@ -1,0 +1,25 @@
+id: FR-DATA-001-b0648cd9a5277d6a
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/telephony/doctype/incoming_call_settings/incoming_call_settings.py
+function: IncomingCallSettings.validate_call_schedule_overlaps
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 649d92223673d808
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''check_timeslots_overlap'' does not exist on DocType ''Incoming Call
+  Settings'' (resolution confidence: medium). Proof recipe: Synthesize unit test to
+  trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 5f473ba32f7cc9a4
+reproducer_hash: 5f473ba32f7cc9a4

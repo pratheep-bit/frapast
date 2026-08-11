@@ -1,0 +1,25 @@
+id: FR-DATA-001-15a6cb00f3c6854c
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/patches/v14_0/update_closing_balances.py
+function: process_grouped_pcvs
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: fd8368c891c818f6
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get_account_closing_balances'' does not exist on DocType ''Period
+  Closing Voucher'' (resolution confidence: high). Proof recipe: Synthesize unit test
+  to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 8207b549c363a8e6
+reproducer_hash: 8207b549c363a8e6

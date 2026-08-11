@@ -1,5 +1,5 @@
 name: 'frapAST Security Scanner'
-description: 'Runtime-proven SAST security scanner for Frappe & ERPNext apps'
+description: 'Runtime-proven SAST scanner for Frappe & ERPNext apps'
 author: 'pratheep-bit'
 branding:
   icon: 'shield'
@@ -26,6 +26,7 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        cache: 'pip'
 
     - name: Install frapAST Engine
       shell: bash
@@ -34,16 +35,21 @@ runs:
         pip install "${{ github.action_path }}"
 
     - name: Run frapAST Security Scan
+      id: scan
       shell: bash
       run: |
+        set +e
         echo "::group::frapAST Scan Execution"
         if [ "${{ inputs.sarif }}" = "true" ]; then
-          frapast scan "${{ inputs.path }}" --severity --format sarif > frapast-results.sarif || true
-          frapast scan "${{ inputs.path }}" --severity
+          frapast scan "${{ inputs.path }}" --format sarif > frapast-results.sarif
+          scan_exit=$?
+          jq -r '.runs[0].results[]? | "[\(.level)] \(.ruleId): \(.message.text)"' frapast-results.sarif 2>/dev/null || true
         else
           frapast scan "${{ inputs.path }}" --severity
+          scan_exit=$?
         fi
         echo "::endgroup::"
+        echo "exit_code=$scan_exit" >> "$GITHUB_OUTPUT"
 
     - name: Upload SARIF to GitHub Security
       if: inputs.sarif == 'true'
@@ -52,3 +58,13 @@ runs:
         sarif_file: frapast-results.sarif
         category: frapast-security-scan
       continue-on-error: true
+
+    - name: Enforce fail-on-proven
+      shell: bash
+      run: |
+        exit_code="${{ steps.scan.outputs.exit_code }}"
+        if [ "${{ inputs.fail-on-proven }}" = "true" ] && [ "$exit_code" != "0" ]; then
+          echo "frapAST found proven vulnerabilities (exit code $exit_code). Failing per fail-on-proven=true."
+          exit 1
+        fi
+        echo "Scan completed (exit code $exit_code). fail-on-proven=${{ inputs.fail-on-proven }}, not blocking."

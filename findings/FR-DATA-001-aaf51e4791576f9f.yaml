@@ -1,0 +1,32 @@
+id: FR-DATA-001-aaf51e4791576f9f
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/payment_request/payment_request.py
+function: cancel_old_payment_requests
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 94065f284ad44628
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''cancel'' does not exist on DocType ''Payment Request'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6ad018135f9e4ae2
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: a2a251a8745ad812
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1a010116588bbd41
+reproducer_hash: 1a010116588bbd41

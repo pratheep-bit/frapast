@@ -1,0 +1,25 @@
+id: FR-DATA-001-9b801a1e3c761b1e
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/process_payment_reconciliation/process_payment_reconciliation.py
+function: ProcessPaymentReconciliation.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 3071197191ecd8c9
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validate_receivable_payable_account'' does not exist on DocType ''Process
+  Payment Reconciliation'' (resolution confidence: medium). Proof recipe: Synthesize
+  unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: a461d6d704033b9e
+reproducer_hash: a461d6d704033b9e

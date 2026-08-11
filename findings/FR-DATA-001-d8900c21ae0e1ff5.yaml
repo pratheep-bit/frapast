@@ -1,0 +1,24 @@
+id: FR-DATA-001-d8900c21ae0e1ff5
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/serial_no/serial_no.py
+function: SerialNo.validate_warehouse
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: ecc261e42b45c6c2
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''via_stock_ledger'' does not exist on DocType ''Serial No'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: e17a30427b83b1f6
+reproducer_hash: e17a30427b83b1f6

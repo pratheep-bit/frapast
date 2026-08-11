@@ -1,0 +1,24 @@
+id: FR-DATA-001-8612d621eb7768ce
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_entry/stock_entry.py
+function: StockEntry.get_basic_rate_for_manufactured_item
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: da9c39337d9a8767
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''_get_rm_cost_for_manufacture'' does not exist on DocType ''Stock Entry''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: db2b6c990c9d8632
+reproducer_hash: db2b6c990c9d8632

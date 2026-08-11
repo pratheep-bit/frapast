@@ -1,0 +1,18 @@
+id: FR-DATA-001-550294c603e06deb
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/work_order/test_work_order.py
+function: TestWorkOrder.test_partial_manufacture_entries
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6e6331ef2b9917d3
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''cancel'' does not exist on DocType ''Stock Entry'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'

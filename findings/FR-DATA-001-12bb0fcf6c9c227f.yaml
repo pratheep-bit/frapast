@@ -1,0 +1,24 @@
+id: FR-DATA-001-12bb0fcf6c9c227f
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/chart_of_accounts_importer/chart_of_accounts_importer.py
+function: set_default_accounts
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6fe76362e1f86f5d
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''create_default_tax_template'' does not exist on DocType ''Company''
+  (resolution confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: a9fdbd4f03d9638e
+reproducer_hash: a9fdbd4f03d9638e

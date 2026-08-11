@@ -1,0 +1,24 @@
+id: FR-DATA-001-ee6f07a88f2a8935
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/work_order/test_work_order.py
+function: TestWorkOrder.test_operations_time_planning_calculation
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: f53104d40e8ca268
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''save'' does not exist on DocType ''Workstation'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 95dfcfd919c514ba
+reproducer_hash: 95dfcfd919c514ba

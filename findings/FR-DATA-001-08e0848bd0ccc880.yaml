@@ -1,0 +1,24 @@
+id: FR-DATA-001-08e0848bd0ccc880
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/item_price/item_price.py
+function: ItemPrice.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 37e515ac8caa1d26
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''update_price_list_details'' does not exist on DocType ''Item Price''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 4c12aec2a1738805
+reproducer_hash: 4c12aec2a1738805

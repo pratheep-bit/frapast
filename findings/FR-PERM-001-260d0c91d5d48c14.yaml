@@ -1,0 +1,25 @@
+id: FR-PERM-001-260d0c91d5d48c14
+taxonomy_id: FR-PERM-001
+rule_id: FR-PERM-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/bank_reconciliation_tool/bank_reconciliation_tool.py
+function: get_linked_payments
+status: candidate
+proof_tier: 2
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: single_doctype
+code_location_hash: a23afc045bc7626d
+discovered: '2026-08-10'
+proven: null
+notes: 'Whitelisted endpoint has no permission check in body or within one hop. Proof
+  recipe: Invoke the endpoint as a low-privilege user and verify access is rejected
+  for unauthorized documents.'
+status_history:
+- date: '2026-08-10'
+  status: candidate
+  proof_tier: 2
+  reproducer_hash: 14f43f671e6b5da6
+reproducer_hash: 14f43f671e6b5da6

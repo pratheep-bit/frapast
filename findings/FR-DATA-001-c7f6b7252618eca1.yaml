@@ -1,0 +1,24 @@
+id: FR-DATA-001-c7f6b7252618eca1
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/inventory_dimension/inventory_dimension.py
+function: InventoryDimension.onload
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 14b337b2edd75b08
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''is_new'' does not exist on DocType ''Inventory Dimension'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 92269c86344bbbac
+reproducer_hash: 92269c86344bbbac

@@ -1,0 +1,24 @@
+id: FR-DATA-001-95fc5b2cdd5ab34c
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/subscription/subscription.py
+function: Subscription.force_fetch_subscription_updates
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: b2fd51b4aa8cef0d
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''process'' does not exist on DocType ''Subscription'' (resolution confidence:
+  medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6e41a92abfd9880c
+reproducer_hash: 6e41a92abfd9880c

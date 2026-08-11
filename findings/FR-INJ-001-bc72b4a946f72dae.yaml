@@ -1,0 +1,25 @@
+id: FR-INJ-001-bc72b4a946f72dae
+taxonomy_id: FR-INJ-001
+rule_id: FR-INJ-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/assets/doctype/asset/asset.py
+function: get_values_from_purchase_doc
+status: candidate
+proof_tier: 2
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: framework_wide
+code_location_hash: 0552fd2645e9ab4a
+discovered: '2026-08-10'
+proven: null
+notes: "Request-controlled data flows directly into frappe.get_doc() \u2014 mass assignment\
+  \ risk. Proof recipe: Pass unexpected fields (owner, docstatus, name) through the\
+  \ endpoint and verify they are rejected."
+status_history:
+- date: '2026-08-10'
+  status: candidate
+  proof_tier: 2
+  reproducer_hash: 21efdc34ceb8b2e5
+reproducer_hash: 21efdc34ceb8b2e5

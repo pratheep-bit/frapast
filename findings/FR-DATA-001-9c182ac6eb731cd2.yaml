@@ -1,0 +1,24 @@
+id: FR-DATA-001-9c182ac6eb731cd2
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/buying/doctype/supplier_quotation/test_supplier_quotation.py
+function: TestPurchaseOrder.test_make_purchase_order
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 82106ac332e7414b
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get'' does not exist on DocType ''Supplier Quotation'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: b8e6b56cec4f3ab8
+reproducer_hash: b8e6b56cec4f3ab8

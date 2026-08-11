@@ -1,0 +1,24 @@
+id: FR-DATA-001-d949f31b1a342b02
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/utils.py
+function: remove_ref_doc_link_from_pe
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 138e199ea8a4162d
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''set_amounts'' does not exist on DocType ''Payment Entry'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: f6b2db67d37e9668
+reproducer_hash: f6b2db67d37e9668

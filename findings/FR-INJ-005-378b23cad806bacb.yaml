@@ -1,0 +1,25 @@
+id: FR-INJ-005-378b23cad806bacb
+taxonomy_id: FR-INJ-005
+rule_id: FR-INJ-005
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/assets/doctype/asset/asset.py
+function: get_values_from_purchase_doc
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_exposure
+blast_radius: cross_site
+code_location_hash: 869ee456a965ca5f
+discovered: '2026-08-10'
+proven: null
+notes: 'frappe.msgprint/throw renders unescaped user-controlled input. Proof recipe:
+  Submit a payload like <img src=x onerror=alert(1)> as the relevant field and confirm
+  it renders unescaped in the browser.'
+status_history:
+- date: '2026-08-10'
+  status: candidate
+  proof_tier: 0
+  reproducer_hash: null
+reproducer_hash: null

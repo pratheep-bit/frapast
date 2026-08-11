@@ -1,0 +1,36 @@
+id: FR-DATA-001-cfa287b9efe153dd
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/selling/doctype/sales_order/test_sales_order.py
+function: TestSalesOrder.test_update_child_with_tax_template
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: fbbb3b2a2c4b88a8
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''save'' does not exist on DocType ''Item'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 01dc04fc51c5f86b
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 9e2d5690f4fe5721
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1afde1e22cf20041
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ee17de8366e0637b
+reproducer_hash: ee17de8366e0637b

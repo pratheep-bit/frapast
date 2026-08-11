@@ -1,0 +1,24 @@
+id: FR-DATA-001-a36b97a2baf4961c
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/journal_entry/services/asset_service.py
+function: AssetService._reverse_asset_depreciation
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 9872a6cfdc19ed1d
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''db_set'' does not exist on DocType ''Asset'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 54d99b7b1a1b9d8f
+reproducer_hash: 54d99b7b1a1b9d8f

@@ -1,0 +1,18 @@
+id: FR-DATA-001-8c668483c6f1a277
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/bank_transaction/bank_transaction.py
+function: BankTransaction.before_validate
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: b9f9354d2f0fae4f
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''update_allocated_amount'' does not exist on DocType ''Bank Transaction''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'

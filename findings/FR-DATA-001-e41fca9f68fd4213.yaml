@@ -1,0 +1,24 @@
+id: FR-DATA-001-e41fca9f68fd4213
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_reconciliation/stock_reconciliation.py
+function: StockReconciliation.validate_data
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: f009dac85225b1b9
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''validation_messages'' does not exist on DocType ''Stock Reconciliation''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 364e6057a215f33f
+reproducer_hash: 364e6057a215f33f

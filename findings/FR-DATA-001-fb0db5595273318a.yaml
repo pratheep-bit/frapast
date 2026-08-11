@@ -1,0 +1,18 @@
+id: FR-DATA-001-fb0db5595273318a
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/report/deferred_revenue_and_expense/test_deferred_revenue_and_expense.py
+function: TestDeferredRevenueAndExpense.test_zero_months
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: f689501e7e4097a7
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Item'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'

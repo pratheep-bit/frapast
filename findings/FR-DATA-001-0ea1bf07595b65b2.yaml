@@ -1,0 +1,56 @@
+id: FR-DATA-001-0ea1bf07595b65b2
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/item/item.py
+function: Item.update_bom_item_desc
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6b6a7d850e9711df
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''is_new'' does not exist on DocType ''Item'' (resolution confidence:
+  medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 63d1ae612c9d3999
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6e41a92abfd9880c
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 0cdf911bc4c93174
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 78ebd07ce8f41703
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6b87c3d152f89e58
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6b87c3d152f89e58
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6b87c3d152f89e58
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6b87c3d152f89e58
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 997019d267d7a198
+reproducer_hash: 997019d267d7a198

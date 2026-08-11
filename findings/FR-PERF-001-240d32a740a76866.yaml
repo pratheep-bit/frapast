@@ -1,0 +1,24 @@
+id: FR-PERF-001-240d32a740a76866
+taxonomy_id: FR-PERF-001
+rule_id: FR-PERF-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/delivery_note/test_delivery_note.py
+function: TestDeliveryNote.test_delivery_note_bundle_with_batched_item
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 26beb6dab5b0188c
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'frappe.get_doc() is called once per loop iteration over a query result. Proof
+  recipe: Synthetic load test to measure N+1 overhead'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 4b48dfcf2039315c
+reproducer_hash: 4b48dfcf2039315c

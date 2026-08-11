@@ -1,0 +1,25 @@
+id: FR-DATA-001-5651b0dc9b80e428
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/patches/v11_0/make_asset_finance_book_against_old_entries.py
+function: execute
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: e38b0bcf1f99dfe5
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''total_number_of_depreciations'' does not exist on DocType ''Asset
+  Category'' (resolution confidence: high). Proof recipe: Synthesize unit test to
+  trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 62fcea24f33d9447
+reproducer_hash: 62fcea24f33d9447

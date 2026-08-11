@@ -1,0 +1,24 @@
+id: FR-DATA-001-df0ede1f7b77826f
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/blanket_order/blanket_order.py
+function: BlanketOrder.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 8a9b858c78dcceab
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''set_party_item_code'' does not exist on DocType ''Blanket Order''
+  (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 3872ccc8ed40c945
+reproducer_hash: 3872ccc8ed40c945

@@ -17,7 +17,9 @@ class TestIdentityHashStability(unittest.TestCase):
 
 class TestTaxonomyValidator(unittest.TestCase):
 	def test_registry_has_no_unresolved_placeholders_silently_passing(self):
-		registry_path = Path("scanner/taxonomy_registry.yaml")
+		registry_path = Path("scanner/taxonomy/taxonomy_registry.yaml")
+		if not registry_path.exists():
+			registry_path = Path("scanner/taxonomy_registry.yaml")
 		registry = yaml.safe_load(registry_path.read_text())
 		additional = registry.get("additional_categories", {})
 		for prefix, meta in additional.items():

@@ -1,0 +1,19 @@
+id: FR-SQLI-003-09fe0cac4c80c33e
+taxonomy_id: FR-SQLI-003
+rule_id: FR-SQLI-003
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/process_period_closing_voucher/process_period_closing_voucher.py
+function: start_pcv_processing
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: cross_doctype
+code_location_hash: 189b82b4ef1f64ed
+discovered: '2026-08-10'
+proven: null
+notes: 'frappe.db.set_value writes to ''status'' bypassing controller validate/before_save
+  hooks. Proof recipe: Invoke the endpoint, then verify the target doctype''s validate()
+  was not triggered and derived fields are stale.'

@@ -1,0 +1,19 @@
+id: FR-WKFL-004-713fedc91b41411f
+taxonomy_id: FR-WKFL-004
+rule_id: FR-WKFL-004
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/production_plan/production_plan.py
+function: ProductionPlan
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: 1432f404b5de7543
+discovered: '2026-08-10'
+proven: null
+notes: 'Submittable class ''ProductionPlan'' has on_submit but no before_insert/after_insert
+  to handle amendment chain field resets. Proof recipe: Create a document, submit
+  it, cancel it, amend it, and verify workflow_state and child tables are reset.'

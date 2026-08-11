@@ -1,0 +1,25 @@
+id: FR-HOOK-004-53cc472a2849651b
+taxonomy_id: FR-HOOK-004
+rule_id: FR-HOOK-004
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/accounting_dimension/accounting_dimension.py
+function: disable_dimension
+status: proven
+proof_tier: 1
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: d8fa1926578aaad9
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: "frappe.enqueue() called without a deduplicate/job_id key \u2014 job may re-execute\
+  \ after worker crash. Proof recipe: Kill the worker mid-job, verify re-queued execution\
+  \ doesn't double-process."
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 91de130c3b3e24ab
+reproducer_hash: 91de130c3b3e24ab

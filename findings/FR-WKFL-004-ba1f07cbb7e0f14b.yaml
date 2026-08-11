@@ -1,0 +1,19 @@
+id: FR-WKFL-004-ba1f07cbb7e0f14b
+taxonomy_id: FR-WKFL-004
+rule_id: FR-WKFL-004
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/payment_entry/payment_entry.py
+function: PaymentEntry
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: 0353948f66873306
+discovered: '2026-08-10'
+proven: null
+notes: 'Submittable class ''PaymentEntry'' has on_submit but no before_insert/after_insert
+  to handle amendment chain field resets. Proof recipe: Create a document, submit
+  it, cancel it, amend it, and verify workflow_state and child tables are reset.'

@@ -1,0 +1,25 @@
+id: FR-DATA-001-cf47ba9fca843038
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/assets/doctype/asset_value_adjustment/asset_value_adjustment.py
+function: AssetValueAdjustment.update_asset_value_after_depreciation
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 4e48fec65af88204
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get_adjusted_salvage_value_amount'' does not exist on DocType ''Asset
+  Value Adjustment'' (resolution confidence: medium). Proof recipe: Synthesize unit
+  test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 345843a43982491b
+reproducer_hash: 345843a43982491b

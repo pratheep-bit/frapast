@@ -1,0 +1,24 @@
+id: FR-DATA-001-7baf4f8dbb58aa89
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/delivery_note/test_delivery_note.py
+function: TestDeliveryNote.check_serial_no_values
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 07467b93f2a5f6b4
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get'' does not exist on DocType ''Serial No'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 11cf7e4b4247e154
+reproducer_hash: 11cf7e4b4247e154

@@ -1,0 +1,28 @@
+id: FR-DATA-001-a24f3edfb3ae1b02
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/stock_ledger.py
+function: validate_cancellation
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 5f4c2c1b07064d75
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''flags'' does not exist on DocType ''Repost Item Valuation'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6ad018135f9e4ae2
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1a010116588bbd41
+reproducer_hash: 1a010116588bbd41

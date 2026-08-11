@@ -1,0 +1,19 @@
+id: FR-WKFL-003-bff99178fa0e1840
+taxonomy_id: FR-WKFL-003
+rule_id: FR-WKFL-003
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/crm/doctype/email_campaign/email_campaign.py
+function: unsubscribe_recipient
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: d1b62b599be8059e
+discovered: '2026-08-10'
+proven: null
+notes: 'frappe.db.set_value writes ''status'' without a corresponding ''docstatus''
+  update in the same function. Proof recipe: Set status via this path, then verify
+  docstatus is consistent.'

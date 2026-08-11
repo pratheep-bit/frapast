@@ -10,6 +10,9 @@ services:
     environment:
       - FRAPAST_BENCH_URL=http://bench:8000
     command: ["scan", "/scan", "--severity"]
+    depends_on:
+      bench:
+        condition: service_healthy
 
   bench:
     image: frappe/frappe-worker:v15.0.0
@@ -20,16 +23,29 @@ services:
       - MARIADB_HOST=db
       - REDIS_CACHE=redis://redis:6379
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   db:
     image: mariadb:10.6
     container_name: frapast-db
     environment:
-      - MYSQL_ROOT_PASSWORD=admin
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-admin}
     ports:
       - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   redis:
     image: redis:7-alpine

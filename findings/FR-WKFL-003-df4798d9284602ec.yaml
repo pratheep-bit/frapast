@@ -1,0 +1,19 @@
+id: FR-WKFL-003-df4798d9284602ec
+taxonomy_id: FR-WKFL-003
+rule_id: FR-WKFL-003
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/process_payment_reconciliation/process_payment_reconciliation.py
+function: reconcile
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: 891f8056eef724e7
+discovered: '2026-08-10'
+proven: null
+notes: 'frappe.db.set_value writes ''status'' without a corresponding ''docstatus''
+  update in the same function. Proof recipe: Set status via this path, then verify
+  docstatus is consistent.'

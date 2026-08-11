@@ -1,0 +1,19 @@
+id: FR-PERM-002-8c8a04d2bc3f7e1b
+taxonomy_id: FR-PERM-002
+rule_id: FR-PERM-002
+rule_version: 1.1.0
+repo: erpnext
+file: erpnext/accounts/dashboard_chart_source/account_balance_timeline/account_balance_timeline.py
+function: get_gl_entries
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: single_doctype
+code_location_hash: b642194950e25ca7
+discovered: '2026-08-10'
+proven: null
+notes: 'ignore_permissions=True is reachable within one hop of a whitelisted endpoint
+  without an indexed permission guard. Proof recipe: Invoke the endpoint as the lowest
+  allowed role against an unauthorized document and verify access is rejected.'

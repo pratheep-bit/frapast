@@ -1,0 +1,18 @@
+id: FR-HOOK-006-45f356fff3b840a1
+taxonomy_id: FR-HOOK-006
+rule_id: FR-HOOK-006
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/reorder_item.py
+function: notify_errors
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: f915830738371a27
+discovered: '2026-08-10'
+proven: null
+notes: 'Bare except silently swallows all exceptions including framework signals.
+  Proof recipe: Synthesize unit test to trigger exception'

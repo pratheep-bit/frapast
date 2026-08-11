@@ -1,0 +1,25 @@
+id: FR-PERM-001-8994e3ff2cb6b874
+taxonomy_id: FR-PERM-001
+rule_id: FR-PERM-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/sales_invoice/sales_invoice.py
+function: SalesInvoice.set_account_for_mode_of_payment
+status: candidate
+proof_tier: 2
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: single_doctype
+code_location_hash: 8804aca7d51daf92
+discovered: '2026-08-10'
+proven: null
+notes: 'Whitelisted endpoint has no permission check in body or within one hop. Proof
+  recipe: Invoke the endpoint as a low-privilege user and verify access is rejected
+  for unauthorized documents.'
+status_history:
+- date: '2026-08-10'
+  status: candidate
+  proof_tier: 2
+  reproducer_hash: c6083ab0fedbe09e
+reproducer_hash: c6083ab0fedbe09e

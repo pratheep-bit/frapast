@@ -1,0 +1,24 @@
+id: FR-DATA-001-ac41fdf20cefa445
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/stock_ledger_entry/stock_ledger_entry.py
+function: StockLedgerEntry._get_inventory_dimensions
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 0e74ff5481bd1ab2
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''get'' does not exist on DocType ''Stock Ledger Entry'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1d2b2ef240c739bc
+reproducer_hash: 1d2b2ef240c739bc

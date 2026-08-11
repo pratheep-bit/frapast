@@ -1,0 +1,19 @@
+id: FR-WKFL-003-ec0f9cd2ebc74880
+taxonomy_id: FR-WKFL-003
+rule_id: FR-WKFL-003
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/job_card/job_card.py
+function: JobCard.update_status_in_workstation
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: data_corruption
+blast_radius: single_doctype
+code_location_hash: 7e2a85d878581487
+discovered: '2026-08-10'
+proven: null
+notes: 'frappe.db.set_value writes ''status'' without a corresponding ''docstatus''
+  update in the same function. Proof recipe: Set status via this path, then verify
+  docstatus is consistent.'

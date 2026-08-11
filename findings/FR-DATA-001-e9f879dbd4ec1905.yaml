@@ -1,0 +1,24 @@
+id: FR-DATA-001-e9f879dbd4ec1905
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/item/item.py
+function: Item.validate_attributes_in_variants
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 8ce79809184efd87
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''is_new'' does not exist on DocType ''Item'' (resolution confidence:
+  medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6b87c3d152f89e58
+reproducer_hash: 6b87c3d152f89e58

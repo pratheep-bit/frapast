@@ -1,0 +1,10 @@
+id: FR-PERM-001
+name: Missing permission check on whitelisted endpoint
+description: >
+  Whitelisted endpoint lacks a direct or helper-resolved permission check.
+ast_confidence: partial
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+  - erpnext#55915 get_balance_on ignore_account_permission bypass
+detector_status: partial

@@ -1,0 +1,36 @@
+id: FR-DATA-001-61703ceb9a2933eb
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/job_card/test_job_card.py
+function: TestJobCard.test_op_cost_calculation
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: cd20f9df2d68c0f3
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''append'' does not exist on DocType ''Job Card'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ae638d58e3ede31c
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ae638d58e3ede31c
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ae638d58e3ede31c
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ae638d58e3ede31c
+reproducer_hash: ae638d58e3ede31c

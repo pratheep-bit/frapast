@@ -1,0 +1,18 @@
+id: FR-HOOK-006-09e9909cdc886cb5
+taxonomy_id: FR-HOOK-006
+rule_id: FR-HOOK-006
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/payment_entry/test_payment_entry.py
+function: TestPaymentEntry.test_payment_entry_for_blocked_supplier_payments_past_date
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 1599d356907d1c92
+discovered: '2026-08-10'
+proven: null
+notes: 'Bare except silently swallows all exceptions including framework signals.
+  Proof recipe: Synthesize unit test to trigger exception'

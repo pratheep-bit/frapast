@@ -1,0 +1,25 @@
+id: FR-DATA-001-dc1aa07a23bc1d83
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/bank_statement_import_log/bank_statement_import_log.py
+function: BankStatementImportLog.before_insert
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 0a34049d47f44f23
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''prepare_pdf_tables'' does not exist on DocType ''Bank Statement Import
+  Log'' (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger
+  AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: fd7e385f7fd2d8a7
+reproducer_hash: fd7e385f7fd2d8a7

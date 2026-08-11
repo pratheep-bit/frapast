@@ -1,0 +1,28 @@
+id: FR-DATA-001-0d3283b4767cb54a
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/job_card/job_card.py
+function: JobCard.on_submit
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: b05037e578c6dfa3
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''update_work_order'' does not exist on DocType ''Job Card'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 78b55fbddfaa94d9
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 78b55fbddfaa94d9
+reproducer_hash: 78b55fbddfaa94d9

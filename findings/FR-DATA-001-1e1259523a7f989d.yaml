@@ -1,0 +1,18 @@
+id: FR-DATA-001-1e1259523a7f989d
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/delivery_note/delivery_note.py
+function: DeliveryNote.so_required
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 681e24702b7796e2
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''get'' does not exist on DocType ''Delivery Note'' (resolution confidence:
+  medium). Proof recipe: Synthesize unit test to trigger AttributeError'

@@ -1,0 +1,9 @@
+id: FR-INJ-002
+name: Server Script sandbox escape
+description: >
+  Server Script execution escapes restricted Python controls.
+ast_confidence: low
+runtime_required: true
+historical_evidence:
+  - infra.md taxonomy category definition
+detector_status: none

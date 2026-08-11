@@ -1,0 +1,32 @@
+id: FR-DATA-001-2a2a50af5e694a59
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/sales_invoice/test_sales_invoice.py
+function: TestSalesInvoice.test_sales_invoice_against_supplier_usd_with_dimensions
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 6668a75ed8a71592
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''save'' does not exist on DocType ''Accounting Dimension'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6f379b0a435de23d
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 5d26f82f2bbac18b
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 39ac42622c5d72c3
+reproducer_hash: 39ac42622c5d72c3

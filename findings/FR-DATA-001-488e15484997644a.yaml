@@ -1,0 +1,28 @@
+id: FR-DATA-001-488e15484997644a
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/crm/utils.py
+function: CRMNote.delete_note
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: a4980d12f7b4bfd0
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''notes'' does not exist on DocType ''CRM Note'' (resolution confidence:
+  medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: cc06c3e266ce2b08
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: cc06c3e266ce2b08
+reproducer_hash: cc06c3e266ce2b08

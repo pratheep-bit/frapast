@@ -1,0 +1,19 @@
+id: FR-PERM-002-6b91af8242288c02
+taxonomy_id: FR-PERM-002
+rule_id: FR-PERM-002
+rule_version: 1.1.0
+repo: erpnext
+file: erpnext/buying/doctype/purchase_order/mapper.py
+function: make_purchase_invoice_from_portal
+status: candidate
+proof_tier: 0
+privilege_required: authenticated
+allow_guest: false
+impact_class: privilege_escalation
+blast_radius: single_doctype
+code_location_hash: 3eb82f58dd5f55c0
+discovered: '2026-08-10'
+proven: null
+notes: 'ignore_permissions=True is reachable within one hop of a whitelisted endpoint
+  without an indexed permission guard. Proof recipe: Invoke the endpoint as the lowest
+  allowed role against an unauthorized document and verify access is rejected.'

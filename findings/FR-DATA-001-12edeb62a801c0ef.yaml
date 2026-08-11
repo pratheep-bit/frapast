@@ -1,0 +1,36 @@
+id: FR-DATA-001-12edeb62a801c0ef
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/landed_cost_voucher/test_landed_cost_voucher.py
+function: TestLandedCostVoucher.test_landed_cost_voucher_with_serial_batch_for_legacy_pr
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 7174da7423a18fa0
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''db_set'' does not exist on DocType ''Serial No'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 11cf7e4b4247e154
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 397ab9ed88d096aa
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 397ab9ed88d096aa
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 397ab9ed88d096aa
+reproducer_hash: 397ab9ed88d096aa

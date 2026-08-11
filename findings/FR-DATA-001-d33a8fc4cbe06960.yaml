@@ -1,0 +1,18 @@
+id: FR-DATA-001-d33a8fc4cbe06960
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/payment_entry/test_payment_entry.py
+function: TestPaymentEntry.test_overallocation_validation_shouldnt_misfire
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 457277046a4cd96f
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''save'' does not exist on DocType ''Payment Terms Template'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

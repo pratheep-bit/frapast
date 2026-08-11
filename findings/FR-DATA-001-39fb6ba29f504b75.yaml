@@ -1,0 +1,24 @@
+id: FR-DATA-001-39fb6ba29f504b75
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/accounts/doctype/payment_request/payment_request.py
+function: PaymentRequest.validate_against_payment_reference
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 2754f906520783bc
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''precision'' does not exist on DocType ''Payment Request'' (resolution
+  confidence: medium). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6ad018135f9e4ae2
+reproducer_hash: 6ad018135f9e4ae2

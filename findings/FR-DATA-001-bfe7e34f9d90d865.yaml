@@ -1,0 +1,24 @@
+id: FR-DATA-001-bfe7e34f9d90d865
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/patches/v11_0/add_default_dispatch_notification_template.py
+function: execute
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: bcd7ca21e3a2bda6
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''flags'' does not exist on DocType ''Delivery Settings'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: f386719feb7a6774
+reproducer_hash: f386719feb7a6774

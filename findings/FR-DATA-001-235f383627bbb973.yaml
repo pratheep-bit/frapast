@@ -1,0 +1,25 @@
+id: FR-DATA-001-235f383627bbb973
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/manufacturing/doctype/production_plan/production_plan.py
+function: ProductionPlan.validate
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: c4a786ca844d0f4a
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''enable_auto_reserve_stock'' does not exist on DocType ''Production
+  Plan'' (resolution confidence: medium). Proof recipe: Synthesize unit test to trigger
+  AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 31386648ddbe5ca1
+reproducer_hash: 31386648ddbe5ca1

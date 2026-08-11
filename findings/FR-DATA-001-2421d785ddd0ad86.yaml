@@ -1,0 +1,18 @@
+id: FR-DATA-001-2421d785ddd0ad86
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/doctype/material_request/test_material_request.py
+function: TestMaterialRequest.test_material_request_type_manufacture
+status: candidate
+proof_tier: 0
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 9f63ab944f0b4011
+discovered: '2026-08-10'
+proven: null
+notes: 'Field ''submit'' does not exist on DocType ''Material Request'' (resolution
+  confidence: high). Proof recipe: Synthesize unit test to trigger AttributeError'

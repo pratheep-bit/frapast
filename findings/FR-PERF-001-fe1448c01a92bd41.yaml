@@ -1,0 +1,24 @@
+id: FR-PERF-001-fe1448c01a92bd41
+taxonomy_id: FR-PERF-001
+rule_id: FR-PERF-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/controllers/accounts_controller.py
+function: AccountsController.cancel_system_generated_credit_debit_notes
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: c6f05a3d9cf8574c
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'frappe.get_doc() is called once per loop iteration over a query result. Proof
+  recipe: Synthetic load test to measure N+1 overhead'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 6b3ef249ddcd3c96
+reproducer_hash: 6b3ef249ddcd3c96

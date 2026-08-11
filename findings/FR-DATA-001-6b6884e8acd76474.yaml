@@ -1,0 +1,60 @@
+id: FR-DATA-001-6b6884e8acd76474
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/telephony/doctype/call_log/call_log.py
+function: add_call_summary_and_call_type
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: 77d0e2eb08c33e98
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''save'' does not exist on DocType ''Call Log'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 69170dc19fc299a9
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 69170dc19fc299a9
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: fd7e385f7fd2d8a7
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: fd7e385f7fd2d8a7
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 95dfcfd919c514ba
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: bc0a5539691bc98a
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: f3bb3c7a8a93ed29
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 56a31b04903b6b78
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: ee17de8366e0637b
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 31bb6575c7f1d2e5
+reproducer_hash: 31bb6575c7f1d2e5

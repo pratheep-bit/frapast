@@ -1,0 +1,24 @@
+id: FR-DATA-001-eb398b21eb50e8ff
+taxonomy_id: FR-DATA-001
+rule_id: FR-DATA-001
+rule_version: 1.0.0
+repo: erpnext
+file: erpnext/stock/report/stock_projected_qty/test_stock_projected_qty.py
+function: TestStockProjectedQty.test_projected_qty_includes_all_quantity_components
+status: proven
+proof_tier: 1
+privilege_required: unknown
+allow_guest: false
+impact_class: unknown
+blast_radius: unknown
+code_location_hash: d0a3786d110bd721
+discovered: '2026-08-10'
+proven: '2026-08-10'
+notes: 'Field ''db_update'' does not exist on DocType ''Bin'' (resolution confidence:
+  high). Proof recipe: Synthesize unit test to trigger AttributeError'
+status_history:
+- date: '2026-08-10'
+  status: proven
+  proof_tier: 1
+  reproducer_hash: 1d4053238237b87f
+reproducer_hash: 1d4053238237b87f
