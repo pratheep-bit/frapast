@@ -87,15 +87,10 @@ class _Handler(BaseHTTPRequestHandler):
             return
 
         repo_root = Path(_state.get("repo", ""))
-        file_path = Path(rel_file)
-        if not file_path.is_absolute():
-            file_path = repo_root / file_path
+        file_path = _resolve_file_path(repo_root, rel_file)
 
-        if not file_path.is_file():
-            file_path = Path.cwd() / rel_file
-
-        if not file_path.is_file():
-            self._serve_json({"error": "File not found", "lines": []})
+        if not file_path or not file_path.is_file():
+            self._serve_json({"error": f"File {rel_file} not found on disk", "lines": []})
             return
 
         try:
@@ -125,6 +120,43 @@ class _Handler(BaseHTTPRequestHandler):
             "end_line": end_line,
             "lines": res_lines,
         })
+
+
+def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
+    if not rel_file:
+        return None
+    p = Path(rel_file)
+    if p.is_absolute() and p.is_file():
+        return p
+
+    # 1. Try direct join with repo_root
+    cand = repo_root / p
+    if cand.is_file():
+        return cand
+
+    # 2. Try current working directory
+    cand_cwd = Path.cwd() / p
+    if cand_cwd.is_file():
+        return cand_cwd
+
+    # 3. Try subpath matching (strip leading components)
+    parts = p.parts
+    for i in range(len(parts)):
+        sub = Path(*parts[i:])
+        if (repo_root / sub).is_file():
+            return repo_root / sub
+
+    # 4. Search recursively by filename in repo_root
+    fname = p.name
+    if repo_root.exists():
+        matches = list(repo_root.rglob(fname))
+        if matches:
+            for m in matches:
+                if str(m).endswith(rel_file):
+                    return m
+            return matches[0]
+
+    return None
 
     def do_POST(self):
         path = self.path.split("?")[0]
