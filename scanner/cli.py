@@ -742,6 +742,10 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 		fp_log: str | None = None,
 		prove: bool = False,
 		diff: str | None = None,
+		bench_url: str = "",
+		bench_user: str = "",
+		bench_password: str = "",
+		bench_site: str = "",
 	) -> None:
 		if config:
 			config_path = Path(config)
@@ -766,6 +770,10 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 						result.repo_path,
 						result.repo_id,
 						findings_dir=config_ledger_dir if write_ledger else None,
+						bench_url=bench_url,
+						bench_user=bench_user,
+						bench_password=bench_password,
+						bench_site=bench_site,
 					)
 			total = sum(len(result.candidates) for result in scan_results)
 			for result in scan_results:
@@ -800,16 +808,34 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 				repo,
 				repo_id,
 				findings_dir=Path(ledger_dir) if write_ledger else None,
+				bench_url=bench_url,
+				bench_user=bench_user,
+				bench_password=bench_password,
+				bench_site=bench_site,
 			)
 		ui.render_results(repo, candidates, num_files, elapsed, limit=limit)
 		state.update(repo=repo, repo_id=repo_id, candidates=candidates, num_files=num_files, elapsed=elapsed)
 
-	def do_prove(*, finding_id: str | None = None, dry_run: bool = False) -> None:
+	def do_prove(
+		*,
+		finding_id: str | None = None,
+		dry_run: bool = False,
+		bench_url: str = "",
+		bench_user: str = "",
+		bench_password: str = "",
+		bench_site: str = "",
+	) -> None:
 		from scanner.proof.orchestrator import ProofOrchestrator
-		from scanner.proof.models import ProofStatus
 
 		repo = state.get("repo") or Path(".")
-		orchestrator = ProofOrchestrator(workspace_root=repo, dry_run=dry_run)
+		orchestrator = ProofOrchestrator(
+			workspace_root=repo,
+			dry_run=dry_run,
+			bench_url=bench_url,
+			bench_user=bench_user,
+			bench_password=bench_password,
+			bench_site_name=bench_site,
+		)
 
 		if finding_id:
 			result = orchestrator.prove_candidate(finding_id)
@@ -827,7 +853,15 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 			console.print("[muted]skipped.[/muted]\n")
 			return
 
-		proven = _run_proof_verification(chosen, repo, str(state.get("repo_id", "local")))
+		proven = _run_proof_verification(
+			chosen,
+			repo,
+			str(state.get("repo_id", "local")),
+			bench_url=bench_url,
+			bench_user=bench_user,
+			bench_password=bench_password,
+			bench_site=bench_site,
+		)
 		console.print(f"\n[success]✓ proof complete:[/success] {len(proven)} / {len(chosen)} verified as PROVEN.\n")
 		ui.render_results(repo, candidates, int(state.get("num_files", 0)), float(state.get("elapsed", 0.0)), limit=20)
 
@@ -861,6 +895,44 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 		from scanner.fp_analyzer import print_report
 		print_report(findings_dir)
 
+	def do_bench_check(
+		*,
+		bench_url: str = "",
+		bench_port: int | None = None,
+		bench_user: str = "",
+		bench_password: str = "",
+		bench_site: str = "",
+	) -> None:
+		from scanner.proof.bench_runner import diagnose_bench
+		rep = diagnose_bench(
+			base_url=bench_url,
+			bench_port=bench_port,
+			username=bench_user,
+			password=bench_password,
+			site_name=bench_site,
+		)
+		console.print("\n[bold cyan]🔍 Frappe Bench Diagnostic Report[/bold cyan]")
+		reach_status = "[green]REACHABLE[/green]" if rep["reachable"] else "[red]UNREACHABLE[/red]"
+		site_status = "[green]VALID[/green]" if rep["site_valid"] else "[red]404 / INVALID[/red]"
+		auth_status = "[green]SUCCESS[/green]" if rep["authenticated"] else "[yellow]NOT AUTHENTICATED[/yellow]"
+
+		console.print(f" 🌐 Bench URL:       {rep['url']} ({reach_status})")
+		console.print(f" 🏠 Bench Site:      {rep['site']} ({site_status})")
+		console.print(f" 🔑 Authentication:  {rep['user']} ({auth_status})")
+
+		if rep["issues"]:
+			console.print(f"\n[bold red]❌ Found {len(rep['issues'])} Configuration Issues:[/bold red]")
+			for idx, issue in enumerate(rep["issues"], 1):
+				console.print(f" [red]{idx}. {issue}[/red]")
+
+		if rep["remediations"]:
+			console.print("\n[bold yellow]🛠️ Copy-Paste Remediation Steps to Fix:[/bold yellow]")
+			for rem in rep["remediations"]:
+				console.print(f" ➜ [cyan]{rem}[/cyan]")
+		else:
+			console.print("\n[bold green]✅ Bench is 100% ready for Tier 2 HTTP/RPC Proof Verification![/bold green]")
+		console.print()
+
 	shell = ui.InteractiveShell(
 		version=__version__,
 		run_scan=do_scan,
@@ -870,6 +942,7 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 		run_view=do_view,
 		run_fix=do_fix,
 		run_pr=do_pr,
+		run_bench_check=do_bench_check,
 	)
 	return shell.run(initial_repo=initial_repo)
 

@@ -27,9 +27,9 @@ except ImportError:
 	_HAS_PROMPT_TOOLKIT = False
 
 COMMANDS = [
-	"/scan", "/prove", "/report", "/fp-report", "/view", "/fix", "/pr", "/help", "/clear", "/exit", "/quit",
-	"scan", "prove", "report", "fp-report", "view", "fix", "pr", "help", "clear", "exit", "quit",
-	"s", "p", "r", "f", "v", "h", "q", "?"
+	"/scan", "/prove", "/report", "/fp-report", "/view", "/fix", "/pr", "/bench-check", "/ui", "/help", "/clear", "/exit", "/quit",
+	"scan", "prove", "report", "fp-report", "view", "fix", "pr", "bench-check", "ui", "help", "clear", "exit", "quit",
+	"s", "p", "r", "f", "v", "bc", "h", "q", "?"
 ]
 
 SHORTCUT_MAP = {
@@ -52,6 +52,12 @@ SHORTCUT_MAP = {
 	"v": "/view",
 	"view": "/view",
 	"/v": "/view",
+	"bc": "/bench-check",
+	"/bc": "/bench-check",
+	"bench": "/bench-check",
+	"ui": "/ui",
+	"/ui": "/ui",
+	"dashboard": "/ui",
 	"h": "/help",
 	"?": "/help",
 	"q": "/exit",
@@ -60,8 +66,10 @@ SHORTCUT_MAP = {
 
 HELP_TEXT = """\
 [heading]Commands & Shortcuts[/heading]
-  [bold]s[/bold] or [bold]/scan[/bold] [muted]<path>[/muted]     run a static security scan (e.g. 's' or 's .')
-  [bold]p[/bold] or [bold]/prove[/bold]            run runtime proof verification on findings (e.g. 'p')
+  [bold]s[/bold] or [bold]/scan[/bold] [muted]<path>[/muted]     run a static security scan (e.g. 's' or 's . --port 8005')
+  [bold]p[/bold] or [bold]/prove[/bold]            run runtime proof verification on findings (e.g. 'p' or 'p --port 8005')
+  [bold]bc[/bold] or [bold]/bench-check[/bold]   diagnose local Frappe bench setup & site routing
+  [bold]ui[/bold] or [bold]/ui[/bold]            launch live web dashboard server (localhost:7777)
   [bold]v[/bold] or [bold]/view[/bold] [muted]<N>[/muted]        inspect source code context snippet for bug #N (e.g. 'v 1' or 'b1')
   [bold]r[/bold] or [bold]/report[/bold]           show track-record report (e.g. 'r')
   [bold]f[/bold] or [bold]/fp-report[/bold]        show false-positive rates (e.g. 'f')
@@ -70,7 +78,7 @@ HELP_TEXT = """\
   [bold]h[/bold] or [bold]?[/bold] or [bold]/help[/bold]          show this help message
   [bold]q[/bold] or [bold]/exit[/bold]          quit frapast shell
 
-[muted]Tip: Type 's' to scan, 'v 1' to view code snippet around bug #1, or 'p' to prove.[/muted]
+[muted]Tip: Type 'bc' to check bench, 's' to scan, 'v 1' to view code snippet, or 'ui' to launch dashboard.[/muted]
 """
 
 
@@ -86,6 +94,7 @@ class InteractiveShell:
 		run_view: Callable[..., None] | None = None,
 		run_fix: Callable[..., None] | None = None,
 		run_pr: Callable[..., None] | None = None,
+		run_bench_check: Callable[..., None] | None = None,
 	) -> None:
 		self.version = version
 		self._run_scan = run_scan
@@ -95,6 +104,7 @@ class InteractiveShell:
 		self._run_view = run_view
 		self._run_fix = run_fix
 		self._run_pr = run_pr
+		self._run_bench_check = run_bench_check
 		self._session = self._build_session()
 
 	def _build_session(self):
@@ -197,6 +207,14 @@ class InteractiveShell:
 			self._handle_prove(line)
 			return True
 
+		if line.startswith("/bench-check"):
+			self._handle_bench_check(line)
+			return True
+
+		if line.startswith("/ui"):
+			self._handle_ui(line)
+			return True
+
 		if line.startswith("/report"):
 			self._handle_report(line)
 			return True
@@ -238,15 +256,35 @@ class InteractiveShell:
 		parser.add_argument("--severity", action="store_true")
 		parser.add_argument("--limit", type=int, default=20)
 		parser.add_argument("--config")
+		parser.add_argument("--prove", action="store_true")
+		parser.add_argument("--ui", action="store_true")
+		parser.add_argument("--bench-url", default="")
+		parser.add_argument("--bench-port", "--port", type=int, default=None)
+		parser.add_argument("--bench-user", default="")
+		parser.add_argument("--bench-password", default="")
+		parser.add_argument("--bench-site", default="")
 		try:
 			args = parser.parse_args(self._tokens(line, "/scan"))
 		except (argparse.ArgumentError, ValueError) as exc:
-			console.print(f"[muted]usage: /scan <path> [--severity] [--limit N] [--config file] — {exc}[/muted]")
+			console.print(f"[muted]usage: /scan <path> [--severity] [--limit N] [--port PORT] [--bench-site SITE] — {exc}[/muted]")
 			return
 		if not args.path and not args.config:
-			console.print("[muted]usage: /scan <path> [--severity] [--limit N] [--config file][/muted]")
+			console.print("[muted]usage: /scan <path> [--severity] [--limit N] [--port PORT] [--bench-site SITE][/muted]")
 			return
-		self._run_scan(path=args.path, config=args.config, severity=args.severity, limit=args.limit)
+		bench_url = args.bench_url
+		if not bench_url and args.bench_port:
+			bench_url = f"http://localhost:{args.bench_port}"
+		self._run_scan(
+			path=args.path,
+			config=args.config,
+			severity=args.severity,
+			limit=args.limit,
+			prove=args.prove,
+			bench_url=bench_url,
+			bench_user=args.bench_user,
+			bench_password=args.bench_password,
+			bench_site=args.bench_site,
+		)
 
 	def _handle_prove(self, line: str) -> None:
 		import argparse
@@ -254,12 +292,85 @@ class InteractiveShell:
 		parser = argparse.ArgumentParser(prog="/prove", add_help=False, exit_on_error=False)
 		parser.add_argument("--finding-id")
 		parser.add_argument("--dry-run", action="store_true")
+		parser.add_argument("--bench-url", default="")
+		parser.add_argument("--bench-port", "--port", type=int, default=None)
+		parser.add_argument("--bench-user", default="")
+		parser.add_argument("--bench-password", default="")
+		parser.add_argument("--bench-site", default="")
 		try:
 			args = parser.parse_args(self._tokens(line, "/prove"))
 		except (argparse.ArgumentError, ValueError) as exc:
-			console.print(f"[muted]usage: /prove [--finding-id ID] [--dry-run] — {exc}[/muted]")
+			console.print(f"[muted]usage: /prove [--finding-id ID] [--port PORT] [--bench-site SITE] — {exc}[/muted]")
 			return
-		self._run_prove(finding_id=args.finding_id, dry_run=args.dry_run)
+		bench_url = args.bench_url
+		if not bench_url and args.bench_port:
+			bench_url = f"http://localhost:{args.bench_port}"
+		self._run_prove(
+			finding_id=args.finding_id,
+			dry_run=args.dry_run,
+			bench_url=bench_url,
+			bench_user=args.bench_user,
+			bench_password=args.bench_password,
+			bench_site=args.bench_site,
+		)
+
+	def _handle_bench_check(self, line: str) -> None:
+		import argparse
+
+		parser = argparse.ArgumentParser(prog="/bench-check", add_help=False, exit_on_error=False)
+		parser.add_argument("--bench-url", default="")
+		parser.add_argument("--bench-port", "--port", type=int, default=None)
+		parser.add_argument("--bench-user", default="")
+		parser.add_argument("--bench-password", default="")
+		parser.add_argument("--bench-site", default="")
+		try:
+			args = parser.parse_args(self._tokens(line, "/bench-check"))
+		except (argparse.ArgumentError, ValueError) as exc:
+			console.print(f"[muted]usage: /bench-check [--port N] [--bench-site site] — {exc}[/muted]")
+			return
+		if self._run_bench_check is not None:
+			self._run_bench_check(
+				bench_url=args.bench_url,
+				bench_port=args.bench_port,
+				bench_user=args.bench_user,
+				bench_password=args.bench_password,
+				bench_site=args.bench_site,
+			)
+		else:
+			from scanner.proof.bench_runner import diagnose_bench
+			rep = diagnose_bench(
+				base_url=args.bench_url,
+				bench_port=args.bench_port,
+				username=args.bench_user,
+				password=args.bench_password,
+				site_name=args.bench_site,
+			)
+			console.print("\n[bold cyan]🔍 Frappe Bench Diagnostic Report[/bold cyan]")
+			reach_status = "[green]REACHABLE[/green]" if rep["reachable"] else "[red]UNREACHABLE[/red]"
+			site_status = "[green]VALID[/green]" if rep["site_valid"] else "[red]404 / INVALID[/red]"
+			auth_status = "[green]SUCCESS[/green]" if rep["authenticated"] else "[yellow]NOT AUTHENTICATED[/yellow]"
+
+			console.print(f" 🌐 Bench URL:       {rep['url']} ({reach_status})")
+			console.print(f" 🏠 Bench Site:      {rep['site']} ({site_status})")
+			console.print(f" 🔑 Authentication:  {rep['user']} ({auth_status})")
+
+			if rep["issues"]:
+				console.print(f"\n[bold red]❌ Found {len(rep['issues'])} Configuration Issues:[/bold red]")
+				for idx, issue in enumerate(rep["issues"], 1):
+					console.print(f" [red]{idx}. {issue}[/red]")
+
+			if rep["remediations"]:
+				console.print("\n[bold yellow]🛠️ Copy-Paste Remediation Steps to Fix:[/bold yellow]")
+				for rem in rep["remediations"]:
+					console.print(f" ➜ [cyan]{rem}[/cyan]")
+			else:
+				console.print("\n[bold green]✅ Bench is 100% ready for Tier 2 HTTP/RPC Proof Verification![/bold green]")
+			console.print()
+
+	def _handle_ui(self, line: str) -> None:
+		from scanner.web.server import start_server
+		console.print("[bold cyan]Launching live web dashboard server at http://localhost:7777...[/bold cyan]")
+		start_server(candidates=[], repo_path=".", launch_browser=True)
 
 	def _handle_report(self, line: str) -> None:
 		import argparse
