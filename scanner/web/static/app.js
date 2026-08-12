@@ -1336,6 +1336,12 @@
       fetch(`/api/browse?path=${encodeURIComponent(targetPath || '')}`)
         .then((r) => r.json())
         .then((d) => {
+          if (d.error) {
+            els.folderCurrentPath.textContent = d.current_path || 'Error loading directory';
+            els.folderList.innerHTML = `<div class="empty"><p>Error: ${escapeHtml(d.error)}</p></div>`;
+            return;
+          }
+
           currentBrowsePath = d.current_path || '';
           parentBrowsePath = d.parent_path || '';
           selectedBrowsePath = currentBrowsePath;
@@ -1408,6 +1414,7 @@
         'reportModalOverlay', 'reportModalClose', 'reportModalContent',
         'browseBtn', 'folderModalOverlay', 'folderModalClose', 'folderModalCancel', 'folderModalSelectBtn',
         'folderQuickLocations', 'folderUpBtn', 'folderCurrentPath', 'folderList', 'folderSelectedLabel',
+        'nativePickerBtn', 'nativeFolderInput',
       ].forEach((id) => { els[id] = $(id); });
     }
 
@@ -1457,6 +1464,26 @@
       els.folderModalCancel.addEventListener('click', closeFolderModal);
       els.folderModalOverlay.addEventListener('click', (e) => { if (e.target === els.folderModalOverlay) closeFolderModal(); });
       els.folderModalSelectBtn.addEventListener('click', confirmFolderSelection);
+
+      els.nativePickerBtn.addEventListener('click', () => {
+        if (els.nativeFolderInput) els.nativeFolderInput.click();
+      });
+
+      els.nativeFolderInput.addEventListener('change', (e) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+          const relPath = files[0].webkitRelativePath || '';
+          const topFolder = relPath.split('/')[0];
+          if (topFolder) {
+            // Check if user's current directory or parent directory matches topFolder name
+            if (currentBrowsePath && currentBrowsePath.endsWith(topFolder)) {
+              loadFolderBrowser(currentBrowsePath);
+            } else {
+              showToast(`Selected "${topFolder}" via System Finder`, 'info');
+            }
+          }
+        }
+      });
 
       els.folderUpBtn.addEventListener('click', () => {
         if (parentBrowsePath) loadFolderBrowser(parentBrowsePath);

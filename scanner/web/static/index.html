@@ -391,12 +391,15 @@
       <div class="modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <span class="folder-selected-label" id="folderSelectedLabel">Loading…</span>
         <div style="display: flex; gap: 8px;">
+          <button class="btn-secondary" id="nativePickerBtn" title="Open Mac OS Finder directory picker">Open System Finder</button>
           <button class="btn-secondary" id="folderModalCancel">Cancel</button>
           <button class="btn-primary" id="folderModalSelectBtn">Select &amp; Scan</button>
         </div>
       </div>
     </div>
   </div>
+
+  <input type="file" id="nativeFolderInput" webkitdirectory directory style="display:none;">
 
   <!-- Toasts -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
