@@ -1334,7 +1334,10 @@
       els.folderList.innerHTML = '<div class="empty"><p>Loading directories…</p></div>';
       
       fetch(`/api/browse?path=${encodeURIComponent(targetPath || '')}`)
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error(`Server endpoint /api/browse returned HTTP ${r.status}. Please restart frapast to pick up the backend changes.`);
+          return r.json();
+        })
         .then((d) => {
           if (d.error) {
             els.folderCurrentPath.textContent = d.current_path || 'Error loading directory';
