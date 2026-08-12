@@ -185,38 +185,50 @@ class _Handler(BaseHTTPRequestHandler):
             "lines": res_lines,
         })
 
+    # Hard cap on request bodies. Without this, an untrusted/mistaken client
+    # can send an arbitrary Content-Length and the original code would
+    # `self.rfile.read(length)` however large that is — an easy way to
+    # exhaust memory on a "harmless" localhost tool. 5 MiB is generous for
+    # the small JSON payloads this API actually accepts.
+    MAX_BODY_BYTES = 5 * 1024 * 1024
+
+    def _read_json_body(self) -> dict:
+        """Read and parse a JSON request body defensively.
+
+        The original implementation did `int(self.headers.get(...))` with no
+        try/except, so a malformed Content-Length header (missing, blank, or
+        non-numeric — trivial to send by hand) raised an uncaught ValueError
+        and the connection died with a raw 500 instead of a clean 400.
+        """
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            length = 0
+        length = max(0, length)
+        if length > self.MAX_BODY_BYTES:
+            # Drain nothing further; refuse before reading into memory.
+            raise ValueError(f"Request body too large ({length} bytes, max {self.MAX_BODY_BYTES}).")
+        body = self.rfile.read(length) if length else b"{}"
+        try:
+            data = json.loads(body)
+        except Exception:
+            return {}
+        return data if isinstance(data, dict) else {}
+
     def do_POST(self):
         if not self._is_trusted_origin():
             self._serve_json({"error": "Cross-origin requests are not allowed."}, status=403)
             return
 
         path = self.path.split("?")[0]
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length) if length else b"{}"
         try:
-            data = json.loads(body)
-        except Exception:
-            data = {}
+            data = self._read_json_body()
+        except ValueError as exc:
+            self._serve_json({"error": str(exc)}, status=413)
+            return
 
         if path == "/api/prove":
-            raw_count = data.get("count", 10)
-            if raw_count == "all":
-                count: int | str = "all"
-            else:
-                try:
-                    count = int(raw_count)
-                except (TypeError, ValueError):
-                    self._serve_json({"error": "count must be a positive integer or 'all'"}, status=400)
-                    return
-                if count < 1:
-                    self._serve_json({"error": "count must be a positive integer or 'all'"}, status=400)
-                    return
-
-            started = self._trigger_proof(count)
-            if started:
-                self._serve_json({"status": "started", "count": count})
-            else:
-                self._serve_json({"status": "already_running"})
+            self._handle_prove_request(data)
 
         elif path == "/api/bench/config":
             with _lock:
@@ -240,13 +252,26 @@ class _Handler(BaseHTTPRequestHandler):
             if not repo_path:
                 self._serve_json({"error": "repo_path is required"}, status=400)
                 return
-            target = Path(repo_path)
+            target = Path(repo_path).expanduser()
             if not target.exists():
                 self._serve_json({"error": f"Path '{repo_path}' does not exist"}, status=400)
+                return
+            if not target.is_dir():
+                self._serve_json({"error": f"Path '{repo_path}' is not a directory"}, status=400)
                 return
             with _lock:
                 if _state["scan_running"]:
                     self._serve_json({"status": "already_running"})
+                    return
+                if _state["running"]:
+                    # Scanning replaces _state["candidates"] wholesale while a
+                    # proof run is iterating a snapshot of that same list —
+                    # letting both run at once doesn't corrupt anything fatally
+                    # (the proof loop already holds its own list reference),
+                    # but the results are confusing: candidates could vanish
+                    # from under a run the user is actively watching. Refuse
+                    # instead of silently interleaving them.
+                    self._serve_json({"error": "A proof run is in progress. Wait for it to finish before scanning."}, status=409)
                     return
                 _state["scan_running"] = True
 
@@ -499,22 +524,99 @@ class _Handler(BaseHTTPRequestHandler):
     # Proof trigger (runs in background thread)
     # ------------------------------------------------------------------
 
-    def _trigger_proof(self, count) -> bool:
+    # Sanity cap on how many findings can be requested in one selection —
+    # protects against a malformed/huge payload rather than any realistic
+    # use of the UI.
+    MAX_SELECTION_ITEMS = 5000
+
+    def _handle_prove_request(self, data: dict) -> None:
+        """Handle POST /api/prove.
+
+        The dashboard UI has two ways to start a run:
+          1. Select specific rows and click "Prove N Selected" — the client
+             sends {"finding_ids": [...], "finding_locators": [...]}.
+          2. Use the count field / quick-select buttons — the client sends
+             {"count": N} or {"count": "all"}.
+
+        The original implementation only ever read `data.get("count", 10)`.
+        finding_ids / finding_locators were accepted by no code path at all,
+        so selecting specific rows in the UI and clicking "Prove Selected"
+        silently ran the *default top-10-by-score* proof instead of proving
+        the rows the user actually selected — with no error, so the
+        mismatch was invisible until someone compared the results against
+        what they'd clicked. This method restores that feature end to end.
+        """
+        raw_ids = data.get("finding_ids")
+        raw_locators = data.get("finding_locators")
+        ids = [str(i) for i in raw_ids] if isinstance(raw_ids, list) else []
+        locators = [loc for loc in raw_locators if isinstance(loc, dict)] if isinstance(raw_locators, list) else []
+
+        # A request is "selection mode" if the client sent either key at all,
+        # even if it resolved to zero usable entries (e.g. the user's
+        # selection went stale after a rescan). Falling through to count
+        # mode in that case — as the original code effectively did — would
+        # silently prove an unrelated default set of candidates instead of
+        # telling the user their selection was empty.
+        selection_intent = "finding_ids" in data or "finding_locators" in data
+        has_selection = bool(ids) or bool(locators)
+
+        if selection_intent and not has_selection:
+            self._serve_json({"error": "No valid findings were selected. Refresh and try again."}, status=400)
+            return
+
+        if has_selection:
+            if len(ids) + len(locators) > self.MAX_SELECTION_ITEMS:
+                self._serve_json({"error": f"Too many findings selected (max {self.MAX_SELECTION_ITEMS})."}, status=400)
+                return
+            spec = {"ids": ids, "locators": locators}
+            requested = len(ids) if ids else len(locators)
+        else:
+            raw_count = data.get("count", 10)
+            if raw_count == "all":
+                spec = "all"
+                requested = "all"
+            else:
+                try:
+                    n = int(raw_count)
+                except (TypeError, ValueError):
+                    self._serve_json({"error": "count must be a positive integer or 'all'"}, status=400)
+                    return
+                if n < 1:
+                    self._serve_json({"error": "count must be a positive integer or 'all'"}, status=400)
+                    return
+                spec = n
+                requested = n
+
+        started, reason = self._trigger_proof(spec)
+        if started:
+            self._serve_json({"status": "started", "count": requested})
+        elif reason == "scan_running":
+            self._serve_json({"error": "A scan is in progress. Wait for it to finish before proving."}, status=409)
+        else:
+            self._serve_json({"status": "already_running"})
+
+    def _trigger_proof(self, spec) -> tuple[bool, str | None]:
         with _lock:
             if _state["running"]:
-                return False
+                return False, "already_running"
+            if _state["scan_running"]:
+                # A scan replaces _state["candidates"] with a brand-new list
+                # partway through; starting a proof run against candidates
+                # that may be swapped out from under it produces confusing,
+                # partially-stale results. Refuse instead.
+                return False, "scan_running"
             _state["running"] = True
 
         def _worker():
             try:
-                _run_proof_in_background(count)
+                _run_proof_in_background(spec)
             finally:
                 with _lock:
                     _state["running"] = False
                 _broadcast_sse({"type": "done", "summary": _state["summary"]})
 
         threading.Thread(target=_worker, daemon=True).start()
-        return True
+        return True, None
 
 
 # ---------------------------------------------------------------------------
@@ -574,33 +676,96 @@ def _run_scan_in_background(repo: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _run_proof_in_background(count: int | str) -> None:
-    """Run proof pipeline, sending SSE events for each result."""
+def _candidate_locator(c: dict) -> tuple[str, str, str, str]:
+    """Composite locator matching the frontend's computeKey() fallback, used
+    to identify a candidate when it has no server-issued id yet."""
+    return (str(c.get("file", "")), str(c.get("line", "")), str(c.get("rule_id", "")), str(c.get("function", "")))
+
+
+def _select_candidates(candidates: list[dict], spec) -> list[dict]:
+    """Resolve a prove-request spec into the ordered list of candidates to run.
+
+    `spec` is one of:
+      - an int N            -> top N candidates by score (existing behavior)
+      - the string "all"    -> every candidate (existing behavior)
+      - {"ids": [...], "locators": [...]} -> exactly the candidates the user
+        selected in the table, matched the same way the frontend does: by
+        server-issued id first, falling back to the (file, line, rule_id,
+        function) locator for candidates that haven't been assigned an id
+        yet. This is the mode the original code never implemented.
+    """
     from scanner.ui.results import candidate_score
+
+    if isinstance(spec, dict):
+        wanted_ids = {str(i) for i in spec.get("ids", []) if i is not None and str(i) != ""}
+        wanted_locators = {
+            (str(loc.get("file", "")), str(loc.get("line", "")), str(loc.get("rule_id", "")), str(loc.get("function", "")))
+            for loc in spec.get("locators", [])
+        }
+        selected: list[dict] = []
+        seen_keys: set = set()
+        for c in candidates:
+            cid = c.get("id")
+            cid_str = str(cid) if cid is not None and cid != "" else None
+            matches = (cid_str is not None and cid_str in wanted_ids) or (_candidate_locator(c) in wanted_locators)
+            if not matches:
+                continue
+            dedupe_key = cid_str if cid_str is not None else _candidate_locator(c)
+            if dedupe_key in seen_keys:
+                continue
+            seen_keys.add(dedupe_key)
+            selected.append(c)
+        return selected
+
+    sorted_cands = sorted(candidates, key=candidate_score, reverse=True)
+    if isinstance(spec, int):
+        return sorted_cands[:spec]
+    return sorted_cands  # "all"
+
+
+def _run_proof_in_background(spec) -> None:
+    """Run proof pipeline, sending SSE events for each result.
+
+    `spec` selects which candidates to run — see `_select_candidates`.
+    """
     from scanner.proof.orchestrator import ProofOrchestrator
     from scanner.proof.models import ProofStatus
     from scanner.cli import _finding_id, _candidate_repo_id
     from dataclasses import replace as dc_replace
 
-    candidates = _state["candidates"]
-    repo = Path(_state["repo"])
+    # Snapshot everything this run needs under the lock once, rather than
+    # reading _state piecemeal (unlocked) as the original code did — those
+    # reads could otherwise interleave with a concurrent /api/bench/config
+    # save or (previously) a concurrent scan.
+    with _lock:
+        candidates = _state["candidates"]
+        repo = Path(_state["repo"])
+        bench_url = _state.get("bench_url", "")
+        bench_user = _state.get("bench_user", "")
+        bench_password = _state.get("bench_password", "")
+        bench_site = _state.get("bench_site", "")
 
-    sorted_cands = sorted(candidates, key=candidate_score, reverse=True)
-    if isinstance(count, int):
-        slice_ = sorted_cands[:count]
-    else:
-        slice_ = sorted_cands
+    slice_ = _select_candidates(candidates, spec)
 
     total = len(slice_)
     proven = refuted = skipped = errors = 0
     proven_findings: list[dict] = []
 
+    if total == 0:
+        with _lock:
+            _state["summary"] = {
+                "total": 0, "proven": 0, "refuted": 0, "skipped": 0, "errors": 0,
+                "proven_findings": [],
+            }
+        _broadcast_sse({"type": "error", "message": "No matching candidates to prove — they may have already been proven or removed by a rescan."})
+        return
+
     orchestrator = ProofOrchestrator(
         workspace_root=repo,
-        bench_url=_state.get("bench_url", ""),
-        bench_user=_state.get("bench_user", ""),
-        bench_password=_state.get("bench_password", ""),
-        bench_site_name=_state.get("bench_site", ""),
+        bench_url=bench_url,
+        bench_user=bench_user,
+        bench_password=bench_password,
+        bench_site_name=bench_site,
     )
 
     for idx, c in enumerate(slice_, 1):
