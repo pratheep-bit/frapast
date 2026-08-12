@@ -956,9 +956,10 @@ def main(argv: list[str] | None = None) -> int:
 	args = parser.parse_args(argv)
 
 	if args.command is None:
-		if sys.stdout.isatty():
-			return _run_interactive()
-		parser.print_help()
+		from scanner.web.server import start_server
+		curr_dir = Path.cwd()
+		print(f"\n🌐 Starting frapAST Web Dashboard for {curr_dir}...")
+		start_server(repo=curr_dir, candidates=[], open_browser=True)
 		return 0
 
 	if args.command == "shell":
