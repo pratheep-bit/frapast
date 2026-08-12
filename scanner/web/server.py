@@ -390,11 +390,16 @@ class _Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self._serve_json({"error": str(exc)}, status=500)
 
+    _report_cache = {"time": 0.0, "text": ""}
+
     def _serve_report(self):
         try:
-            from scanner.reporting import render_track_record
-            text = render_track_record("findings")
-            self._serve_json({"report": text})
+            now = time.time()
+            if now - _Handler._report_cache["time"] > 10.0:
+                from scanner.reporting import render_track_record
+                _Handler._report_cache["text"] = render_track_record("findings")
+                _Handler._report_cache["time"] = now
+            self._serve_json({"report": _Handler._report_cache["text"]})
         except Exception as exc:
             self._serve_json({"error": str(exc)}, status=500)
 
@@ -411,12 +416,12 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _serve_export_sarif(self):
         try:
-            from scanner.reporting.sarif import candidates_to_sarif
+            from scanner.reporting.sarif import export_sarif
             with _lock:
                 candidates = [dict(c) for c in _state["candidates"]]
-                repo = _state.get("repo", ".")
-            sarif_doc = candidates_to_sarif(candidates, repo_root=repo)
-            body = json.dumps(sarif_doc, default=str, indent=2).encode("utf-8")
+                repo = Path(_state.get("repo", "."))
+            sarif_str = export_sarif(candidates, repo_path=repo)
+            body = sarif_str.encode("utf-8")
         except Exception as exc:
             body = json.dumps({"error": str(exc)}, default=str).encode("utf-8")
             self.send_response(500)
