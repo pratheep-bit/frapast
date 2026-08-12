@@ -171,40 +171,58 @@
     header {
       background: var(--header-bg);
       border-bottom: 1px solid var(--border);
-      padding: 12px 24px;
+      padding: 10px 24px;
       display: flex;
-      align-items: center;
-      gap: 16px;
+      flex-direction: column;
+      gap: 10px;
       position: sticky;
       top: 0;
       z-index: var(--z-header);
       box-shadow: var(--shadow-xs);
-      flex-wrap: wrap;
     }
 
-    .logo {
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .header-row-top {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .logo-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-right-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .scan-bar-container {
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--text-main);
-      letter-spacing: -0.3px;
-      white-space: nowrap;
+      flex: 1;
+      max-width: 680px;
     }
 
-    .logo-badge {
-      background: var(--primary);
-      color: var(--text-inverse);
+    .scan-label {
       font-size: var(--fs-xs);
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: var(--radius-sm);
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
     }
 
-    /* Folder picker / scan bar */
     .scan-bar {
       display: flex;
       align-items: center;
@@ -212,10 +230,8 @@
       background: var(--gray-bg);
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
-      padding: 4px 8px 4px 12px;
+      padding: 3px 4px 3px 12px;
       flex: 1;
-      min-width: 220px;
-      max-width: 480px;
     }
 
     .scan-bar-label {

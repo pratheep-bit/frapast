@@ -12,64 +12,75 @@
 
   <!-- Header -->
   <header>
-    <div class="logo">
-      <svg width="26" height="26" viewBox="0 0 512 512" style="border-radius: 6px; flex-shrink: 0;" aria-hidden="true">
-        <rect width="512" height="512" rx="72" fill="#151515"/>
-        <rect x="2" y="2" width="508" height="508" rx="70" fill="none" stroke="#303030" stroke-width="4"/>
-        <g fill="#FFFFFF">
-          <rect x="136" y="118" width="240" height="48"/>
-          <path d="M136 214H184V354H136V214Z"/>
-          <path d="M328 214H376V354H328V214Z"/>
-          <rect x="136" y="214" width="240" height="48"/>
-        </g>
-        <rect x="184" y="262" width="144" height="92" fill="#151515"/>
-      </svg>
-      frapAST <span class="logo-badge">Security Engine</span>
+    <!-- Row 1: Logo, Live Status, Actions, Badges -->
+    <div class="header-row header-row-top">
+      <div class="logo-group">
+        <div class="logo">
+          <svg width="26" height="26" viewBox="0 0 512 512" style="border-radius: 6px; flex-shrink: 0;" aria-hidden="true">
+            <rect width="512" height="512" rx="72" fill="#151515"/>
+            <rect x="2" y="2" width="508" height="508" rx="70" fill="none" stroke="#303030" stroke-width="4"/>
+            <g fill="#FFFFFF">
+              <rect x="136" y="118" width="240" height="48"/>
+              <path d="M136 214H184V354H136V214Z"/>
+              <path d="M328 214H376V354H328V214Z"/>
+              <rect x="136" y="214" width="240" height="48"/>
+            </g>
+            <rect x="184" y="262" width="144" height="92" fill="#151515"/>
+          </svg>
+          frapAST <span class="logo-badge">Security Engine</span>
+        </div>
+        <div class="conn-status" id="connStatus" data-state="idle">
+          <span class="conn-dot"></span>
+          <span id="connStatusLabel">Idle</span>
+        </div>
+      </div>
+
+      <div class="header-right-group">
+        <div class="header-actions">
+          <button class="header-action-btn" id="reportBtn" title="View track-record report">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Report
+          </button>
+          <button class="header-action-btn" id="exportJsonBtn" title="Download findings as JSON">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            JSON
+          </button>
+          <button class="header-action-btn" id="exportSarifBtn" title="Download findings as SARIF">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            SARIF
+          </button>
+        </div>
+        <div class="header-badges">
+          <span class="header-badge badge-total" id="badgeTotal">— Findings</span>
+          <span class="header-badge badge-critical" id="badgeCritical">— Critical</span>
+          <span class="header-badge badge-high" id="badgeHigh">— High</span>
+          <span class="header-badge badge-medium" id="badgeMedium">— Medium</span>
+          <span class="header-badge badge-low" id="badgeLow">— Low</span>
+        </div>
+      </div>
     </div>
 
-    <!-- Folder picker bar -->
-    <div class="scan-bar" id="scanBar">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-      <input class="scan-path-input" id="scanPathInput" type="text" placeholder="/path/to/your/frappe-app" aria-label="Repository path to scan">
-      <button class="btn-browse" id="browseBtn" title="Browse and select folder visually">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        Browse
-      </button>
-      <button class="btn-scan" id="scanBtn" title="Start a fresh scan of this folder">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        Scan
-      </button>
-    </div>
-
-    <span class="scan-status-badge" id="scanStatus" style="display:none;">Ready</span>
-
-    <div class="conn-status" id="connStatus" data-state="idle">
-      <span class="conn-dot"></span>
-      <span id="connStatusLabel">Idle</span>
-    </div>
-    <div class="header-spacer"></div>
-    <div class="header-actions">
-      <button class="header-action-btn" id="reportBtn" title="View track-record report">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        Report
-      </button>
-      <button class="header-action-btn" id="exportJsonBtn" title="Download findings as JSON">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        JSON
-      </button>
-      <button class="header-action-btn" id="exportSarifBtn" title="Download findings as SARIF">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        SARIF
-      </button>
-    </div>
-    <div class="header-badges">
-      <span class="header-badge badge-total" id="badgeTotal">— Findings</span>
-      <span class="header-badge badge-critical" id="badgeCritical">— Critical</span>
-      <span class="header-badge badge-high" id="badgeHigh">— High</span>
-      <span class="header-badge badge-medium" id="badgeMedium">— Medium</span>
-      <span class="header-badge badge-low" id="badgeLow">— Low</span>
+    <!-- Row 2: Target Path Selector Bar & Scan Control -->
+    <div class="header-row header-row-bottom">
+      <div class="scan-bar-container">
+        <span class="scan-label">Target Directory:</span>
+        <div class="scan-bar" id="scanBar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <input class="scan-path-input" id="scanPathInput" type="text" placeholder="/path/to/your/frappe-app" aria-label="Repository path to scan">
+          <button class="btn-browse" id="browseBtn" title="Browse and select folder visually">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            Browse
+          </button>
+          <button class="btn-scan" id="scanBtn" title="Start a fresh scan of this folder">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Scan
+          </button>
+        </div>
+      </div>
+      <span class="scan-status-badge" id="scanStatus" style="display:none;">Ready</span>
     </div>
   </header>
+
 
   <!-- Main Grid -->
   <main>
