@@ -532,15 +532,19 @@ def _run_scan_in_background(repo: Path) -> None:
 
         _broadcast_sse({"type": "scan_start", "repo": str(repo)})
 
+        from dataclasses import asdict
+
         python_index = load_python(repo)
         schema_index = load_schema(repo)
         hooks_index = load_hooks(repo)
 
-        candidates = execute_rules(
-            python_index=python_index,
-            schema_index=schema_index,
-            hooks_index=hooks_index,
+        raw_candidates = execute_rules(
+            schema=schema_index,
+            hooks=hooks_index,
+            python=python_index,
         )
+
+        candidates = [asdict(c) if hasattr(c, "__dataclass_fields__") else dict(c) for c in raw_candidates]
 
         with _lock:
             _state["repo"] = str(repo.resolve())
