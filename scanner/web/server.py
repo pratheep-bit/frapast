@@ -638,6 +638,8 @@ def _run_scan_in_background(repo: Path) -> None:
 
         from dataclasses import asdict
 
+        from scanner.severity import score_candidates
+
         python_index = load_python(repo)
         schema_index = load_schema(repo)
         hooks_index = load_hooks(repo)
@@ -648,7 +650,16 @@ def _run_scan_in_background(repo: Path) -> None:
             python=python_index,
         )
 
-        candidates = [asdict(c) if hasattr(c, "__dataclass_fields__") else dict(c) for c in raw_candidates]
+        guest_endpoints = {
+            e.function for e in getattr(python_index, "whitelisted_endpoints", []) if getattr(e, "allow_guest", False)
+        }
+        scored = score_candidates(raw_candidates, guest_endpoints=guest_endpoints)
+
+        candidates = []
+        for c, score in scored:
+            cd = asdict(c) if hasattr(c, "__dataclass_fields__") else dict(c)
+            cd["severity"] = score.__dict__
+            candidates.append(cd)
 
         with _lock:
             _state["repo"] = str(repo.resolve())
