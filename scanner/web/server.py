@@ -8,7 +8,9 @@ Features:
   GET  /            → HTML dashboard (index.html inlined)
   GET  /api/findings → All candidates as JSON
   GET  /api/stats    → Proof summary stats
-  POST /api/prove    → Trigger proof for top N findings
+  POST /api/prove    → Trigger proof for the top N findings, "all" of them,
+                        or an explicit user-selected set (finding_ids /
+                        finding_locators)
   GET  /api/stream   → Server-Sent Events — live proof progress
 
 Usage:
@@ -569,7 +571,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._serve_json({"error": f"Too many findings selected (max {self.MAX_SELECTION_ITEMS})."}, status=400)
                 return
             spec = {"ids": ids, "locators": locators}
-            requested = len(ids) if ids else len(locators)
+            requested = len(ids) + len(locators)
         else:
             raw_count = data.get("count", 10)
             if raw_count == "all":
