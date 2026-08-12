@@ -1117,7 +1117,7 @@
         return;
       }
       els.scanBtn.disabled = true;
-      els.scanStatus.textContent = '⏳ Scanning…';
+      els.scanStatus.textContent = 'Scanning…';
       fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1127,17 +1127,17 @@
         .then((d) => {
           if (d.error) {
             showToast(`Scan error: ${d.error}`, 'error');
-            els.scanStatus.textContent = '❌ Error';
+            els.scanStatus.textContent = 'Error';
           } else if (d.status === 'already_running') {
             showToast('A scan is already running.', 'warning');
-            els.scanStatus.textContent = '⏳ Running…';
+            els.scanStatus.textContent = 'Running…';
           } else {
             showToast(`Scanning ${repoPath}…`, 'info');
           }
         })
         .catch((err) => {
           showToast(`Network error: ${err.message}`, 'error');
-          els.scanStatus.textContent = '❌ Error';
+          els.scanStatus.textContent = 'Error';
           els.scanBtn.disabled = false;
         });
     }
@@ -1145,19 +1145,19 @@
     // React to SSE scan_done / scan_progress events
     function handleScanSseEvent(evt) {
       if (evt.type === 'scan_start') {
-        els.scanStatus.textContent = '⏳ Indexing…';
+        els.scanStatus.textContent = 'Indexing…';
       } else if (evt.type === 'scan_progress') {
-        els.scanStatus.textContent = `✅ ${evt.count} candidates found`;
+        els.scanStatus.textContent = `${evt.count} candidates found`;
         els.scanBtn.disabled = false;
         loadFindings();
         loadStats();
       } else if (evt.type === 'scan_done') {
-        els.scanStatus.textContent = `✅ Scan complete`;
+        els.scanStatus.textContent = `Scan complete`;
         els.scanBtn.disabled = false;
         loadFindings();
         loadStats();
       } else if (evt.type === 'scan_error') {
-        els.scanStatus.textContent = `❌ ${evt.error}`;
+        els.scanStatus.textContent = evt.error;
         els.scanBtn.disabled = false;
       }
     }
@@ -1217,11 +1217,11 @@
       els.benchDiag.style.display = '';
 
       const reach = d.reachable;
-      const auth  = d.auth_ok;
-      const site  = d.site_ok !== undefined ? d.site_ok : true;
+      const auth  = d.authenticated;
+      const site  = d.site_valid !== undefined ? d.site_valid : true;
 
       // URL row
-      els.diagUrl.textContent = d.bench_url || '—';
+      els.diagUrl.textContent = d.url || '—';
       _setDiagBadge(els.diagReachBadge, reach, 'REACHABLE', 'UNREACHABLE');
 
       // Site row
@@ -1229,23 +1229,23 @@
       _setDiagBadge(els.diagSiteBadge, site, 'VALID', 'NOT FOUND');
 
       // Auth row
-      els.diagUser.textContent = d.username || '—';
+      els.diagUser.textContent = d.user || '—';
       _setDiagBadge(els.diagAuthBadge, auth, 'OK', 'FAILED');
 
       // Overall badge in card header
       const overall = reach && auth && site;
       const badge = els.benchStatusBadge;
       badge.className = 'bench-status-badge ' + (overall ? 'ready' : auth === null ? 'warn' : 'error');
-      badge.textContent = overall ? '🟢 Ready' : '🔴 Issue';
+      badge.textContent = overall ? 'Ready' : 'Issue';
 
       // Issues list
       const issues = [];
-      if (!reach) issues.push(`🌐 Bench URL is unreachable. Is "bench start" running on ${d.bench_url || 'the configured port'}?`);
-      if (reach && !auth) issues.push('🔑 Authentication failed. Check your username and password.');
-      if (reach && !site) issues.push(`🏠 Site "${d.site}" not found. Check your site name.`);
+      if (!reach) issues.push(`Bench URL is unreachable. Is "bench start" running on ${d.url || 'the configured port'}?`);
+      if (reach && !auth) issues.push('Authentication failed. Check your username and password.');
+      if (reach && !site) issues.push(`Site "${d.site}" not found. Check your site name.`);
 
       if (issues.length) {
-        els.diagIssues.innerHTML = issues.map((i) => `<div>⚠️ ${escapeHtml(i)}</div>`).join('');
+        els.diagIssues.innerHTML = issues.map((i) => `<div><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>${escapeHtml(i)}</div>`).join('');
         els.diagIssues.style.display = '';
       } else {
         els.diagIssues.style.display = 'none';
