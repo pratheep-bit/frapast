@@ -29,14 +29,15 @@
 
     <!-- Folder picker bar -->
     <div class="scan-bar" id="scanBar">
-      <span class="scan-bar-label">Scanning:</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       <input class="scan-path-input" id="scanPathInput" type="text" placeholder="/path/to/your/frappe-app" aria-label="Repository path to scan">
       <button class="btn-scan" id="scanBtn" title="Start a fresh scan of this folder">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         Scan
       </button>
-      <span class="scan-status" id="scanStatus"></span>
     </div>
+
+    <span class="scan-status-badge" id="scanStatus" style="display:none;">Ready</span>
 
     <div class="conn-status" id="connStatus" data-state="idle">
       <span class="conn-dot"></span>

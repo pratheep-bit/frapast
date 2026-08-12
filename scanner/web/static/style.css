@@ -266,10 +266,18 @@
       cursor: not-allowed;
     }
 
-    .scan-status {
+    .scan-status-badge {
       font-size: var(--fs-xs);
       color: var(--text-muted);
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--gray-bg);
       white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     /* Connection status indicator — tells the user whether the live

@@ -1109,6 +1109,17 @@
     /* =========================================================================
        SCAN TRIGGER
        ========================================================================= */
+    function setScanStatus(text) {
+      if (!els.scanStatus) return;
+      if (!text) {
+        els.scanStatus.style.display = 'none';
+        els.scanStatus.textContent = '';
+      } else {
+        els.scanStatus.style.display = 'inline-flex';
+        els.scanStatus.textContent = text;
+      }
+    }
+
     function triggerScan() {
       const repoPath = els.scanPathInput.value.trim();
       if (!repoPath) {
@@ -1117,7 +1128,7 @@
         return;
       }
       els.scanBtn.disabled = true;
-      els.scanStatus.textContent = 'Scanning…';
+      setScanStatus('Scanning…');
       fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1127,17 +1138,17 @@
         .then((d) => {
           if (d.error) {
             showToast(`Scan error: ${d.error}`, 'error');
-            els.scanStatus.textContent = 'Error';
+            setScanStatus('Error');
           } else if (d.status === 'already_running') {
             showToast('A scan is already running.', 'warning');
-            els.scanStatus.textContent = 'Running…';
+            setScanStatus('Running…');
           } else {
             showToast(`Scanning ${repoPath}…`, 'info');
           }
         })
         .catch((err) => {
           showToast(`Network error: ${err.message}`, 'error');
-          els.scanStatus.textContent = 'Error';
+          setScanStatus('Error');
           els.scanBtn.disabled = false;
         });
     }
@@ -1145,19 +1156,19 @@
     // React to SSE scan_done / scan_progress events
     function handleScanSseEvent(evt) {
       if (evt.type === 'scan_start') {
-        els.scanStatus.textContent = 'Indexing…';
+        setScanStatus('Indexing…');
       } else if (evt.type === 'scan_progress') {
-        els.scanStatus.textContent = `${evt.count} candidates found`;
+        setScanStatus(`${evt.count} candidates found`);
         els.scanBtn.disabled = false;
         loadFindings();
         loadStats();
       } else if (evt.type === 'scan_done') {
-        els.scanStatus.textContent = `Scan complete`;
+        setScanStatus(`Scan complete`);
         els.scanBtn.disabled = false;
         loadFindings();
         loadStats();
       } else if (evt.type === 'scan_error') {
-        els.scanStatus.textContent = evt.error;
+        setScanStatus(evt.error);
         els.scanBtn.disabled = false;
       }
     }
