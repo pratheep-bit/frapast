@@ -78,7 +78,11 @@ class _Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if origin is None:
             return True
-        return origin in (f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}")
+        try:
+            parsed = urllib.parse.urlparse(origin)
+            return parsed.hostname in ("localhost", "127.0.0.1", "::1")
+        except Exception:
+            return False
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -310,9 +314,12 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        # Restrict to same-origin rather than wildcard so that a malicious tab
-        # open in the same browser cannot silently fetch and exfiltrate findings.
-        self.send_header("Access-Control-Allow-Origin", f"http://localhost:{PORT}")
+        origin = self.headers.get("Origin")
+        if origin and self._is_trusted_origin():
+            self.send_header("Access-Control-Allow-Origin", origin)
+        else:
+            actual_port = self.server.server_address[1] if hasattr(self, "server") and self.server else PORT
+            self.send_header("Access-Control-Allow-Origin", f"http://localhost:{actual_port}")
         self.end_headers()
         self.wfile.write(body)
 
