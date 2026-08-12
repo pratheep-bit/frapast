@@ -957,9 +957,7 @@ def main(argv: list[str] | None = None) -> int:
 
 	if args.command is None:
 		from scanner.web.server import start_server
-		curr_dir = Path.cwd()
-		print(f"\n🌐 Starting frapAST Web Dashboard for {curr_dir}...")
-		start_server(repo=curr_dir, candidates=[], open_browser=True)
+		start_server(repo=Path(""), candidates=[], open_browser=True)
 		return 0
 
 	if args.command == "shell":

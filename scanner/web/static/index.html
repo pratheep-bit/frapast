@@ -27,7 +27,7 @@
             </g>
             <rect x="184" y="262" width="144" height="92" fill="#151515"/>
           </svg>
-          frapAST <span class="logo-badge">Security Engine</span>
+          frapAST <span class="logo-badge">v1.2.0 (Beta)</span>
         </div>
         <div class="conn-status" id="connStatus" data-state="idle">
           <span class="conn-dot"></span>
@@ -361,15 +361,23 @@
 
   <!-- Report Modal -->
   <div class="modal-overlay" id="reportModalOverlay" style="display:none;" aria-modal="true" role="dialog" aria-label="Track-Record Report">
-    <div class="modal">
+    <div class="modal" style="max-width: 860px;">
       <div class="modal-header">
         <span class="modal-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Security Track-Record Report</span>
         <button class="icon-btn" id="reportModalClose" aria-label="Close report">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <div class="modal-body">
-        <pre class="modal-report-pre" id="reportModalContent">Loading report…</pre>
+      <div class="modal-body" id="reportModalContent" style="padding: 24px;">Loading report…</div>
+      <div class="modal-footer" style="padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: var(--fs-xs); color: var(--text-muted);">Format: Standard Compliance Track-Record</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-secondary" id="reportCopyBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy Markdown
+          </button>
+          <button class="btn-primary" id="reportModalClose2">Done</button>
+        </div>
       </div>
     </div>
   </div>

@@ -1915,6 +1915,113 @@
       line-height: 1.7;
     }
 
+    .report-styled-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .report-h1 {
+      font-size: var(--fs-xl);
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+
+    .report-h2 {
+      font-size: var(--fs-md);
+      font-weight: 700;
+      color: var(--text-main);
+      margin-top: 16px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+
+    .report-p {
+      font-size: var(--fs-sm);
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .report-styled-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .report-styled-table th {
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .report-styled-table td {
+      padding: 10px 14px;
+      font-size: var(--fs-sm);
+      color: var(--text-main);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--card-bg);
+    }
+
+    .report-styled-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .report-styled-table tr:hover td {
+      background: var(--bg-hover);
+    }
+
+    .report-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .report-badge.status-proven {
+      background: var(--green-bg);
+      color: var(--green-text);
+      border: 1px solid var(--green-border);
+    }
+
+    .report-badge.status-candidate {
+      background: var(--blue-bg);
+      color: var(--blue-text);
+      border: 1px solid var(--blue-border);
+    }
+
+    .report-badge.status-false_positive {
+      background: var(--gray-bg);
+      color: var(--gray-text);
+      border: 1px solid var(--gray-border);
+    }
+
+    .report-badge.status-patched {
+      background: var(--purple-bg);
+      color: var(--purple-text);
+      border: 1px solid var(--purple-border);
+    }
+
     /* =====================================================================
      FOLDER CHOOSER & BROWSER MODAL
      ===================================================================== */

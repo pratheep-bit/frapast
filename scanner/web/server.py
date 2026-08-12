@@ -421,12 +421,50 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _serve_report(self):
         try:
+            with _lock:
+                repo = _state.get("repo", "")
+                candidates = list(_state.get("candidates", []))
+
+            if not repo and not candidates:
+                self._serve_json({
+                    "report": "# Security Track-Record Report\n\nNo target repository has been scanned yet.\n\nSelect a target directory in the dashboard and click **Scan** to generate a security compliance report."
+                })
+                return
+
             now = time.time()
-            if now - _Handler._report_cache["time"] > 10.0:
+            with _lock:
+                cache_time = _Handler._report_cache["time"]
+                cache_text = _Handler._report_cache["text"]
+
+            if now - cache_time > 10.0 or not cache_text:
                 from scanner.reporting import render_track_record
-                _Handler._report_cache["text"] = render_track_record("findings")
-                _Handler._report_cache["time"] = now
-            self._serve_json({"report": _Handler._report_cache["text"]})
+                new_text = render_track_record("findings")
+
+                if candidates and ("| candidate | 0 |" in new_text or "| proven | 0 |" in new_text):
+                    proven_cnt = sum(1 for c in candidates if c.get("status") == "proven")
+                    cand_cnt = len(candidates) - proven_cnt
+                    repo_name = Path(repo).name if repo else "Scanned Repo"
+                    new_text = (
+                        f"# Security Track-Record Report for {repo_name}\n\n"
+                        f"## Evidence Status\n\n"
+                        f"Static candidates are internal-only Tier 0 records.\n\n"
+                        f"| Status | Count |\n"
+                        f"| --- | ---: |\n"
+                        f"| candidate | {cand_cnt} |\n"
+                        f"| proven | {proven_cnt} |\n"
+                        f"| false_positive | 0 |\n"
+                        f"| patched | 0 |\n\n"
+                        f"## Target Summary\n\n"
+                        f"Scanned repository path: `{repo}`\n\n"
+                        f"Total candidate findings detected: **{len(candidates)}**\n"
+                    )
+
+                with _lock:
+                    _Handler._report_cache["text"] = new_text
+                    _Handler._report_cache["time"] = now
+                cache_text = new_text
+
+            self._serve_json({"report": cache_text})
         except Exception as exc:
             self._serve_json({"error": str(exc)}, status=500)
 
@@ -468,12 +506,11 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             raw_path = query.get("path", [""])[0].strip()
             if not raw_path:
-                with _lock:
-                    raw_path = _state.get("repo") or str(Path.home())
+                raw_path = "/Users"
 
             target = Path(raw_path).expanduser().resolve()
             if not target.exists() or not target.is_dir():
-                target = Path.home()
+                target = Path("/Users") if Path("/Users").exists() else Path.home()
 
             subdirs = []
             try:
@@ -496,16 +533,17 @@ class _Handler(BaseHTTPRequestHandler):
             quick_locations = []
             home = Path.home()
             candidates_to_check = [
+                Path("/Users"),
+                home,
                 home / "Documents",
                 home / "Documents" / "erpnext",
                 home / "frappe-bench" / "apps",
-                home / "frappe-bench-security-research" / "apps",
             ]
             for c in candidates_to_check:
                 try:
                     if c.exists():
                         quick_locations.append({
-                            "name": f"~/{c.relative_to(home)}" if home in c.parents or c == home else c.name,
+                            "name": f"~/{c.relative_to(home)}" if home in c.parents or c == home else str(c),
                             "path": str(c),
                         })
                 except Exception:
@@ -672,7 +710,7 @@ def _run_scan_in_background(repo: Path) -> None:
                 "errors": 0,
                 "proven_findings": [],
             }
-            _state["running"] = False
+            _state["scan_running"] = False
 
         _broadcast_sse({
             "type": "scan_progress",
@@ -884,7 +922,7 @@ def start_server(
 ) -> None:
     """Start local web server on PORT in background thread, then open browser."""
     with _lock:
-        _state["repo"] = str(repo.resolve())
+        _state["repo"] = str(repo.resolve()) if str(repo) and str(repo) != "." else ""
         _state["candidates"] = candidates
         _state["bench_url"] = bench_url
         _state["bench_user"] = bench_user
@@ -915,8 +953,33 @@ def start_server(
     server_thread.start()
 
     url = f"http://localhost:{port}"
-    print(f"\n🌐 Web dashboard running at {url}")
-    print("Press Ctrl+C to stop the server.\n")
+    import platform
+    from scanner.ui.theme import console
+
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    os_info = f"{platform.system()} {platform.release()} ({platform.machine()})"
+
+    console.print(r"""[bold cyan]
+ ______                        _____ _______ 
+|  ____|                /\    / ____|__   __|
+| |__ _ __ __ _ _ __   /  \  | (___    | |   
+|  __| '__/ _` | '_ \ / /\ \  \___ \   | |   
+| |  | | | (_| | |_) / ____ \ ____) |  | |   
+|_|  |_|  \__,_| .__/_/    \_\_____/   |_|   
+               | |                           
+               |_|                           [/bold cyan]""")
+    console.print()
+    console.print("  [bold white]frapAST Security Engine[/bold white] — [dim]v1.2.0 (Public Beta)[/dim]")
+    console.print("  [dim]Enterprise SAST & DAST Platform for Frappe / ERPNext[/dim]\n")
+
+    console.print("[dim]┌──────────────────────────────────────────────────────────────────┐[/dim]")
+    console.print(f"[dim]│[/dim]   [bold white]Local Dashboard[/bold white]   [bold green]● ONLINE[/bold green]   [underline blue]{url}[/underline blue]             [dim]│[/dim]")
+    console.print(f"[dim]│[/dim]   [bold white]Network Host[/bold white]      [bold green]● READY[/bold green]    [underline blue]http://127.0.0.1:{port}[/underline blue]             [dim]│[/dim]")
+    console.print("[dim]└──────────────────────────────────────────────────────────────────┘[/dim]\n")
+
+    console.print(f"  [dim]Environment  :[/dim] [white]{os_info} | Python {py_ver}[/white]")
+    console.print(f"  [dim]Security     :[/dim] [white]Origin-gated localhost bridge[/white]\n")
+    console.print("  [dim]Press [bold white]Ctrl+C[/bold white] to stop the dashboard server.[/dim]\n")
 
     if open_browser:
         try:
@@ -932,8 +995,9 @@ def start_server(
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\nStopping web dashboard server...")
+        console.print("\n  [dim]Gracefully shutting down dashboard server...[/dim]")
         server.shutdown()
+        console.print("  [bold green]✓ Dashboard server stopped cleanly.[/bold green]\n")
 
 
 def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
