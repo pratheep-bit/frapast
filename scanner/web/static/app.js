@@ -1368,8 +1368,9 @@
                 <div class="folder-item-left">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary);flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                   <span class="folder-item-name">${escapeHtml(dir.name)}</span>
+                  ${dir.is_app ? '<span class="folder-app-badge">App</span>' : ''}
                 </div>
-                ${dir.is_app ? '<span class="folder-app-badge">App</span>' : ''}
+                <button class="folder-open-btn" data-open-path="${escapeHtml(dir.path)}" title="Open subdirectories">Open &rsaquo;</button>
               </div>
             `).join('');
           } else {
@@ -1498,6 +1499,21 @@
       });
 
       els.folderList.addEventListener('click', (e) => {
+        const openBtn = e.target.closest('.folder-open-btn');
+        if (openBtn && openBtn.dataset.openPath) {
+          loadFolderBrowser(openBtn.dataset.openPath);
+          return;
+        }
+        const item = e.target.closest('.folder-item');
+        if (item && item.dataset.path) {
+          els.folderList.querySelectorAll('.folder-item').forEach((i) => i.classList.remove('selected'));
+          item.classList.add('selected');
+          selectedBrowsePath = item.dataset.path;
+          els.folderSelectedLabel.textContent = `Selected: ${selectedBrowsePath}`;
+        }
+      });
+
+      els.folderList.addEventListener('dblclick', (e) => {
         const item = e.target.closest('.folder-item');
         if (item && item.dataset.path) loadFolderBrowser(item.dataset.path);
       });

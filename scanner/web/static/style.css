@@ -2024,6 +2024,30 @@
       background: var(--primary-soft);
     }
 
+    .folder-item.selected {
+      background: var(--primary-soft);
+      border-left: 3px solid var(--primary);
+    }
+
+    .folder-open-btn {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--gray-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 3px 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+    }
+
+    .folder-open-btn:hover {
+      background: var(--primary);
+      color: var(--text-inverse);
+      border-color: var(--primary);
+    }
+
     .folder-item-left {
       display: flex;
       align-items: center;
