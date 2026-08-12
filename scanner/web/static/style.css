@@ -1873,3 +1873,150 @@
       word-break: break-word;
       line-height: 1.7;
     }
+
+    /* =====================================================================
+     FOLDER CHOOSER & BROWSER MODAL
+     ===================================================================== */
+    .btn-browse {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 5px 10px;
+      font-size: var(--fs-sm);
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+      flex-shrink: 0;
+    }
+
+    .btn-browse:hover {
+      background: var(--primary-soft);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .folder-quick-label {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .folder-quick-locations {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .folder-chip {
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      background: var(--gray-bg);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .folder-chip:hover {
+      background: var(--primary-soft);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .folder-nav-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--gray-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 6px 10px;
+      margin-bottom: 12px;
+    }
+
+    .folder-current-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--fs-xs);
+      color: var(--text-main);
+      word-break: break-all;
+      flex: 1;
+    }
+
+    .folder-list {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      max-height: 280px;
+      overflow-y: auto;
+      background: var(--card-bg);
+    }
+
+    .folder-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      font-size: var(--fs-sm);
+      transition: background var(--transition-fast);
+    }
+
+    .folder-item:last-child {
+      border-bottom: none;
+    }
+
+    .folder-item:hover {
+      background: var(--primary-soft);
+    }
+
+    .folder-item-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .folder-item-name {
+      font-weight: 500;
+      color: var(--text-main);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .folder-app-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--green-bg);
+      border: 1px solid var(--green-border);
+      color: var(--green-text);
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .folder-selected-label {
+      font-size: var(--fs-xs);
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      max-width: 320px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }

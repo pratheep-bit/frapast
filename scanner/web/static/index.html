@@ -31,6 +31,10 @@
     <div class="scan-bar" id="scanBar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       <input class="scan-path-input" id="scanPathInput" type="text" placeholder="/path/to/your/frappe-app" aria-label="Repository path to scan">
+      <button class="btn-browse" id="browseBtn" title="Browse and select folder visually">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        Browse
+      </button>
       <button class="btn-scan" id="scanBtn" title="Start a fresh scan of this folder">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         Scan
@@ -355,6 +359,41 @@
       </div>
       <div class="modal-body">
         <pre class="modal-report-pre" id="reportModalContent">Loading report…</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder Selector Modal -->
+  <div class="modal-overlay" id="folderModalOverlay" style="display:none;" aria-modal="true" role="dialog" aria-label="Select Folder">
+    <div class="modal" style="max-width: 640px;">
+      <div class="modal-header">
+        <span class="modal-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          Select Directory to Scan
+        </span>
+        <button class="icon-btn" id="folderModalClose" aria-label="Close folder browser">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 16px;">
+        <div class="folder-quick-label">Quick Locations:</div>
+        <div class="folder-quick-locations" id="folderQuickLocations"></div>
+
+        <div class="folder-nav-bar">
+          <button class="icon-btn" id="folderUpBtn" title="Go to parent directory">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+          </button>
+          <span class="folder-current-path" id="folderCurrentPath">/</span>
+        </div>
+
+        <div class="folder-list" id="folderList"></div>
+      </div>
+      <div class="modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <span class="folder-selected-label" id="folderSelectedLabel">Loading…</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-secondary" id="folderModalCancel">Cancel</button>
+          <button class="btn-primary" id="folderModalSelectBtn">Select &amp; Scan</button>
+        </div>
       </div>
     </div>
   </div>

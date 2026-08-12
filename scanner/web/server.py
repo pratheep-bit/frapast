@@ -124,6 +124,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._serve_export_json()
         elif path == "/api/export/sarif":
             self._serve_export_sarif()
+        elif path == "/api/browse":
+            self._serve_browse(query)
         else:
             self._404()
 
@@ -426,7 +428,54 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Disposition", 'attachment; filename="frapast-findings.sarif"')
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+    def _serve_browse(self, query: dict):
+        raw_path = query.get("path", [""])[0].strip()
+        if not raw_path:
+            with _lock:
+                raw_path = _state.get("repo") or str(Path.home())
+
+        target = Path(raw_path).expanduser().resolve()
+        if not target.exists() or not target.is_dir():
+            target = Path.home()
+
+        subdirs = []
+        try:
+            for item in sorted(target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+                if item.name.startswith((".", "__")) or item.name in ("node_modules", "venv", "env", "build", "dist"):
+                    continue
+                if item.is_dir():
+                    has_hooks = (item / "hooks.py").is_file() or (item / "pyproject.toml").is_file()
+                    subdirs.append({
+                        "name": item.name,
+                        "path": str(item),
+                        "is_app": has_hooks,
+                    })
+        except Exception:
+            pass
+
+        quick_locations = []
+        home = Path.home()
+        candidates_to_check = [
+            home / "Documents",
+            home / "Documents" / "erpnext",
+            home / "frappe-bench" / "apps",
+            home / "frappe-bench-security-research" / "apps",
+        ]
+        for c in candidates_to_check:
+            if c.exists():
+                quick_locations.append({
+                    "name": f"~/{c.relative_to(home)}" if home in c.parents or c == home else c.name,
+                    "path": str(c),
+                })
+
+        parent_path = str(target.parent) if target.parent != target else None
+
+        self._serve_json({
+            "current_path": str(target),
+            "parent_path": parent_path,
+            "subdirs": subdirs,
+            "quick_locations": quick_locations,
+        })
 
     # ------------------------------------------------------------------
     # Proof trigger (runs in background thread)

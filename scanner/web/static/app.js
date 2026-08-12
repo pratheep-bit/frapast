@@ -1103,6 +1103,7 @@
       if (e.key === 'Escape') {
         if (els.drawer.classList.contains('open')) closeDrawer();
         closeReportModal();
+        closeFolderModal();
       }
     }
 
@@ -1313,6 +1314,74 @@
     }
 
     /* =========================================================================
+       FOLDER CHOOSER & BROWSER
+       ========================================================================= */
+    let currentBrowsePath = '';
+    let parentBrowsePath = '';
+    let selectedBrowsePath = '';
+
+    function openFolderModal(targetPath) {
+      els.folderModalOverlay.style.display = 'flex';
+      loadFolderBrowser(targetPath || els.scanPathInput.value || '');
+    }
+
+    function closeFolderModal() {
+      if (els.folderModalOverlay) els.folderModalOverlay.style.display = 'none';
+    }
+
+    function loadFolderBrowser(targetPath) {
+      els.folderCurrentPath.textContent = 'Loading…';
+      els.folderList.innerHTML = '<div class="empty"><p>Loading directories…</p></div>';
+      
+      fetch(`/api/browse?path=${encodeURIComponent(targetPath || '')}`)
+        .then((r) => r.json())
+        .then((d) => {
+          currentBrowsePath = d.current_path || '';
+          parentBrowsePath = d.parent_path || '';
+          selectedBrowsePath = currentBrowsePath;
+
+          els.folderCurrentPath.textContent = currentBrowsePath;
+          els.folderSelectedLabel.textContent = `Selected: ${currentBrowsePath}`;
+
+          // Quick locations chips
+          if (d.quick_locations && d.quick_locations.length) {
+            els.folderQuickLocations.innerHTML = d.quick_locations.map((loc) => 
+              `<span class="folder-chip" data-path="${escapeHtml(loc.path)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(loc.name)}</span>`
+            ).join('');
+          } else {
+            els.folderQuickLocations.innerHTML = '';
+          }
+
+          // Subdirectories list
+          if (d.subdirs && d.subdirs.length) {
+            els.folderList.innerHTML = d.subdirs.map((dir) => `
+              <div class="folder-item" data-path="${escapeHtml(dir.path)}">
+                <div class="folder-item-left">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary);flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <span class="folder-item-name">${escapeHtml(dir.name)}</span>
+                </div>
+                ${dir.is_app ? '<span class="folder-app-badge">App</span>' : ''}
+              </div>
+            `).join('');
+          } else {
+            els.folderList.innerHTML = '<div class="empty"><p>No subdirectories here.</p></div>';
+          }
+        })
+        .catch((err) => {
+          els.folderCurrentPath.textContent = 'Error loading directory';
+          els.folderList.innerHTML = `<div class="empty"><p>Error: ${escapeHtml(err.message)}</p></div>`;
+        });
+    }
+
+    function confirmFolderSelection() {
+      if (selectedBrowsePath) {
+        els.scanPathInput.value = selectedBrowsePath;
+        closeFolderModal();
+        triggerScan();
+      }
+    }
+
+    /* =========================================================================
        INIT
        =========================================================================*/
     function cacheEls() {
@@ -1337,6 +1406,8 @@
         'benchDiag', 'diagUrl', 'diagReachBadge', 'diagSite', 'diagSiteBadge', 'diagUser', 'diagAuthBadge', 'diagIssues',
         'reportBtn', 'exportJsonBtn', 'exportSarifBtn',
         'reportModalOverlay', 'reportModalClose', 'reportModalContent',
+        'browseBtn', 'folderModalOverlay', 'folderModalClose', 'folderModalCancel', 'folderModalSelectBtn',
+        'folderQuickLocations', 'folderUpBtn', 'folderCurrentPath', 'folderList', 'folderSelectedLabel',
       ].forEach((id) => { els[id] = $(id); });
     }
 
@@ -1377,9 +1448,29 @@
       els.exportCsvBtn.addEventListener('click', exportVisibleAsCsv);
       els.refreshBtn.addEventListener('click', () => { if (!state.run.active) loadFindings(); });
 
-      // --- Scan bar ---
+      // --- Scan bar & Folder Chooser ---
       els.scanBtn.addEventListener('click', triggerScan);
       els.scanPathInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') triggerScan(); });
+      els.browseBtn.addEventListener('click', () => openFolderModal());
+
+      els.folderModalClose.addEventListener('click', closeFolderModal);
+      els.folderModalCancel.addEventListener('click', closeFolderModal);
+      els.folderModalOverlay.addEventListener('click', (e) => { if (e.target === els.folderModalOverlay) closeFolderModal(); });
+      els.folderModalSelectBtn.addEventListener('click', confirmFolderSelection);
+
+      els.folderUpBtn.addEventListener('click', () => {
+        if (parentBrowsePath) loadFolderBrowser(parentBrowsePath);
+      });
+
+      els.folderQuickLocations.addEventListener('click', (e) => {
+        const chip = e.target.closest('.folder-chip');
+        if (chip && chip.dataset.path) loadFolderBrowser(chip.dataset.path);
+      });
+
+      els.folderList.addEventListener('click', (e) => {
+        const item = e.target.closest('.folder-item');
+        if (item && item.dataset.path) loadFolderBrowser(item.dataset.path);
+      });
 
       // --- Bench settings toggle ---
       els.benchSettingsToggle.addEventListener('click', toggleBenchSettings);
