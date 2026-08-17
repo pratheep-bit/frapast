@@ -1,7 +1,81 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <title>frapAST Logo</title>
-  <desc>Minimalist geometric Λ emblem on a sleek dark rounded square.</desc>
-  <rect width="512" height="512" rx="96" fill="#111111"/>
-  <rect x="2" y="2" width="508" height="508" rx="94" fill="none" stroke="#262626" stroke-width="3"/>
-  <polyline points="144,372 256,140 368,372" fill="none" stroke="#FFFFFF" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <!-- Deep Cosmic Gradient Background -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080C14"/>
+      <stop offset="50%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </linearGradient>
+
+    <!-- Subtle Apex Glow -->
+    <radialGradient id="apexAura" cx="50%" cy="30%" r="45%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.25"/>
+      <stop offset="60%" stop-color="#6366F1" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#0F172A" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Luminous Chevron Gradient -->
+    <linearGradient id="chevronGrad" x1="0%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#E2E8F0"/>
+      <stop offset="50%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F8FAFC"/>
+    </linearGradient>
+
+    <!-- Border Gradient -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.4"/>
+      <stop offset="50%" stop-color="#334155" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0.3"/>
+    </linearGradient>
+
+    <!-- Particle Glow -->
+    <radialGradient id="particleGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="108" fill="url(#bgGrad)"/>
+  <rect width="512" height="512" rx="108" fill="url(#apexAura)"/>
+  <rect x="2" y="2" width="508" height="508" rx="106" fill="none" stroke="url(#borderGrad)" stroke-width="3"/>
+
+  <!-- Delicate Background Constellation / Particle Field -->
+  <g opacity="0.65">
+    <!-- Connecting constellation filaments -->
+    <line x1="256" y1="136" x2="310" y2="88" stroke="#38BDF8" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.4"/>
+    <line x1="144" y1="368" x2="96" y2="320" stroke="#6366F1" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.3"/>
+    <line x1="368" y1="368" x2="416" y2="330" stroke="#38BDF8" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.35"/>
+    <line x1="256" y1="260" x2="256" y2="320" stroke="#818CF8" stroke-width="1" stroke-dasharray="2,3" opacity="0.25"/>
+
+    <!-- Small ambient stars & particles -->
+    <circle cx="112" cy="148" r="2.5" fill="#38BDF8" opacity="0.7"/>
+    <circle cx="396" cy="160" r="3" fill="#818CF8" opacity="0.8"/>
+    <circle cx="86" cy="240" r="2" fill="#E2E8F0" opacity="0.5"/>
+    <circle cx="430" cy="240" r="2.5" fill="#38BDF8" opacity="0.6"/>
+    <circle cx="160" cy="100" r="1.5" fill="#FFFFFF" opacity="0.6"/>
+    <circle cx="350" cy="110" r="2" fill="#38BDF8" opacity="0.5"/>
+    <circle cx="210" cy="380" r="2.5" fill="#818CF8" opacity="0.5"/>
+    <circle cx="302" cy="380" r="2" fill="#38BDF8" opacity="0.6"/>
+  </g>
+
+  <!-- Glowing Anchor Particle Orbitals -->
+  <circle cx="310" cy="88" r="8" fill="url(#particleGlow)"/>
+  <circle cx="310" cy="88" r="3.5" fill="#FFFFFF"/>
+
+  <circle cx="96" cy="320" r="7" fill="url(#particleGlow)"/>
+  <circle cx="96" cy="320" r="3" fill="#BAE6FD"/>
+
+  <circle cx="416" cy="330" r="9" fill="url(#particleGlow)"/>
+  <circle cx="416" cy="330" r="4" fill="#FFFFFF"/>
+
+  <circle cx="256" cy="320" r="6" fill="url(#particleGlow)"/>
+  <circle cx="256" cy="320" r="2.5" fill="#818CF8"/>
+
+  <!-- Core Geometric Λ Emblem -->
+  <polyline points="144,368 256,136 368,368" fill="none" stroke="url(#chevronGrad)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Apex Radiant Particle -->
+  <circle cx="256" cy="136" r="14" fill="url(#particleGlow)" opacity="0.8"/>
+  <circle cx="256" cy="136" r="5" fill="#FFFFFF"/>
 </svg>
