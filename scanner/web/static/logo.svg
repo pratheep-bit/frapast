@@ -1,26 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <title>frapAST — Geometric A Icon</title>
-  <desc>Geometric white A mark matching the supplied reference, on a dark solid rounded-square app icon.</desc>
-
-  <!-- Solid dark background -->
-  <rect width="512" height="512" rx="72" fill="#151515"/>
-
-  <!-- Subtle edge/shadow -->
-  <rect x="2" y="2" width="508" height="508" rx="70" fill="none" stroke="#303030" stroke-width="4"/>
-
-  <!-- Reference-style geometric A -->
-  <g fill="#FFFFFF">
-    <!-- top horizontal bar -->
-    <rect x="136" y="118" width="240" height="48"/>
-
-    <!-- left/right vertical A structure with open bottom -->
-    <path d="M136 214H184V354H136V214Z"/>
-    <path d="M328 214H376V354H328V214Z"/>
-
-    <!-- middle horizontal bar / crossbar -->
-    <rect x="136" y="214" width="240" height="48"/>
-  </g>
-
-  <!-- Cut out the central lower opening -->
-  <rect x="184" y="262" width="144" height="92" fill="#151515"/>
+  <title>frapAST Logo</title>
+  <desc>Minimalist geometric Λ emblem on a sleek dark rounded square.</desc>
+  <rect width="512" height="512" rx="96" fill="#111111"/>
+  <rect x="2" y="2" width="508" height="508" rx="94" fill="none" stroke="#262626" stroke-width="3"/>
+  <polyline points="144,372 256,140 368,372" fill="none" stroke="#FFFFFF" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
