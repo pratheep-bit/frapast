@@ -39,3 +39,6 @@ SCANNER_ARCHITECTURE.md
 SCANNER_MASTER_REFERENCE.md
 rm.md
 run_full_pipeline.sh
+
+# Local documentation backup
+_local_docs/
