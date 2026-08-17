@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="scanner/web/static/logo.svg" alt="frapAST Logo" width="96" height="96" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="scanner/web/static/logo.svg">
+  <img src="scanner/web/static/logo-light.svg" alt="frapAST Logo" width="96" height="96">
+</picture>
 
 # frapAST
 
