@@ -621,12 +621,49 @@ class ProofOrchestrator:
         self.bench_site_name = bench_site_name.strip()
         self._bench_runner: object | None = None
 
+    def prune_old_reproducers(self, max_scripts: int = 1000) -> None:
+        """Removes the oldest cached reproducer scripts if count exceeds max_scripts."""
+        if not self.reproducers_dir.is_dir():
+            return
+        try:
+            scripts = sorted(self.reproducers_dir.glob("FR-*.sh"), key=lambda p: p.stat().st_mtime)
+            if len(scripts) > max_scripts:
+                for old in scripts[: len(scripts) - max_scripts]:
+                    old.unlink(missing_ok=True)
+                    old.with_suffix(".version").unlink(missing_ok=True)
+        except Exception:
+            pass
+
     def discover_reproducers(self) -> dict[str, Path]:
+        """Discover reproducer scripts in the reproducers directory.
+
+        Reads a .version sidecar file next to each FR-*.sh script. If the
+        sidecar is absent or its version does not match the current
+        SYNTHESIS_VERSION (from http_synthesis.py), the stale script is
+        deleted and excluded from the returned map so prove_candidate()
+        will resynthesize it with up-to-date (hardened) logic.
+        """
+        from scanner.proof.http_synthesis import SYNTHESIS_VERSION
+
         reproducers: dict[str, Path] = {}
         if not self.reproducers_dir.is_dir():
             return reproducers
         for path in sorted(self.reproducers_dir.glob("FR-*.sh")):
             finding_id = path.stem
+            sidecar = path.with_suffix(".version")
+            # Check version — stale scripts are silently regenerated, never reused
+            if sidecar.exists():
+                on_disk_version = sidecar.read_text(encoding="utf-8").strip()
+                if on_disk_version != SYNTHESIS_VERSION:
+                    # Version mismatch: delete stale script + sidecar, skip
+                    path.unlink(missing_ok=True)
+                    sidecar.unlink(missing_ok=True)
+                    continue
+            else:
+                # No sidecar means the script was generated before versioning
+                # was introduced (pre-hardening). Treat as stale.
+                path.unlink(missing_ok=True)
+                continue
             reproducers[finding_id] = path
         return reproducers
 

@@ -34,6 +34,23 @@ class TestServerSecurity(unittest.TestCase):
 		handler.headers = {}
 		self.assertTrue(_Handler._is_trusted_origin(handler))
 
+	def test_browse_path_traversal_containment(self):
+		handler = MagicMock(spec=_Handler)
+		handler.rfile = MagicMock()
+		handler.wfile = MagicMock()
+		handler.headers = {}
+		
+		# Test directory path traversal attempting to escape to /etc
+		handler.path = "/api/browse?path=../../../../etc"
+		handler.command = "GET"
+		
+		_Handler._serve_browse(handler, {"path": ["../../../../etc"]})
+		self.assertTrue(handler._serve_json.called)
+		args = handler._serve_json.call_args[0][0]
+		# Must be clamped to user home / allowed root, NOT /etc or /private/etc
+		self.assertNotIn("etc", [p for p in Path(args.get("current_path", "")).parts if p == "etc"])
+		self.assertTrue(args.get("current_path", "").startswith(str(Path.home())))
+
 
 if __name__ == "__main__":
 	unittest.main()

@@ -353,6 +353,55 @@
         <div class="drawer-field-label">Suggested Remediation</div>
         <div class="drawer-field-value" id="drawerRemediation">—</div>
       </div>
+
+      <!-- Proof Evidence Section -->
+      <div id="drawerProofSection" style="margin-top: 10px; padding-top: 16px; border-top: 1px solid var(--border);">
+        <div class="drawer-field-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-weight:700; color:var(--text-main);">Runtime Proof Evidence</span>
+          <span id="drawerProofStatusBadge"></span>
+        </div>
+        <div id="drawerProofLoading" style="font-size: var(--fs-sm); color: var(--text-muted); font-style: italic;">
+          Loading verification details…
+        </div>
+        <div id="drawerProofContent" style="display:none; flex-direction:column; gap:12px;">
+          <!-- Meta row: Exit code & Duration -->
+          <div id="drawerProofMetaRow" style="display:flex; gap:16px; font-size:var(--fs-sm); color:var(--text-muted);">
+            <div>Exit Code: <strong id="drawerProofExitCode" style="color:var(--text-main);">—</strong></div>
+            <div>Duration: <strong id="drawerProofDuration" style="color:var(--text-main);">—</strong></div>
+            <div>Tier: <strong id="drawerProofTier" style="color:var(--text-main);">—</strong></div>
+          </div>
+          <!-- Skip reason / notice -->
+          <div id="drawerProofSkipWrap" style="display:none; padding:10px 12px; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.3); border-radius:var(--radius-sm); color:#facc15; font-size:var(--fs-sm);">
+            <strong>Proof Skipped:</strong> <span id="drawerProofSkipReason"></span>
+          </div>
+          <!-- Reproducer script -->
+          <div id="drawerProofScriptWrap" style="display:none;">
+            <div class="drawer-field-label" style="font-size:var(--fs-xxs); margin-bottom:4px;">Reproducer Script (<span id="drawerProofScriptPath"></span>)</div>
+            <pre class="drawer-code" id="drawerProofScript" style="max-height:180px;"></pre>
+          </div>
+          <!-- Stdout -->
+          <div id="drawerProofStdoutWrap" style="display:none;">
+            <div class="drawer-field-label" style="font-size:var(--fs-xxs); margin-bottom:4px;">Standard Output (stdout)</div>
+            <pre class="drawer-code" id="drawerProofStdout" style="max-height:150px; background:#020617; color:#38bdf8;"></pre>
+          </div>
+          <!-- Stderr -->
+          <div id="drawerProofStderrWrap" style="display:none;">
+            <div class="drawer-field-label" style="font-size:var(--fs-xxs); margin-bottom:4px;">Standard Error (stderr)</div>
+            <pre class="drawer-code" id="drawerProofStderr" style="max-height:150px; background:#020617; color:#f87171;"></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Automated Fix / Remediation Section -->
+      <div id="drawerFixSection" style="margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--border); display:none;">
+        <div class="drawer-field-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-weight: 600; color: #10b981;">✨ Automated Remediation (Autofix)</span>
+          <button id="drawerApplyFixBtn" class="btn-primary" style="padding: 4px 12px; font-size: var(--fs-xs); background: #10b981; border: none;">Apply Fix</button>
+        </div>
+        <div id="drawerFixDescription" style="font-size: var(--fs-sm); color: var(--text-muted); margin-bottom: 8px;"></div>
+        <pre class="drawer-code" id="drawerFixDiff" style="max-height: 200px; background: #020617; color: #a7f3d0; border-left: 3px solid #10b981;"></pre>
+      </div>
+
     </div>
     <div class="drawer-footer">
       <button class="btn-secondary" id="drawerCloseBtn2">Close</button>

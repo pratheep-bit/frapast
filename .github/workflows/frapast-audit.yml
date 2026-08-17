@@ -1,0 +1,43 @@
+name: frapAST Security Audit
+
+on:
+  push:
+    branches: [ "main", "develop", "version-*" ]
+  pull_request:
+    branches: [ "main", "develop", "version-*" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  audit:
+    name: Frappe App Security & Quality Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install frapAST & Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyyaml rich libcst pytest
+
+      - name: Run Test Suite
+        run: |
+          pytest tests/
+
+      - name: Run frapAST CLI Audit
+        run: |
+          python -m scanner.cli scan . --format human --limit 20
+
+      - name: Check for Autofixable Boilerplate
+        run: |
+          python -m scanner.cli fix . --rule FR-HOOK-001 || true

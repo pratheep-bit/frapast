@@ -177,22 +177,37 @@ def fr_perm_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 
 	Flags @frappe.whitelist() endpoints with no has_permission/only_for check
 	in their body or within one hop of their call graph.
+	Differentiates mutating endpoints (high fix_confidence) from read-only endpoints (low fix_confidence).
 	"""
 	permission_checks = {record.symbol_id for record in python.permission_checks}
-	return [
-		_candidate(
-			"FR-PERM-001",
-			endpoint.span.file,
-			endpoint.span.line_start,
-			endpoint.function,
-			endpoint.span.hash,
-			"Whitelisted endpoint has no permission check in body or within one hop.",
-			"Invoke the endpoint as a low-privilege user and verify access is rejected for unauthorized documents.",
-			fix_confidence="medium",
-		)
-		for endpoint in python.whitelisted_endpoints
-		if not _path_has_permission_check(endpoint.symbol_id, graph, permission_checks)
-	]
+	mutations = {record.symbol_id for record in python.mutations}
+	out = []
+	for endpoint in python.whitelisted_endpoints:
+		if not _path_has_permission_check(endpoint.symbol_id, graph, permission_checks):
+			has_mutation = _path_has_mutation(endpoint.symbol_id, graph, mutations)
+			if has_mutation:
+				out.append(_candidate(
+					"FR-PERM-001",
+					endpoint.span.file,
+					endpoint.span.line_start,
+					endpoint.function,
+					endpoint.span.hash,
+					"Whitelisted endpoint modifies data with no permission check in body or within one hop.",
+					"Invoke the endpoint as a low-privilege user and verify unauthorized modification is rejected.",
+					fix_confidence="high",
+				))
+			else:
+				out.append(_candidate(
+					"FR-PERM-001",
+					endpoint.span.file,
+					endpoint.span.line_start,
+					endpoint.function,
+					endpoint.span.hash,
+					"Whitelisted endpoint has no permission check in body or within one hop (read-only data exposure).",
+					"Invoke the endpoint as an unauthorized user and verify data exposure is restricted.",
+					fix_confidence="low",
+				))
+	return out
 
 
 def fr_perm_002(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
@@ -535,12 +550,19 @@ def fr_wkfl_003(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 	for record in python.direct_writes:
 		if record.field_name == "docstatus":
 			docstatus_writes_by_func.add((record.span.file, record.function))
-			
-	for record in python.direct_writes:
+	for s_rec in python.set_value_calls:
+		if s_rec.field_name == "docstatus":
+			docstatus_writes_by_func.add((s_rec.span.file, s_rec.function))
+
+	for record in python.set_value_calls:
 		if _is_non_runtime_path(record.span.file):
 			continue
 		if record.field_name == "status":
-			# Check if there's a matching docstatus write in the same function
+			# Only alert if the target DocType is submittable (non-submittable DocTypes have no docstatus lifecycle)
+			if record.doctype_arg:
+				dt = schema.get_doctype(record.doctype_arg)
+				if dt is not None and not dt.is_submittable:
+					continue
 			has_docstatus_write = (record.span.file, record.function) in docstatus_writes_by_func
 			if not has_docstatus_write:
 				candidates.append(
@@ -726,7 +748,88 @@ def fr_ssrf_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 	]
 
 
-_RESERVED_DOC_ATTRS = {"name", "creation", "modified", "modified_by", "owner", "docstatus", "idx", "parent", "parentfield", "parenttype", "doctype"}
+
+# Verified complete set of identifiers that are valid on every Frappe Document/BaseDocument
+# instance and must NOT be flagged as missing-field references.
+#
+# Source: frappe/frappe GitHub, develop branch, 2026-08
+#   - Standard metadata fields: frappe/model/__init__.py, optional_fields / default_fields
+#   - Document methods: frappe/model/document.py (class Document)
+#   - BaseDocument methods: frappe/model/base_document.py (class BaseDocument)
+#
+# Rule: when a new method is added to Frappe's Document base class, add it here too.
+# Naming: use the actual method/property name as it appears in Python source.
+_RESERVED_DOC_ATTRS: frozenset[str] = frozenset({
+    # -------------------------------------------------------------------------
+    # Standard DocType metadata fields (every document has these columns)
+    # -------------------------------------------------------------------------
+    "name", "creation", "modified", "modified_by", "owner",
+    "docstatus", "idx", "parent", "parentfield", "parenttype",
+    "doctype", "naming_series", "amended_from", "amendment_date",
+    # -------------------------------------------------------------------------
+    # BaseDocument public methods (frappe/model/base_document.py)
+    # -------------------------------------------------------------------------
+    "update", "update_if_missing", "get_db_value", "get", "getone",
+    "set", "delete_key", "append", "extend", "remove", "parent_doc",
+    "meta", "permitted_fieldnames",
+    "get_valid_dict", "init_child_tables", "init_valid_columns",
+    "get_valid_columns", "is_new", "as_dict", "as_json",
+    "get_table_field_doctype", "get_parentfield_of_doctype",
+    "db_insert", "db_update", "db_update_all",
+    "show_unique_validation_message", "get_field_name_by_key_name",
+    "get_label_from_fieldname", "update_modified",
+    "get_invalid_links", "set_fetch_from_value",
+    # internal but commonly called from controllers:
+    "docstatus",          # also a property
+    "_table_fieldnames", "_non_computed_table_fieldnames",
+    "_get_table_fields", "_init_child", "_fix_numeric_types",
+    "_get_missing_mandatory_fields", "_validate_selects",
+    "_validate_data_fields", "_validate_constants", "_validate_length",
+    "_validate_code_fields", "_sync_autoname_field",
+    # -------------------------------------------------------------------------
+    # Document public methods (frappe/model/document.py)
+    # -------------------------------------------------------------------------
+    "load_from_db", "mask_fields", "load_children_from_db",
+    "_load_child_table_from_db", "reload", "get_latest",
+    "check_permission", "has_permission", "raise_no_permission_to",
+    "insert", "check_if_locked", "save", "_save",
+    "validate_amended_from", "copy_attachments_from_amended_from",
+    "update_children", "update_child_table", "reset_computed_child_tables",
+    "get_doc_before_save", "has_value_changed", "get_value_before_save",
+    "set_new_name", "get_title", "set_title_field",
+    "update_single", "set_user_and_timestamp", "set_docstatus",
+    "_validate", "_validate_non_negative", "_validate_min_max_value",
+    "_fix_rating_value", "validate_workflow", "validate_set_only_once",
+    "is_child_table_same", "apply_fieldlevel_read_permissions",
+    "validate_higher_perm_levels", "get_permlevel_access",
+    "has_permlevel_access_to", "get_permissions", "_set_defaults",
+    "check_if_latest", "check_docstatus_transition",
+    "set_parent_in_children", "set_name_in_children",
+    "validate_update_after_submit", "_validate_mandatory",
+    "_prefetch_link_values", "_validate_links",
+    "run_method", "notify_update",
+    "db_set", "db_get",
+    "add_comment", "set_onload", "add_tag",
+    # Commonly used Frappe controller utilities (set_status from frappe.model.workflow)
+    "set_status",
+    # Workflow
+    "validate_workflow",
+    # Frappe publish/realtime
+    "publish_update", "publish_realtime",
+    # Child-table helpers
+    "get_all_children",
+    # Common inherited from controllers in erpnext/hrms
+    "run_notifications", "queue_action",
+    # Python built-ins that are valid on any object
+    "__init__", "__repr__", "__str__", "__dict__", "__class__",
+    "__doc__", "__module__", "__weakref__",
+    # Frappe document flags and locals
+    "flags", "ignore_permissions", "ignore_links", "ignore_mandatory",
+    "ignore_validate", "ignore_version", "ignore_linked_doctypes", "locals", "_locals",
+    # Onload data bag
+    "_onload",
+})
+
 
 def fr_corr_001_bare_except(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
 	"""Bare except that swallows control flow, hiding real errors."""
@@ -784,7 +887,7 @@ def fr_perf_001_query_in_loop(schema: SchemaIndex, hooks: HookIndex, python: Pyt
 			fix_confidence="low",
 		)
 		for rec in python.queries_in_loop
-		if rec.query_kind == "get_doc" and rec.loop_iterates_over_query_result
+		if rec.query_kind == "get_doc" and rec.loop_iterates_over_query_result and not _is_non_runtime_path(rec.span.file)
 	]
 
 def fr_i18n_001_hardcoded_string(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
@@ -804,6 +907,33 @@ def fr_i18n_001_hardcoded_string(schema: SchemaIndex, hooks: HookIndex, python: 
 		)
 		for rec in python.hardcoded_user_strings
 	]
+
+
+def fr_path_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
+	"""FR-PATH-001: Unrestricted file path traversal in file I/O operations.
+
+	Flags user-controlled file paths passed to open(), os.remove(), shutil.*, etc.
+	without directory containment or validation guards.
+	"""
+	reachable = _reachable_from_whitelisted(python, graph)
+	candidates: list[Candidate] = []
+	for record in python.path_traversals:
+		if _is_non_runtime_path(record.span.file):
+			continue
+		if record.request_controlled and not record.has_guard and (record.symbol_id in reachable or _is_whitelisted_symbol(record.symbol_id, python)):
+			candidates.append(
+				_candidate(
+					"FR-PATH-001",
+					record.span.file,
+					record.span.line_start,
+					record.function,
+					record.span.hash,
+					f"User-controlled file path passed to {record.call_name}() without path containment validation.",
+					"Verify the resolved path begins with the allowed base directory using os.path.commonpath or startswith.",
+					fix_confidence="high",
+				)
+			)
+	return candidates
 
 
 # ---------------------------------------------------------------------------
@@ -834,7 +964,7 @@ ALL_RULES: tuple[Rule, ...] = (
 	fr_wkfl_001,
 	fr_wkfl_002,
 	fr_wkfl_003,
-	fr_wkfl_004,
+	# fr_wkfl_004,  # Disabled: 0/20 precision on real-world validation (frappe/hrms) — rule's premise that amendable DocTypes need custom before_insert/after_insert is incorrect; Frappe core handles field reset via no_copy=1 natively. Needs full redesign before re-enabling.
 	# FR-INJ family
 	fr_inj_001,
 	fr_inj_002,
@@ -849,6 +979,8 @@ ALL_RULES: tuple[Rule, ...] = (
 	fr_corr_002_mutable_default,
 	# FR-DATA family
 	fr_data_001_bad_fieldname,
+	# FR-PATH family
+	fr_path_001,
 	# FR-PERF family
 	fr_perf_001_query_in_loop,
 	# FR-I18N family
@@ -986,14 +1118,22 @@ def _reachable_from_whitelisted(python: PythonSymbolIndex, graph: CallGraph) -> 
 	cache_key = (id(python), id(graph))
 	if cache is not None and cache_key in cache.reachable:
 		return cache.reachable[cache_key]
+	entry_points = [endpoint.symbol_id for endpoint in python.whitelisted_endpoints]
+	entry_points.extend(report.symbol_id for report in getattr(python, "report_entry_points", ()))
 	result = {
 		symbol_id
-		for endpoint in python.whitelisted_endpoints
-		for symbol_id in graph.reachable_from(endpoint.symbol_id, max_hops=1)
+		for ep in entry_points
+		for symbol_id in graph.reachable_from(ep, max_hops=3)
 	}
 	if cache is not None:
 		cache.reachable[cache_key] = result
 	return result
+
+
+def _is_whitelisted_symbol(symbol_id: str, python: PythonSymbolIndex) -> bool:
+	return any(ep.symbol_id == symbol_id for ep in python.whitelisted_endpoints) or any(
+		rp.symbol_id == symbol_id for rp in getattr(python, "report_entry_points", ())
+	)
 
 
 def _has_unchecked_whitelisted_path(
@@ -1029,6 +1169,12 @@ def _path_has_permission_check(symbol_id: str, graph: CallGraph, permission_chec
 	return bool(reachable & permission_checks)
 
 
+def _path_has_mutation(symbol_id: str, graph: CallGraph, mutations: set[str]) -> bool:
+	"""Check if a symbol or any of its 1-hop callees performs a mutation/write."""
+	reachable = set(graph.reachable_from(symbol_id, max_hops=1))
+	return bool(reachable & mutations)
+
+
 def _query_mentions_table(query: str, table_name: str) -> bool:
 	return bool(re.search(rf"(?<![A-Za-z0-9_])`?{re.escape(table_name)}`?(?![A-Za-z0-9_])", query, re.IGNORECASE))
 
@@ -1041,7 +1187,7 @@ def _is_workflow_engine_path(path: str) -> bool:
 def _is_non_runtime_path(path: str) -> bool:
 	parts = [part.lower() for part in path.replace("\\", "/").split("/")]
 	filename = parts[-1] if parts else ""
-	return "patches" in parts or "tests" in parts or filename.startswith("test_")
+	return "patches" in parts or "tests" in parts or filename.startswith("test_") or filename in {"setup.py", "install.py"}
 
 
 def _is_report_path(path: str) -> bool:

@@ -1,0 +1,19 @@
+{
+  "doctype": "DocType",
+  "name": "Leave Application",
+  "module": "HR",
+  "is_submittable": 1,
+  "istable": 0,
+  "fields": [
+    {"fieldname": "employee", "fieldtype": "Link", "options": "Employee"},
+    {"fieldname": "employee_name", "fieldtype": "Data"},
+    {"fieldname": "from_date", "fieldtype": "Date"},
+    {"fieldname": "to_date", "fieldtype": "Date"},
+    {"fieldname": "status", "fieldtype": "Select"},
+    {"fieldname": "leave_type", "fieldtype": "Link", "options": "Leave Type"},
+    {"fieldname": "total_leave_days", "fieldtype": "Float"}
+  ],
+  "permissions": [
+    {"role": "HR Manager", "read": 1, "write": 1}
+  ]
+}

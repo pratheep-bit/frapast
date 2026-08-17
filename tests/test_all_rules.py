@@ -63,6 +63,27 @@ class TestAllRulesCoverage(unittest.TestCase):
 		for res in results:
 			self.assertIsInstance(res, list)
 
+	def test_fr_sqli_001_fstring_detection(self):
+		"""Verify FR-SQLI-001 properly flags f-string SQL injections with variable interpolation."""
+		import tempfile
+		from scanner.rules.engine import fr_sqli_001
+		with tempfile.TemporaryDirectory() as td:
+			p = Path(td)
+			(p / "app.py").write_text("""\
+import frappe
+@frappe.whitelist()
+def search_users(term):
+    return frappe.db.sql(f"SELECT name FROM tabUser WHERE email = '{term}'")
+""", encoding="utf-8")
+			sf = [SourceFile(p / "app.py", p)]
+			py = build_python_index(sf)
+			cg = build_call_graph(py)
+			schema = build_schema_index([])
+			hooks = build_hook_index([])
+			cands = fr_sqli_001(schema, hooks, py, cg)
+			self.assertEqual(len(cands), 1)
+			self.assertEqual(cands[0].rule_id, "FR-SQLI-001")
+
 
 if __name__ == "__main__":
 	unittest.main()

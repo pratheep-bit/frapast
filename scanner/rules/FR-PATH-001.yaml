@@ -1,0 +1,7 @@
+rule_id: FR-PATH-001
+rule_version: 1.0.0
+taxonomy_id: FR-PATH-001
+required_indexes: [python, callgraph]
+predicate: user-controlled file path passed to file I/O operations without directory containment validation
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: pass directory traversal sequences (../) through endpoint and verify access outside the base directory is rejected

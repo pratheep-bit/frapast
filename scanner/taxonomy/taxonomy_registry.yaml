@@ -45,6 +45,12 @@ additional_categories:
     added_date: "2026-07-21"
     justification: "Static detection rule stub added during initial ruleset creation; not in original 6-category scope."
     precision_status: "untested - zero findings recorded"
+  FR-PATH:
+    range: "001-001"
+    name: "Path Traversal & Arbitrary File Access"
+    added_date: "2026-08-17"
+    justification: "Added to catch historical path traversal CVEs (e.g. CVE-2026-44440) in file management and template endpoints."
+    precision_status: "active"
 
 extensions:
   FR-CORR-001:

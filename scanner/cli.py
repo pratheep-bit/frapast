@@ -137,6 +137,79 @@ def _run_gated_workflow_command(args: argparse.Namespace, workflow_name: str) ->
 	return 0
 
 
+def _run_fix_command(args: argparse.Namespace) -> int:
+	from scanner.autofix import FixEngine
+	from rich.syntax import Syntax
+
+	repo = Path(getattr(args, "repo_path", ".")).expanduser().resolve()
+	if not repo.exists():
+		sys.stderr.write(f"Error: path '{repo}' does not exist\n")
+		return 2
+
+	candidates, _, _ = _scan_repo_with_severity(
+		repo,
+		fp_log_path=None,
+		repo_id=getattr(args, "repo_id", "local"),
+		include_severity=True,
+		show_progress=False,
+	)
+
+	fix_engine = FixEngine(repo)
+	rule_filter = getattr(args, "rule", None)
+	finding_id = getattr(args, "finding_id", None)
+
+	if finding_id:
+		candidates = [c for c in candidates if str(c.get("id") or c.get("finding_id")) == finding_id]
+
+	patches = fix_engine.generate_patches(candidates, rule_filter=rule_filter)
+
+	if not patches:
+		if args.format == "json":
+			print(json.dumps({"patches": []}))
+		else:
+			console.print("[muted]No autofixable findings found for this repository/filter.[/muted]")
+		return 0
+
+	apply_mode = getattr(args, "apply", False)
+
+	if args.format in ("json", "yaml"):
+		patch_dicts = [
+			{
+				"finding_id": p.finding_id,
+				"rule_id": p.rule_id,
+				"file": str(p.file_path.relative_to(repo) if p.file_path.is_relative_to(repo) else p.file_path),
+				"diff": p.diff,
+				"description": p.description,
+				"applied": apply_mode,
+			}
+			for p in patches
+		]
+		if apply_mode:
+			for p in patches:
+				fix_engine.apply_patch(p)
+		_write_json_or_yaml({"patches": patch_dicts}, args.format, repo)
+		return 0
+
+	console.print(f"\n[bold cyan]✨ frapAST Automated Remediation Engine[/bold cyan]")
+	console.print(f"[bold]{len(patches)} patch(es) synthesized[/bold] across {len({p.file_path for p in patches})} file(s):\n")
+
+	for idx, p in enumerate(patches, 1):
+		rel_file = p.file_path.relative_to(repo) if p.file_path.is_relative_to(repo) else p.file_path
+		console.print(f"[bold cyan]#{idx} [{p.rule_id}][/bold cyan] [bold]{rel_file}:{p.start_line}[/bold] — {p.description}")
+		if p.diff:
+			syntax = Syntax(p.diff, "diff", theme="monokai", line_numbers=False)
+			console.print(syntax)
+		console.print("")
+
+	if apply_mode:
+		success_count = sum(1 for p in patches if fix_engine.apply_patch(p))
+		console.print(f"[success]✓ Successfully applied {success_count} / {len(patches)} patch(es) to disk.[/success]\n")
+		return 0
+	else:
+		console.print("[yellow]Preview mode (dry-run).[/yellow] Run [bold green]frapast fix --apply[/bold green] to write these changes to disk.\n")
+		return 0
+
+
 def _finding_id(candidate: dict[str, object], repo_id: str) -> str:
 	identity = (
 		f"{repo_id}:{candidate['rule_id']}:{candidate['file']}:"
@@ -384,10 +457,13 @@ def _build_parser() -> argparse.ArgumentParser:
 	prove_parser.add_argument("--bench-password", default="", help="Frappe password for Tier 2 bench authentication")
 	prove_parser.add_argument("--bench-site", default="", help="Frappe site name (Host header) for multi-site bench setups")
 
-	fix_parser = subparsers.add_parser("fix", help="Show proof-gated findings eligible for fix work")
+	fix_parser = subparsers.add_parser("fix", help="Synthesize and apply automated AST code patches")
+	fix_parser.add_argument("repo_path", nargs="?", default=".", help="Path to repository")
+	fix_parser.add_argument("--apply", action="store_true", help="Apply fixes directly to source files on disk")
+	fix_parser.add_argument("--dry-run", action="store_true", default=True, help="Preview unified diffs without modifying files (default)")
+	fix_parser.add_argument("--rule", help="Filter fixes to a specific rule ID (e.g. FR-HOOK-001)")
+	fix_parser.add_argument("--finding-id", help="Filter fixes to a specific finding ID")
 	fix_parser.add_argument("--findings-dir", default="findings", help="Path to findings directory")
-	fix_parser.add_argument("--min-tier", type=int, default=2, help="Minimum proof tier required for fix eligibility")
-	fix_parser.add_argument("--finding-id", help="Filter to one finding ID")
 	fix_parser.add_argument("--format", choices=["human", "yaml", "json"], default="human", help="Output format")
 
 	pr_parser = subparsers.add_parser("pr", help="Show proof-gated findings eligible for PR work")
@@ -1024,7 +1100,7 @@ def main(argv: list[str] | None = None) -> int:
 		return 0
 
 	if args.command == "fix":
-		return _run_gated_workflow_command(args, "fix")
+		return _run_fix_command(args)
 
 	if args.command == "pr":
 		return _run_gated_workflow_command(args, "pr")

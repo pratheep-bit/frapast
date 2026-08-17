@@ -1,21 +1,30 @@
 """scanner/web/server.py — Frapast localhost web dashboard.
 
 Serves a single-page HTML dashboard on http://localhost:7777.
-Uses stdlib only: http.server + threading + json.
+Uses stdlib only: http.server + threading + json + sqlite3.
 No Flask, no FastAPI — zero extra dependencies.
 
 Features:
-  GET  /            → HTML dashboard (index.html inlined)
-  GET  /api/findings → All candidates as JSON
-  GET  /api/stats    → Proof summary stats
-  POST /api/prove    → Trigger proof for the top N findings, "all" of them,
-                        or an explicit user-selected set (finding_ids /
-                        finding_locators)
-  GET  /api/stream   → Server-Sent Events — live proof progress
+  GET  /                            → HTML dashboard (index.html)
+  GET  /api/scans                   → List all past scans with stats
+  GET  /api/findings                → Candidates for latest (or ?scan_id=) scan
+  GET  /api/findings/<id>/proof     → Full proof detail for one finding
+  GET  /api/stats                   → Proof summary stats for latest scan
+  POST /api/prove                   → Trigger proof for selected / top-N findings
+  POST /api/scan                    → Trigger a background scan
+  GET  /api/stream                  → Server-Sent Events — live proof progress
+  GET  /api/snippet                 → Source code excerpt around a line
+  GET  /api/bench/check             → Test bench connectivity
+  GET  /api/bench/config            → Read persisted bench config
+  POST /api/bench/config            → Save bench config to SQLite
+  GET  /api/report                  → Markdown compliance report
+  GET  /api/export/json             → Download findings as JSON
+  GET  /api/export/sarif            → Download findings as SARIF
+  GET  /api/browse                  → Browse local filesystem
 
 Usage:
     from scanner.web.server import start_server
-    start_server(repo=Path("."), candidates=[...])
+    start_server(repo=Path("."), candidates=[])
 """
 from __future__ import annotations
 
@@ -24,25 +33,31 @@ import queue
 import sys
 import threading
 import time
+import uuid
 import webbrowser
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PureWindowsPath
 
+# Import DB layer — init() is called from start_server() and the /api/scan handler
+from scanner.web import db as _db
+
 PORT = 7777
 _STATIC_DIR = Path(__file__).parent / "static"
 
-# Shared mutable state — guarded by _lock
+# ---------------------------------------------------------------------------
+# In-memory runtime-only state (scan/proof progress that doesn't need to survive restart)
+# ---------------------------------------------------------------------------
 _lock = threading.Lock()
 _state: dict = {
-    "repo": "",
-    "candidates": [],
-    "summary": {
+    "running": False,         # proof worker active
+    "scan_running": False,    # scan worker active
+    "current_scan_id": None,  # scan_id of the most recently triggered scan
+    "summary": {              # live tally during a proof run (refreshed from DB on done)
         "total": 0, "proven": 0, "refuted": 0, "skipped": 0, "errors": 0,
         "proven_findings": [],
     },
-    "running": False,
-    "scan_running": False,
+    # Bench config — loaded from DB on startup, kept in memory for fast reads
     "bench_url": "",
     "bench_user": "Administrator",
     "bench_password": "admin",
@@ -95,17 +110,15 @@ class _Handler(BaseHTTPRequestHandler):
             self._serve_html()
         elif not path.startswith("/api/") and (_STATIC_DIR / path.lstrip("/")).is_file():
             self._serve_static_file(path.lstrip("/"))
+        elif path == "/api/scans":
+            self._serve_json({"scans": _db.list_scans()})
         elif path == "/api/findings":
-            with _lock:
-                snapshot_candidates = [dict(c) for c in _state["candidates"]]
-                snapshot_repo = _state["repo"]
-            self._serve_json({"candidates": snapshot_candidates, "repo": snapshot_repo})
+            self._serve_findings(query)
+        elif path.startswith("/api/findings/") and path.endswith("/proof"):
+            finding_id = path[len("/api/findings/"):-len("/proof")]
+            self._serve_proof_detail(finding_id)
         elif path == "/api/stats":
-            with _lock:
-                snapshot_summary = dict(_state["summary"])
-                snapshot_repo = _state["repo"]
-                snapshot_scan_running = _state["scan_running"]
-            self._serve_json({**snapshot_summary, "repo": snapshot_repo, "scan_running": snapshot_scan_running})
+            self._serve_stats()
         elif path == "/api/snippet":
             self._serve_snippet(query)
         elif path == "/api/stream":
@@ -115,10 +128,10 @@ class _Handler(BaseHTTPRequestHandler):
         elif path == "/api/bench/config":
             with _lock:
                 self._serve_json({
-                    "bench_url": _state.get("bench_url", ""),
+                    "bench_url":  _state.get("bench_url", ""),
                     "bench_user": _state.get("bench_user", "Administrator"),
                     "bench_site": _state.get("bench_site", ""),
-                    "repo": _state.get("repo", ""),
+                    "repo":       _db.get_latest_scan_id() or "",
                 })
         elif path == "/api/report":
             self._serve_report()
@@ -131,84 +144,106 @@ class _Handler(BaseHTTPRequestHandler):
         else:
             self._404()
 
-    def _serve_snippet(self, query: dict):
-        rel_file = query.get("file", [""])[0]
-        line_str = query.get("line", ["1"])[0]
-        before_str = query.get("before", ["2"])[0]
-        after_str = query.get("after", ["3"])[0]
-
-        try:
-            target_line = int(line_str)
-            before = max(0, min(int(before_str), 50))
-            after = max(0, min(int(after_str), 50))
-        except ValueError:
-            self._serve_json({"error": "Invalid line number", "lines": []})
+    def _serve_findings(self, query: dict) -> None:
+        scan_id = query.get("scan_id", [None])[0]
+        if not scan_id:
+            with _lock:
+                scan_id = _state.get("current_scan_id")
+            if not scan_id:
+                scan_id = _db.get_latest_scan_id()
+        if not scan_id:
+            self._serve_json({"candidates": [], "repo": "", "scan_id": None})
             return
+        candidates = _db.get_findings(scan_id)
+        # Inject id field if missing (finding_id is the canonical key in DB)
+        for c in candidates:
+            if not c.get("id"):
+                c["id"] = c.get("finding_id", "")
+        scans = _db.list_scans()
+        repo = next((s["repo_path"] for s in scans if s["scan_id"] == scan_id), "")
+        self._serve_json({"candidates": candidates, "repo": repo, "scan_id": scan_id})
 
-        if target_line < 1:
-            self._serve_json({"error": "Invalid line number", "lines": []})
+    def _serve_proof_detail(self, finding_id: str) -> None:
+        finding = _db.get_finding_by_id(finding_id)
+        if finding is None:
+            self._serve_json({"error": f"Finding '{finding_id}' not found."}, status=404)
             return
+        proof = _db.get_proof_result(finding_id)
+        if proof is None:
+            # No proof has been run yet — return a structured empty response
+            status = finding.get("proof_status") or finding.get("status") or "candidate"
+            proof = {
+                "finding_id":       finding_id,
+                "proof_status":     status,
+                "proof_tier":       finding.get("proof_tier", 0),
+                "exit_code":        None,
+                "stdout":           "",
+                "stderr":           "",
+                "reproducer_path":  "",
+                "reproducer_source": "",
+                "error_message":    None,
+                "duration_seconds": None,
+                "proved_at":        None,
+                "skip_reason":      "No proof has been run for this finding yet."
+                                    if status == "candidate" else None,
+            }
+        else:
+            proof = dict(proof)
+            # Annotate skipped findings with a human-readable reason
+            if proof.get("proof_status") == "skipped" or (
+                    proof.get("exit_code") is None and not proof.get("stdout")):
+                err = proof.get("error_message") or ""
+                if "no bench configured" in err.lower():
+                    proof["skip_reason"] = (
+                        "Tier 2 HTTP proof skipped: no Frappe bench is configured. "
+                        "Enter the bench URL in the Bench Configuration panel and re-run."
+                    )
+                elif "no reproducer" in err.lower():
+                    proof["skip_reason"] = (
+                        "No reproducer strategy is implemented for this rule yet "
+                        "(proof_tier=0 / SKIP). The finding is a static candidate only."
+                    )
+                else:
+                    proof["skip_reason"] = err or "Proof was skipped."
+            else:
+                proof["skip_reason"] = None
+        self._serve_json(proof)
 
-        repo_root = Path(_state.get("repo", ""))
-        file_path = _resolve_file_path(repo_root, rel_file)
+    def _serve_stats(self) -> None:
+        with _lock:
+            scan_id = _state.get("current_scan_id")
+            scan_running = _state.get("scan_running", False)
+            running = _state.get("running", False)
+            live_summary = dict(_state.get("summary", {}))
+        if not scan_id:
+            scan_id = _db.get_latest_scan_id()
+        if scan_id:
+            db_stats = _db.get_scan_stats(scan_id)
+        else:
+            db_stats = {"total": 0, "proven": 0, "refuted": 0, "skipped": 0, "candidate": 0, "errors": 0}
+        # During an active proof run, the in-memory live_summary is more current
+        stats = db_stats if not running else {
+            "total":     live_summary.get("total", db_stats["total"]),
+            "proven":    live_summary.get("proven", db_stats["proven"]),
+            "refuted":   live_summary.get("refuted", db_stats["refuted"]),
+            "skipped":   live_summary.get("skipped", db_stats["skipped"]),
+            "errors":    live_summary.get("errors", db_stats.get("errors", 0)),
+            "candidate": db_stats.get("candidate", 0),
+        }
+        scans = _db.list_scans()
+        repo = next((s["repo_path"] for s in scans if s["scan_id"] == scan_id), "")
+        self._serve_json({**stats, "repo": repo, "scan_running": scan_running, "scan_id": scan_id})
 
-        if not file_path:
-            self._serve_json({
-                "error": f"Could not confidently resolve {rel_file} within the scanned repo",
-                "lines": [],
-            })
-            return
-
-        try:
-            content = file_path.read_text(encoding="utf-8", errors="replace")
-            all_lines = content.splitlines()
-        except Exception as e:
-            self._serve_json({"error": str(e), "lines": []})
-            return
-
-        start_line = max(1, target_line - before)
-        end_line = min(len(all_lines), target_line + after)
-
-        res_lines = []
-        for lnum in range(start_line, end_line + 1):
-            idx = lnum - 1
-            code_str = all_lines[idx] if 0 <= idx < len(all_lines) else ""
-            res_lines.append({
-                "num": lnum,
-                "code": code_str,
-                "is_error": (lnum == target_line)
-            })
-
-        self._serve_json({
-            "file": rel_file,
-            "line": target_line,
-            "start_line": start_line,
-            "end_line": end_line,
-            "lines": res_lines,
-        })
-
-    # Hard cap on request bodies. Without this, an untrusted/mistaken client
-    # can send an arbitrary Content-Length and the original code would
-    # `self.rfile.read(length)` however large that is — an easy way to
-    # exhaust memory on a "harmless" localhost tool. 5 MiB is generous for
-    # the small JSON payloads this API actually accepts.
+    # Hard cap on request bodies.
     MAX_BODY_BYTES = 5 * 1024 * 1024
 
     def _read_json_body(self) -> dict:
-        """Read and parse a JSON request body defensively.
-
-        The original implementation did `int(self.headers.get(...))` with no
-        try/except, so a malformed Content-Length header (missing, blank, or
-        non-numeric — trivial to send by hand) raised an uncaught ValueError
-        and the connection died with a raw 500 instead of a clean 400.
-        """
         try:
             length = int(self.headers.get("Content-Length", 0) or 0)
         except (TypeError, ValueError):
             length = 0
         length = max(0, length)
         if length > self.MAX_BODY_BYTES:
-            # Drain nothing further; refuse before reading into memory.
             raise ValueError(f"Request body too large ({length} bytes, max {self.MAX_BODY_BYTES}).")
         body = self.rfile.read(length) if length else b"{}"
         try:
@@ -233,20 +268,23 @@ class _Handler(BaseHTTPRequestHandler):
             self._handle_prove_request(data)
 
         elif path == "/api/bench/config":
+            cfg = {}
             with _lock:
                 if "bench_url" in data:
-                    _state["bench_url"] = str(data["bench_url"]).strip()
+                    _state["bench_url"] = cfg["bench_url"] = str(data["bench_url"]).strip()
                 if "bench_port" in data and data["bench_port"]:
                     try:
-                        _state["bench_url"] = f"http://localhost:{int(data['bench_port'])}"
+                        url = f"http://localhost:{int(data['bench_port'])}"
+                        _state["bench_url"] = cfg["bench_url"] = url
                     except (TypeError, ValueError):
                         pass
                 if "bench_user" in data:
-                    _state["bench_user"] = str(data["bench_user"]).strip()
+                    _state["bench_user"] = cfg["bench_user"] = str(data["bench_user"]).strip()
                 if "bench_password" in data:
-                    _state["bench_password"] = str(data["bench_password"]).strip()
+                    _state["bench_password"] = cfg["bench_password"] = str(data["bench_password"]).strip()
                 if "bench_site" in data:
-                    _state["bench_site"] = str(data["bench_site"]).strip()
+                    _state["bench_site"] = cfg["bench_site"] = str(data["bench_site"]).strip()
+            _db.save_bench_config(cfg)
             self._serve_json({"status": "saved"})
 
         elif path == "/api/scan":
@@ -266,14 +304,10 @@ class _Handler(BaseHTTPRequestHandler):
                     self._serve_json({"status": "already_running"})
                     return
                 if _state["running"]:
-                    # Scanning replaces _state["candidates"] wholesale while a
-                    # proof run is iterating a snapshot of that same list —
-                    # letting both run at once doesn't corrupt anything fatally
-                    # (the proof loop already holds its own list reference),
-                    # but the results are confusing: candidates could vanish
-                    # from under a run the user is actively watching. Refuse
-                    # instead of silently interleaving them.
-                    self._serve_json({"error": "A proof run is in progress. Wait for it to finish before scanning."}, status=409)
+                    self._serve_json(
+                        {"error": "A proof run is in progress. Wait for it to finish before scanning."},
+                        status=409,
+                    )
                     return
                 _state["scan_running"] = True
 
@@ -285,8 +319,11 @@ class _Handler(BaseHTTPRequestHandler):
                         _state["scan_running"] = False
                     _broadcast_sse({"type": "scan_done", "repo": str(target)})
 
-            threading.Thread(target=_scan_worker, daemon=True).start()
-            self._serve_json({"status": "started", "repo": str(target)})
+        elif path == "/api/fix/preview":
+            self._handle_fix_preview(data)
+
+        elif path == "/api/fix/apply":
+            self._handle_fix_apply(data)
 
         else:
             self._404()
@@ -297,10 +334,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _serve_html(self):
         html_path = _STATIC_DIR / "index.html"
-        if html_path.is_file():
-            html = html_path.read_bytes()
-        else:
-            html = b"<h1>Dashboard not found</h1>"
+        html = html_path.read_bytes() if html_path.is_file() else b"<h1>Dashboard not found</h1>"
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(html)))
@@ -315,11 +349,9 @@ class _Handler(BaseHTTPRequestHandler):
         except ValueError:
             self._404()
             return
-
         if not target_path.is_file():
             self._404()
             return
-
         ext = target_path.suffix.lower()
         mime_types = {
             ".html": "text/html; charset=utf-8",
@@ -332,7 +364,6 @@ class _Handler(BaseHTTPRequestHandler):
         }
         content_type = mime_types.get(ext, "application/octet-stream")
         content = target_path.read_bytes()
-
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(content)))
@@ -340,7 +371,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
 
-    def _serve_json(self, data: dict, status: int = 200):
+    def _serve_json(self, data: dict | list, status: int = 200):
         body = json.dumps(data, default=str).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
@@ -355,12 +386,6 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _serve_sse(self):
-        # EventSource can't set custom request headers, but the browser still
-        # sends a real Origin header on the underlying request — the same one
-        # _is_trusted_origin() already checks for POST. A wildcard ACAO opts
-        # every origin out of CORS, letting any tab open in the same browser
-        # read live scan results via a localhost-CORS / DNS-rebinding attack.
-        # Origin-gate it the same way POST already is.
         if not self._is_trusted_origin():
             self.send_response(403)
             self.end_headers()
@@ -417,32 +442,37 @@ class _Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self._serve_json({"error": str(exc)}, status=500)
 
-    _report_cache = {"time": 0.0, "text": ""}
+    _report_cache: dict = {"time": 0.0, "text": ""}
 
     def _serve_report(self):
         try:
-            with _lock:
-                repo = _state.get("repo", "")
-                candidates = list(_state.get("candidates", []))
+            scan_id = _db.get_latest_scan_id()
+            candidates: list[dict] = _db.get_findings(scan_id) if scan_id else []
+            repo = ""
+            if scan_id:
+                scans = _db.list_scans()
+                repo = next((s["repo_path"] for s in scans if s["scan_id"] == scan_id), "")
 
             if not repo and not candidates:
                 self._serve_json({
-                    "report": "# Security Track-Record Report\n\nNo target repository has been scanned yet.\n\nSelect a target directory in the dashboard and click **Scan** to generate a security compliance report."
+                    "report": (
+                        "# Security Track-Record Report\n\n"
+                        "No target repository has been scanned yet.\n\n"
+                        "Select a target directory in the dashboard and click **Scan** to generate a report."
+                    )
                 })
                 return
 
             now = time.time()
-            with _lock:
-                cache_time = _Handler._report_cache["time"]
-                cache_text = _Handler._report_cache["text"]
+            cache_time = _Handler._report_cache["time"]
+            cache_text = _Handler._report_cache["text"]
 
             if now - cache_time > 10.0 or not cache_text:
                 from scanner.reporting import render_track_record
                 new_text = render_track_record("findings")
 
                 if candidates and ("| candidate | 0 |" in new_text or "| proven | 0 |" in new_text):
-                    proven_cnt = sum(1 for c in candidates if c.get("status") == "proven")
-                    cand_cnt = len(candidates) - proven_cnt
+                    stats = _db.get_scan_stats(scan_id)
                     repo_name = Path(repo).name if repo else "Scanned Repo"
                     new_text = (
                         f"# Security Track-Record Report for {repo_name}\n\n"
@@ -450,18 +480,17 @@ class _Handler(BaseHTTPRequestHandler):
                         f"Static candidates are internal-only Tier 0 records.\n\n"
                         f"| Status | Count |\n"
                         f"| --- | ---: |\n"
-                        f"| candidate | {cand_cnt} |\n"
-                        f"| proven | {proven_cnt} |\n"
+                        f"| candidate | {stats['candidate']} |\n"
+                        f"| proven | {stats['proven']} |\n"
                         f"| false_positive | 0 |\n"
                         f"| patched | 0 |\n\n"
                         f"## Target Summary\n\n"
                         f"Scanned repository path: `{repo}`\n\n"
-                        f"Total candidate findings detected: **{len(candidates)}**\n"
+                        f"Total candidate findings detected: **{stats['total']}**\n"
                     )
 
-                with _lock:
-                    _Handler._report_cache["text"] = new_text
-                    _Handler._report_cache["time"] = now
+                _Handler._report_cache["text"] = new_text
+                _Handler._report_cache["time"] = now
                 cache_text = new_text
 
             self._serve_json({"report": cache_text})
@@ -469,8 +498,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._serve_json({"error": str(exc)}, status=500)
 
     def _serve_export_json(self):
-        with _lock:
-            data = [dict(c) for c in _state["candidates"]]
+        scan_id = _db.get_latest_scan_id()
+        data = _db.get_findings(scan_id) if scan_id else []
         body = json.dumps(data, default=str, indent=2).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -482,9 +511,10 @@ class _Handler(BaseHTTPRequestHandler):
     def _serve_export_sarif(self):
         try:
             from scanner.reporting.sarif import export_sarif
-            with _lock:
-                candidates = [dict(c) for c in _state["candidates"]]
-                repo = Path(_state.get("repo", "."))
+            scan_id = _db.get_latest_scan_id()
+            candidates = _db.get_findings(scan_id) if scan_id else []
+            scans = _db.list_scans()
+            repo = Path(next((s["repo_path"] for s in scans if s["scan_id"] == scan_id), "."))
             sarif_str = export_sarif(candidates, repo_path=repo)
             body = sarif_str.encode("utf-8")
         except Exception as exc:
@@ -502,6 +532,63 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _serve_snippet(self, query: dict):
+        rel_file = query.get("file", [""])[0]
+        line_str = query.get("line", ["1"])[0]
+        before_str = query.get("before", ["2"])[0]
+        after_str = query.get("after", ["3"])[0]
+
+        try:
+            target_line = int(line_str)
+            before = max(0, min(int(before_str), 50))
+            after = max(0, min(int(after_str), 50))
+        except ValueError:
+            self._serve_json({"error": "Invalid line number", "lines": []})
+            return
+
+        if target_line < 1:
+            self._serve_json({"error": "Invalid line number", "lines": []})
+            return
+
+        scan_id = _db.get_latest_scan_id()
+        scans = _db.list_scans()
+        repo_root = Path(
+            next((s["repo_path"] for s in scans if s["scan_id"] == scan_id), "")
+            if scan_id else ""
+        )
+
+        file_path = _resolve_file_path(repo_root, rel_file)
+        if not file_path:
+            self._serve_json({
+                "error": f"Could not confidently resolve {rel_file} within the scanned repo",
+                "lines": [],
+            })
+            return
+
+        try:
+            content = file_path.read_text(encoding="utf-8", errors="replace")
+            all_lines = content.splitlines()
+        except Exception as e:
+            self._serve_json({"error": str(e), "lines": []})
+            return
+
+        start_line = max(1, target_line - before)
+        end_line = min(len(all_lines), target_line + after)
+
+        res_lines = []
+        for lnum in range(start_line, end_line + 1):
+            idx = lnum - 1
+            code_str = all_lines[idx] if 0 <= idx < len(all_lines) else ""
+            res_lines.append({"num": lnum, "code": code_str, "is_error": (lnum == target_line)})
+
+        self._serve_json({
+            "file": rel_file,
+            "line": target_line,
+            "start_line": start_line,
+            "end_line": end_line,
+            "lines": res_lines,
+        })
+
     def _serve_browse(self, query: dict):
         try:
             raw_path = query.get("path", [""])[0].strip()
@@ -509,8 +596,14 @@ class _Handler(BaseHTTPRequestHandler):
                 raw_path = "/Users"
 
             target = Path(raw_path).expanduser().resolve()
-            if not target.exists() or not target.is_dir():
-                target = Path("/Users") if Path("/Users").exists() else Path.home()
+            home = Path.home().resolve()
+            users_root = Path("/Users").resolve() if Path("/Users").exists() else home
+            allowed_roots = [home, users_root]
+
+            # Security containment: prevent browsing outside user home/workspace roots (e.g. /etc, /var)
+            is_allowed = any(target == r or r in target.parents for r in allowed_roots)
+            if not is_allowed or not target.exists() or not target.is_dir():
+                target = home
 
             subdirs = []
             try:
@@ -520,26 +613,14 @@ class _Handler(BaseHTTPRequestHandler):
                             continue
                         if item.is_dir():
                             has_hooks = (item / "hooks.py").is_file() or (item / "pyproject.toml").is_file()
-                            subdirs.append({
-                                "name": item.name,
-                                "path": str(item),
-                                "is_app": has_hooks,
-                            })
+                            subdirs.append({"name": item.name, "path": str(item), "is_app": has_hooks})
                     except Exception:
                         continue
             except Exception:
                 pass
 
             quick_locations = []
-            home = Path.home()
-            candidates_to_check = [
-                Path("/Users"),
-                home,
-                home / "Documents",
-                home / "Documents" / "erpnext",
-                home / "frappe-bench" / "apps",
-            ]
-            for c in candidates_to_check:
+            for c in [home, home / "Documents", home / "Documents" / "erpnext", home / "frappe-bench" / "apps"]:
                 try:
                     if c.exists():
                         quick_locations.append({
@@ -549,8 +630,8 @@ class _Handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-            parent_path = str(target.parent) if target.parent != target else None
-
+            parent_is_allowed = any(target.parent == r or r in target.parent.parents for r in allowed_roots)
+            parent_path = str(target.parent) if (parent_is_allowed and target.parent != target) else None
             self._serve_json({
                 "current_path": str(target),
                 "parent_path": parent_path,
@@ -564,39 +645,14 @@ class _Handler(BaseHTTPRequestHandler):
     # Proof trigger (runs in background thread)
     # ------------------------------------------------------------------
 
-    # Sanity cap on how many findings can be requested in one selection —
-    # protects against a malformed/huge payload rather than any realistic
-    # use of the UI.
     MAX_SELECTION_ITEMS = 5000
 
     def _handle_prove_request(self, data: dict) -> None:
-        """Handle POST /api/prove.
-
-        The dashboard UI has two ways to start a run:
-          1. Select specific rows and click "Prove N Selected" — the client
-             sends {"finding_ids": [...], "finding_locators": [...]}.
-          2. Use the count field / quick-select buttons — the client sends
-             {"count": N} or {"count": "all"}.
-
-        The original implementation only ever read `data.get("count", 10)`.
-        finding_ids / finding_locators were accepted by no code path at all,
-        so selecting specific rows in the UI and clicking "Prove Selected"
-        silently ran the *default top-10-by-score* proof instead of proving
-        the rows the user actually selected — with no error, so the
-        mismatch was invisible until someone compared the results against
-        what they'd clicked. This method restores that feature end to end.
-        """
         raw_ids = data.get("finding_ids")
         raw_locators = data.get("finding_locators")
         ids = [str(i) for i in raw_ids] if isinstance(raw_ids, list) else []
         locators = [loc for loc in raw_locators if isinstance(loc, dict)] if isinstance(raw_locators, list) else []
 
-        # A request is "selection mode" if the client sent either key at all,
-        # even if it resolved to zero usable entries (e.g. the user's
-        # selection went stale after a rescan). Falling through to count
-        # mode in that case — as the original code effectively did — would
-        # silently prove an unrelated default set of candidates instead of
-        # telling the user their selection was empty.
         selection_intent = "finding_ids" in data or "finding_locators" in data
         has_selection = bool(ids) or bool(locators)
 
@@ -640,10 +696,6 @@ class _Handler(BaseHTTPRequestHandler):
             if _state["running"]:
                 return False, "already_running"
             if _state["scan_running"]:
-                # A scan replaces _state["candidates"] with a brand-new list
-                # partway through; starting a proof run against candidates
-                # that may be swapped out from under it produces confusing,
-                # partially-stale results. Refuse instead.
                 return False, "scan_running"
             _state["running"] = True
 
@@ -658,6 +710,74 @@ class _Handler(BaseHTTPRequestHandler):
         threading.Thread(target=_worker, daemon=True).start()
         return True, None
 
+    def _handle_fix_preview(self, data: dict) -> None:
+        from scanner.autofix import FixEngine
+
+        scan_id = _state.get("current_scan_id") or _db.get_latest_scan_id()
+        if not scan_id:
+            self._serve_json({"error": "No active scan found"}, status=400)
+            return
+
+        scans = _db.list_scans()
+        repo_str = next((s["repo_path"] for s in scans if s["scan_id"] == scan_id), ".")
+        repo = Path(repo_str)
+
+        finding_id = str(data.get("finding_id", "")).strip()
+        finding_data = data.get("finding_data")
+        if not finding_data and finding_id:
+            finding_data = _db.get_finding_by_id(finding_id)
+
+        if not finding_data:
+            self._serve_json({"has_fix": False, "error": "Finding not found"})
+            return
+
+        fix_engine = FixEngine(repo)
+        patch = fix_engine.generate_patch(finding_data)
+        if patch is None:
+            self._serve_json({"has_fix": False, "diff": "", "description": "No automated patch available for this rule yet."})
+            return
+
+        self._serve_json({
+            "has_fix": True,
+            "diff": patch.diff,
+            "description": patch.description,
+            "start_line": patch.start_line,
+            "end_line": patch.end_line,
+        })
+
+    def _handle_fix_apply(self, data: dict) -> None:
+        from scanner.autofix import FixEngine
+
+        scan_id = _state.get("current_scan_id") or _db.get_latest_scan_id()
+        if not scan_id:
+            self._serve_json({"error": "No active scan found"}, status=400)
+            return
+
+        scans = _db.list_scans()
+        repo_str = next((s["repo_path"] for s in scans if s["scan_id"] == scan_id), ".")
+        repo = Path(repo_str)
+
+        finding_id = str(data.get("finding_id", "")).strip()
+        finding_data = data.get("finding_data")
+        if not finding_data and finding_id:
+            finding_data = _db.get_finding_by_id(finding_id)
+
+        if not finding_data:
+            self._serve_json({"success": False, "error": "Finding not found"}, status=400)
+            return
+
+        fix_engine = FixEngine(repo)
+        patch = fix_engine.generate_patch(finding_data)
+        if patch is None:
+            self._serve_json({"success": False, "error": "No patch available for this finding"}, status=400)
+            return
+
+        ok = fix_engine.apply_patch(patch)
+        if ok:
+            self._serve_json({"success": True, "message": f"Successfully applied fix to {patch.file_path.name}"})
+        else:
+            self._serve_json({"success": False, "error": "Failed to write patch to disk"}, status=500)
+
 
 # ---------------------------------------------------------------------------
 # Background scan worker
@@ -665,18 +785,22 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def _run_scan_in_background(repo: Path) -> None:
-    """Run a full static scan in background, updating _state and broadcasting SSE events."""
+    """Run a full static scan in background, writing to DB and broadcasting SSE events."""
+    scan_id = str(uuid.uuid4())
     try:
         from scanner.python import load as load_python
         from scanner.schema import load as load_schema
         from scanner.hooks import load as load_hooks
         from scanner.rules import execute_rules
-
-        _broadcast_sse({"type": "scan_start", "repo": str(repo)})
-
         from dataclasses import asdict
-
         from scanner.severity import score_candidates
+        from scanner.cli import _finding_id, _candidate_repo_id
+
+        _broadcast_sse({"type": "scan_start", "repo": str(repo), "scan_id": scan_id})
+        _db.create_scan(scan_id, str(repo.resolve()))
+
+        with _lock:
+            _state["current_scan_id"] = scan_id
 
         python_index = load_python(repo)
         schema_index = load_schema(repo)
@@ -697,28 +821,32 @@ def _run_scan_in_background(repo: Path) -> None:
         for c, score in scored:
             cd = asdict(c) if hasattr(c, "__dataclass_fields__") else dict(c)
             cd["severity"] = score.__dict__
+            # Generate stable finding_id matching CLI convention
+            crid = _candidate_repo_id(cd, "local")
+            fid = _finding_id(cd, crid)
+            cd["id"] = fid
             candidates.append(cd)
 
+        # Persist to DB
+        _db.upsert_findings(scan_id, candidates)
+        _db.finish_scan(scan_id, status="done")
+
         with _lock:
-            _state["repo"] = str(repo.resolve())
-            _state["candidates"] = candidates
             _state["summary"] = {
                 "total": len(candidates),
-                "proven": 0,
-                "refuted": 0,
-                "skipped": 0,
-                "errors": 0,
+                "proven": 0, "refuted": 0, "skipped": 0, "errors": 0,
                 "proven_findings": [],
             }
-            _state["scan_running"] = False
 
         _broadcast_sse({
             "type": "scan_progress",
             "count": len(candidates),
             "repo": str(repo),
+            "scan_id": scan_id,
         })
 
     except Exception as exc:
+        _db.finish_scan(scan_id, status="error")
         _broadcast_sse({"type": "scan_error", "error": str(exc)})
 
 
@@ -728,23 +856,10 @@ def _run_scan_in_background(repo: Path) -> None:
 
 
 def _candidate_locator(c: dict) -> tuple[str, str, str, str]:
-    """Composite locator matching the frontend's computeKey() fallback, used
-    to identify a candidate when it has no server-issued id yet."""
     return (str(c.get("file", "")), str(c.get("line", "")), str(c.get("rule_id", "")), str(c.get("function", "")))
 
 
 def _select_candidates(candidates: list[dict], spec) -> list[dict]:
-    """Resolve a prove-request spec into the ordered list of candidates to run.
-
-    `spec` is one of:
-      - an int N            -> top N candidates by score (existing behavior)
-      - the string "all"    -> every candidate (existing behavior)
-      - {"ids": [...], "locators": [...]} -> exactly the candidates the user
-        selected in the table, matched the same way the frontend does: by
-        server-issued id first, falling back to the (file, line, rule_id,
-        function) locator for candidates that haven't been assigned an id
-        yet. This is the mode the original code never implemented.
-    """
     from scanner.ui.results import candidate_score
 
     if isinstance(spec, dict):
@@ -756,7 +871,7 @@ def _select_candidates(candidates: list[dict], spec) -> list[dict]:
         selected: list[dict] = []
         seen_keys: set = set()
         for c in candidates:
-            cid = c.get("id")
+            cid = c.get("id") or c.get("finding_id")
             cid_str = str(cid) if cid is not None and cid != "" else None
             matches = (cid_str is not None and cid_str in wanted_ids) or (_candidate_locator(c) in wanted_locators)
             if not matches:
@@ -775,29 +890,31 @@ def _select_candidates(candidates: list[dict], spec) -> list[dict]:
 
 
 def _run_proof_in_background(spec) -> None:
-    """Run proof pipeline, sending SSE events for each result.
-
-    `spec` selects which candidates to run — see `_select_candidates`.
-    """
+    """Run proof pipeline, persisting results to DB and sending SSE events."""
     from scanner.proof.orchestrator import ProofOrchestrator
     from scanner.proof.models import ProofStatus
     from scanner.cli import _finding_id, _candidate_repo_id
     from dataclasses import replace as dc_replace
 
-    # Snapshot everything this run needs under the lock once, rather than
-    # reading _state piecemeal (unlocked) as the original code did — those
-    # reads could otherwise interleave with a concurrent /api/bench/config
-    # save or (previously) a concurrent scan.
     with _lock:
-        candidates = _state["candidates"]
-        repo = Path(_state["repo"])
+        scan_id = _state.get("current_scan_id")
         bench_url = _state.get("bench_url", "")
         bench_user = _state.get("bench_user", "")
         bench_password = _state.get("bench_password", "")
         bench_site = _state.get("bench_site", "")
 
-    slice_ = _select_candidates(candidates, spec)
+    if not scan_id:
+        scan_id = _db.get_latest_scan_id()
+    if not scan_id:
+        _broadcast_sse({"type": "error", "message": "No scan results to prove — run a scan first."})
+        return
 
+    candidates = _db.get_findings(scan_id)
+    scans = _db.list_scans()
+    repo_str = next((s["repo_path"] for s in scans if s["scan_id"] == scan_id), ".")
+    repo = Path(repo_str)
+
+    slice_ = _select_candidates(candidates, spec)
     total = len(slice_)
     proven = refuted = skipped = errors = 0
     proven_findings: list[dict] = []
@@ -808,7 +925,7 @@ def _run_proof_in_background(spec) -> None:
                 "total": 0, "proven": 0, "refuted": 0, "skipped": 0, "errors": 0,
                 "proven_findings": [],
             }
-        _broadcast_sse({"type": "error", "message": "No matching candidates to prove — they may have already been proven or removed by a rescan."})
+        _broadcast_sse({"type": "error", "message": "No matching candidates to prove."})
         return
 
     orchestrator = ProofOrchestrator(
@@ -822,43 +939,78 @@ def _run_proof_in_background(spec) -> None:
     for idx, c in enumerate(slice_, 1):
         rule_id = c.get("rule_id", "")
         func = c.get("function", "")
-        loc_hash = str(c.get("code_location_hash", ""))
-        crid = _candidate_repo_id(c, "local")
-        fid = _finding_id(c, crid)
+        fid = c.get("id") or c.get("finding_id") or ""
 
         status_val = "error"
-        updates: dict = {"id": fid}
         try:
-            res = orchestrator.prove_candidate(fid, candidate_data={**c, "id": fid})
+            res = orchestrator.prove_candidate(fid, candidate_data=c)
+            loc_hash = str(c.get("code_location_hash", ""))
             if loc_hash:
                 res = dc_replace(res, code_location_hash=loc_hash)
 
             status_val = getattr(res.status, "value", str(res.status))
-            updates["proof_status"] = status_val
 
             if res.status == ProofStatus.PASSED:
-                updates.update(proof_tier=res.proof_tier, status="proven", proof_status="proven")
+                proof_status = "proven"
+                proof_tier = res.proof_tier
+                status_val = "proven"
                 proven += 1
+                proven_findings.append({**c, "id": fid, "status": "proven", "proof_tier": proof_tier})
             elif res.status == ProofStatus.FAILED:
-                updates.update(status="refuted", proof_status="refuted")
+                proof_status = "refuted"
+                status_val = "refuted"
+                proof_tier = res.proof_tier
                 refuted += 1
             elif res.status == ProofStatus.SKIPPED:
-                updates.update(status="skipped", proof_status="skipped")
+                proof_status = "skipped"
+                status_val = "skipped"
+                proof_tier = res.proof_tier
                 skipped += 1
             else:
-                updates["status"] = status_val
+                proof_status = status_val
+                proof_tier = res.proof_tier
                 errors += 1
-        except Exception as e:
-            updates.update(status="error", proof_status="error", proof_error=str(e))
-            errors += 1
 
-        # Apply every field for this candidate as one atomic step under the
-        # same lock the reader uses, so /api/findings never sees this dict
-        # mid-update or racing a key insertion.
-        with _lock:
-            c.update(updates)
-            if updates.get("status") == "proven":
-                proven_findings.append(c)
+            # Read reproducer source from disk (if path available)
+            reproducer_source = ""
+            if res.reproducer_path:
+                try:
+                    reproducer_source = Path(res.reproducer_path).read_text(encoding="utf-8", errors="replace")
+                except Exception:
+                    pass
+
+            # Persist proof result to DB
+            _db.upsert_proof_result(
+                fid,
+                exit_code=res.exit_code,
+                stdout=res.stdout or "",
+                stderr=res.stderr or "",
+                reproducer_path=res.reproducer_path or "",
+                reproducer_source=reproducer_source,
+                error_message=res.error_message,
+                duration_seconds=res.duration_seconds,
+                proof_status=proof_status,
+                proof_tier=proof_tier,
+            )
+            # Update finding status in DB
+            _db.update_finding_status(fid, status_val, proof_status, proof_tier)
+
+        except Exception as e:
+            proof_status = "error"
+            proof_tier = 0
+            errors += 1
+            _db.upsert_proof_result(
+                fid,
+                exit_code=None,
+                stdout="",
+                stderr=str(e),
+                reproducer_path="",
+                reproducer_source="",
+                error_message=str(e),
+                duration_seconds=0.0,
+                proof_status="error",
+                proof_tier=0,
+            )
 
         event = {
             "type": "progress",
@@ -870,7 +1022,7 @@ def _run_proof_in_background(spec) -> None:
             "file": c.get("file", ""),
             "line": c.get("line", ""),
             "status": status_val,
-            "tier": c.get("proof_tier", 0),
+            "tier": proof_tier if "proof_tier" in dir() else 0,
         }
         with _lock:
             _state["summary"] = {
@@ -900,7 +1052,7 @@ def _run_proof_in_background(spec) -> None:
 
 
 class QuietThreadingHTTPServer(ThreadingHTTPServer):
-    """Subclass of ThreadingHTTPServer that suppresses harmless client disconnects."""
+    """ThreadingHTTPServer that suppresses harmless client disconnects."""
 
     def handle_error(self, request: object, client_address: object) -> None:
         _, exc, _ = sys.exc_info()
@@ -919,20 +1071,50 @@ def start_server(
     bench_site: str = "",
     port: int = PORT,
     open_browser: bool = True,
+    data_dir: Path | None = None,
 ) -> None:
     """Start local web server on PORT in background thread, then open browser."""
+    # Determine persistent data directory.
+    # IMPORTANT: use the user's home dir, NOT CWD.  CWD changes depending on
+    # where you type `frapast dashboard` — using CWD meant scanning from two
+    # different shell sessions produced two separate, invisible databases.
+    # ~/.frapast is constant regardless of working directory.
+    if data_dir is None:
+        data_dir = Path.home() / ".frapast"
+    _db.init(data_dir)
+
+    # Load persisted bench config into memory (command-line args take precedence)
+    persisted = _db.load_bench_config()
     with _lock:
-        _state["repo"] = str(repo.resolve()) if str(repo) and str(repo) != "." else ""
-        _state["candidates"] = candidates
-        _state["bench_url"] = bench_url
-        _state["bench_user"] = bench_user
-        _state["bench_password"] = bench_password
-        _state["bench_site"] = bench_site
-        _state["summary"] = {
-            "total": len(candidates), "proven": 0, "refuted": 0, "skipped": 0, "errors": 0,
-            "proven_findings": [],
-        }
+        _state["bench_url"] = bench_url or persisted.get("bench_url", "")
+        _state["bench_user"] = bench_user or persisted.get("bench_user", "Administrator")
+        _state["bench_password"] = bench_password or persisted.get("bench_password", "admin")
+        _state["bench_site"] = bench_site or persisted.get("bench_site", "")
         _state["running"] = False
+        _state["scan_running"] = False
+
+    # If the caller already ran a scan (CLI path), pre-load those results
+    if candidates:
+        scan_id = str(uuid.uuid4())
+        _db.create_scan(scan_id, str(repo.resolve()) if str(repo) and str(repo) != "." else "")
+        from scanner.cli import _finding_id, _candidate_repo_id
+        for c in candidates:
+            if not c.get("id"):
+                crid = _candidate_repo_id(c, "local")
+                c["id"] = _finding_id(c, crid)
+        _db.upsert_findings(scan_id, candidates)
+        _db.finish_scan(scan_id, status="done")
+        with _lock:
+            _state["current_scan_id"] = scan_id
+            _state["summary"] = {
+                "total": len(candidates), "proven": 0, "refuted": 0, "skipped": 0, "errors": 0,
+                "proven_findings": [],
+            }
+    else:
+        # Restore most recent completed scan from DB on launch
+        latest = _db.get_latest_scan_id()
+        with _lock:
+            _state["current_scan_id"] = latest
 
     server = None
     for try_port in range(port, port + 10):
@@ -945,12 +1127,10 @@ def start_server(
 
     if server is None:
         print(f"\n❌ Could not start dashboard on ports {port}-{port+9}: All addresses in use.")
-        print("   Stop existing instances or free the port.\n")
         return
 
     server.daemon_threads = True
-    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
-    server_thread.start()
+    threading.Thread(target=server.serve_forever, daemon=True).start()
 
     url = f"http://localhost:{port}"
     import platform
@@ -971,13 +1151,12 @@ def start_server(
     console.print()
     console.print("  [bold white]frapAST Security Engine[/bold white] — [dim]v1.2.0 (Public Beta)[/dim]")
     console.print("  [dim]Enterprise SAST & DAST Platform for Frappe / ERPNext[/dim]\n")
-
     console.print("[dim]┌──────────────────────────────────────────────────────────────────┐[/dim]")
     console.print(f"[dim]│[/dim]   [bold white]Local Dashboard[/bold white]   [bold green]● ONLINE[/bold green]   [underline blue]{url}[/underline blue]             [dim]│[/dim]")
     console.print(f"[dim]│[/dim]   [bold white]Network Host[/bold white]      [bold green]● READY[/bold green]    [underline blue]http://127.0.0.1:{port}[/underline blue]             [dim]│[/dim]")
     console.print("[dim]└──────────────────────────────────────────────────────────────────┘[/dim]\n")
-
     console.print(f"  [dim]Environment  :[/dim] [white]{os_info} | Python {py_ver}[/white]")
+    console.print(f"  [dim]Persistence  :[/dim] [white]{data_dir / 'frapast_web.db'}[/white]")
     console.print(f"  [dim]Security     :[/dim] [white]Origin-gated localhost bridge[/white]\n")
     console.print("  [dim]Press [bold white]Ctrl+C[/bold white] to stop the dashboard server.[/dim]\n")
 
@@ -985,10 +1164,6 @@ def start_server(
         try:
             webbrowser.open(url)
         except Exception:
-            # Silently ignore failures — headless / SSH / container environments
-            # have no display and webbrowser.open raises OSError or spawns a
-            # subprocess that immediately fails. The server is still running;
-            # the user can navigate to the URL manually.
             pass
 
     try:
@@ -1020,19 +1195,13 @@ def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
 
     p = Path(rel_file)
 
-    # Reject absolute input outright — a finding's "file" should always be
-    # repo-relative. Absolute paths are never trusted from the client.
-    # Check both POSIX and Windows absolute formats regardless of runner OS.
     if p.is_absolute() or PureWindowsPath(rel_file).is_absolute() or rel_file.startswith(("/", "\\")):
         return None
 
-    # 1. Direct join with repo_root
     cand = _within_repo(repo_root / p)
     if cand:
         return cand
 
-    # 2. Strip leading path components (handles findings recorded with
-    #    a differing prefix, e.g. "app/scanner/x.py" vs "scanner/x.py")
     parts = p.parts
     for i in range(1, len(parts)):
         sub = Path(*parts[i:])
@@ -1040,10 +1209,6 @@ def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
         if cand:
             return cand
 
-    # 3. Search by filename within repo_root only — require the match to
-    #    be unambiguous. If multiple files share the basename, refuse to
-    #    guess; the caller must be told rather than silently shown the
-    #    wrong file.
     fname = p.name
     if fname:
         candidates = [
@@ -1055,8 +1220,16 @@ def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
             return exact_suffix[0]
         if len(exact_suffix) == 0 and len(candidates) == 1:
             return candidates[0]
-        # 0 matches, or ambiguous (>1) matches — both are "can't resolve
-        # confidently" cases, not "pick one and hope."
         return None
 
     return None
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="frapAST Web Dashboard")
+    parser.add_argument("repo_path", nargs="?", default=".", help="Repository path to scan")
+    parser.add_argument("--port", type=int, default=7777, help="Port to listen on (default 7777)")
+    parser.add_argument("--no-browser", action="store_true", help="Do not open browser automatically")
+    args = parser.parse_args()
+    start_server(Path(args.repo_path), [], port=args.port, open_browser=not args.no_browser)

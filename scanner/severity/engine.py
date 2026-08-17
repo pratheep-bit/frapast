@@ -41,6 +41,7 @@ RULE_IMPACT_MAP: dict[str, str] = {
 	"FR-INJ-005": "data_exposure",       # formerly FR-XSS-001
 	"FR-CSRF-001": "privilege_escalation",
 	"FR-SSRF-001": "data_exposure",
+	"FR-PATH-001": "data_exposure",
 }
 
 # Map rule families to default blast radius (used when no per-rule override
@@ -51,6 +52,7 @@ RULE_BLAST_RADIUS_MAP: dict[str, str] = {
 	"FR-HOOK": "single_doctype",
 	"FR-WKFL": "single_doctype",
 	"FR-INJ": "framework_wide",
+	"FR-PATH": "framework_wide",
 }
 
 # Per-rule blast-radius overrides, checked before the family-level map above.
@@ -62,12 +64,16 @@ RULE_BLAST_RADIUS_OVERRIDES: dict[str, str] = {
 	"FR-INJ-005": "cross_site",
 	"FR-CSRF-001": "cross_site",
 	"FR-SSRF-001": "framework_wide",
+	"FR-PATH-001": "framework_wide",
 }
 
 
 def score_security(candidate: Candidate, allow_guest: bool, proof_tier: int) -> SeverityScore:
 	privilege = "guest" if allow_guest else "authenticated"
 	impact = RULE_IMPACT_MAP.get(candidate.rule_id, "data_exposure")
+	# If FR-PERM-001 is a read-only endpoint (low fix_confidence), lower impact to data_exposure
+	if candidate.rule_id == "FR-PERM-001" and getattr(candidate, "fix_confidence", "") == "low":
+		impact = "data_exposure"
 	family = candidate.rule_id.rsplit("-", 1)[0] if "-" in candidate.rule_id else candidate.rule_id
 	blast_radius = RULE_BLAST_RADIUS_OVERRIDES.get(candidate.rule_id) or RULE_BLAST_RADIUS_MAP.get(family, "single_record")
 	composite = _compute_composite(privilege, allow_guest, impact, blast_radius, proof_tier)
@@ -132,6 +138,7 @@ _SCORERS = {
 	"FR-INJ": score_security,
 	"FR-CSRF": score_security,
 	"FR-SSRF": score_security,
+	"FR-PATH": score_security,
 	"FR-PERF": score_performance,
 	"FR-DATA": score_data,
 	"FR-I18N": score_i18n,

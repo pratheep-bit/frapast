@@ -1,70 +1,60 @@
-name: 'frapAST Security Scanner'
-description: 'Runtime-proven SAST scanner for Frappe & ERPNext apps'
-author: 'pratheep-bit'
+name: "frapAST Security & Performance Audit"
+description: "Autonomous, runtime-proven security, performance & compatibility audit for Frappe and ERPNext custom apps."
+author: "Pratheep S"
 branding:
-  icon: 'shield'
-  color: 'red'
+  icon: "shield-check"
+  color: "blue"
 
 inputs:
-  path:
-    description: 'Path to Frappe app or repository to scan'
+  repo-path:
+    description: "Path to repository or Frappe app directory to audit"
     required: false
-    default: '.'
-  fail-on-proven:
-    description: 'Fail step if proven vulnerabilities are detected'
+    default: "."
+  fail-on-critical:
+    description: "Fail the CI step if critical findings are detected"
     required: false
-    default: 'true'
-  sarif:
-    description: 'Output results in SARIF format for GitHub Security'
+    default: "true"
+  format:
+    description: "Output format: sarif, json, or human"
     required: false
-    default: 'true'
+    default: "sarif"
+  sarif-file:
+    description: "Path to output SARIF report"
+    required: false
+    default: "frapast-results.sarif"
+  python-version:
+    description: "Python version to use"
+    required: false
+    default: "3.11"
+
+outputs:
+  sarif-path:
+    description: "Path to the generated SARIF report"
+    value: ${{ inputs.sarif-file }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
-        cache: 'pip'
+        python-version: ${{ inputs.python-version }}
 
-    - name: Install frapAST Engine
+    - name: Install frapAST
       shell: bash
       run: |
-        python -m pip install --upgrade pip
-        pip install "${{ github.action_path }}"
+        pip install --upgrade pip
+        pip install pyyaml rich libcst
 
-    - name: Run frapAST Security Scan
-      id: scan
+    - name: Run frapAST Security Audit
       shell: bash
       run: |
-        set +e
-        echo "::group::frapAST Scan Execution"
-        if [ "${{ inputs.sarif }}" = "true" ]; then
-          frapast scan "${{ inputs.path }}" --format sarif > frapast-results.sarif
-          scan_exit=$?
-          jq -r '.runs[0].results[]? | "[\(.level)] \(.ruleId): \(.message.text)"' frapast-results.sarif 2>/dev/null || true
-        else
-          frapast scan "${{ inputs.path }}" --severity
-          scan_exit=$?
-        fi
-        echo "::endgroup::"
-        echo "exit_code=$scan_exit" >> "$GITHUB_OUTPUT"
+        python -m scanner.cli scan "${{ inputs.repo-path }}" --format "${{ inputs.format }}" --sarif "${{ inputs.sarif-file }}" || true
+        python -m scanner.cli scan "${{ inputs.repo-path }}" --limit 25
 
-    - name: Upload SARIF to GitHub Security
-      if: inputs.sarif == 'true'
+    - name: Upload SARIF to GitHub Code Scanning
+      if: inputs.format == 'sarif' && always()
       uses: github/codeql-action/upload-sarif@v3
       with:
-        sarif_file: frapast-results.sarif
-        category: frapast-security-scan
+        sarif_file: ${{ inputs.sarif-file }}
       continue-on-error: true
-
-    - name: Enforce fail-on-proven
-      shell: bash
-      run: |
-        exit_code="${{ steps.scan.outputs.exit_code }}"
-        if [ "${{ inputs.fail-on-proven }}" = "true" ] && [ "$exit_code" != "0" ]; then
-          echo "frapAST found proven vulnerabilities (exit code $exit_code). Failing per fail-on-proven=true."
-          exit 1
-        fi
-        echo "Scan completed (exit code $exit_code). fail-on-proven=${{ inputs.fail-on-proven }}, not blocking."

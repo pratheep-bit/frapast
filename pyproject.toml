@@ -31,6 +31,9 @@ dependencies = [
 [project.scripts]
 frapast = "scanner.cli:main"
 
+[project.entry-points."frappe.commands"]
+frapast = "scanner.bench_commands:commands"
+
 [project.urls]
 Homepage = "https://github.com/pratheep-bit/frapast"
 Repository = "https://github.com/pratheep-bit/frapast"

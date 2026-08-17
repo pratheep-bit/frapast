@@ -69,18 +69,18 @@ Our mission is to build the most intelligent, fast, 100% precise, and privacy-fi
 
 ---
 
-## 🗺️ The Path to World Leadership
+## The Path to Ecosystem Leadership
 
-By adhering strictly to this ideology, `frapast` will achieve what no other tool in the ecosystem offers:
+By adhering strictly to this ideology, frapAST provides:
 
 ```text
-[Aerele Lens / SaaS Scanners]           [Generic Linters]                  [frapast Engine]
-  • Paid per scan (₹15K)                  • Ignores Frappe idioms            • 100% Free & Open Source
-  • Cloud zip uploads                     • High false positive rate         • 100% Local & Private
-  • Static-only (guesses)                 • No proof engine                  • 2-Tier Runtime Proof Engine
-  • Web dashboard only                    • Generic suggestions              • SARIF + REPL + Auto-Fix PRs
+[Cloud SaaS Scanners]                   [Generic Linters]                  [frapAST Engine]
+  - Paid paywalls                         - Ignores Frappe idioms            - 100% Free & Open Source
+  - Cloud source code uploads             - High false positive rate         - 100% Local & Private
+  - Static-only guesses                   - No proof engine                  - 2-Tier Runtime Proof Engine
+  - Proprietary web dashboards            - Generic suggestions              - SARIF + Bench CLI + Autofix
 ```
 
 ---
 
-*“Security is not a tax you pay to a cloud vendor. It is a craftsmanship standard built directly into your workflow.”*
+*"Security is not a tax paid to third-party cloud vendors. It is a craftsmanship standard built directly into your workflow."*

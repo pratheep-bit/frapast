@@ -213,6 +213,7 @@ class TestHTTPSynthesisPerRule(unittest.TestCase):
         ("FR-SQLI-004", {"rule_id": "FR-SQLI-004", "function": "my_app.api.dynamic_table"}),
         ("FR-INJ-001",  {"rule_id": "FR-INJ-001",  "function": "my_app.api.create_doc"}),
         ("FR-INJ-002",  {"rule_id": "FR-INJ-002",  "function": "my_app.api.run_code"}),
+        ("FR-PATH-001", {"rule_id": "FR-PATH-001", "function": "my_app.api.read_template"}),
         ("FR-CSRF-001", {"rule_id": "FR-CSRF-001", "function": "my_app.api.submit_form"}),
         ("FR-SSRF-001", {"rule_id": "FR-SSRF-001", "function": "my_app.api.fetch_url"}),
     ]

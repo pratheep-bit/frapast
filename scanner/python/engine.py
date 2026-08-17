@@ -19,12 +19,15 @@ from scanner.python.models import (
 	IgnorePermissionsRecord,
 	ImportRecord,
 	MsgprintRecord,
+	MutationRecord,
 	OutboundRequestRecord,
+	PathTraversalRecord,
 	PermCheckRecord,
 	PythonParseError,
 	PythonParseErrorRecord,
 	PythonSymbolIndex,
 	QueryBuilderRecord,
+	ReportEntryPointRecord,
 	SetValueRecord,
 	SqlCallRecord,
 	BareExceptRecord,
@@ -172,6 +175,9 @@ class _IndexCollector:
 		self.fieldname_references: list[FieldnameRefRecord] = []
 		self.queries_in_loop: list[QueryInLoopRecord] = []
 		self.hardcoded_user_strings: list[HardcodedStringRecord] = []
+		self.mutations: list[MutationRecord] = []
+		self.path_traversals: list[PathTraversalRecord] = []
+		self.report_entry_points: list[ReportEntryPointRecord] = []
 		self.unused_imports: list[UnusedImportRecord] = []
 		self.parse_errors: list[PythonParseErrorRecord] = []
 		self._document_subclass_names: set[str] = set()
@@ -257,10 +263,40 @@ class _IndexCollector:
 
 		doctype_name = _class_name_to_doctype(node.name) if is_document_subclass else None
 
+		# FIX B & FIX A: collect every method/property name and every instance attribute
+		# explicitly assigned to `self` directly in this class body.
+		# These names are valid attribute accesses on `self` even if not in the DocType
+		# JSON schema (e.g. @cached_property, @property, regular methods, or runtime
+		# cache/state attributes initialized in methods like `self.allow_multiple_shifts = ...`).
+		# Passing this set into each child visitor prevents false positives on valid controller state.
+		class_valid_attrs: set[str] = {
+			child.name
+			for child in node.body
+			if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+		}
+		for stmt in ast.walk(node):
+			if isinstance(stmt, ast.Assign):
+				for target in stmt.targets:
+					if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "self":
+						class_valid_attrs.add(target.attr)
+					elif isinstance(target, (ast.Tuple, ast.List)):
+						for elt in target.elts:
+							if isinstance(elt, ast.Attribute) and isinstance(elt.value, ast.Name) and elt.value.id == "self":
+								class_valid_attrs.add(elt.attr)
+			elif isinstance(stmt, (ast.AnnAssign, ast.AugAssign)):
+				if isinstance(stmt.target, ast.Attribute) and isinstance(stmt.target.value, ast.Name) and stmt.target.value.id == "self":
+					class_valid_attrs.add(stmt.target.attr)
+
+		frozen_class_valid_attrs = frozenset(class_valid_attrs)
+
 		for child in node.body:
 			if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
 				method_names.append(child.name)
-				self._collect_function(source, child, lines, (node.name,), doctype_name, import_map=import_map)
+				self._collect_function(
+					source, child, lines, (node.name,), doctype_name,
+					import_map=import_map,
+					class_valid_attrs=frozen_class_valid_attrs,
+				)
 
 		lifecycle_names = set(method_names) & LIFECYCLE_METHODS
 		if lifecycle_names:
@@ -286,6 +322,7 @@ class _IndexCollector:
 		class_stack: tuple[str, ...],
 		doctype_name: str | None = None,
 		import_map: dict[str, str] | None = None,
+		class_valid_attrs: frozenset[str] = frozenset(),
 	) -> None:
 		if import_map is None:
 			import_map = {}
@@ -296,6 +333,10 @@ class _IndexCollector:
 		self.functions.append(FunctionRecord(symbol_id, source.relative_path, node.name, qualified_name, span))
 		if _is_whitelisted(node, import_map):
 			self.whitelisted.append(WhitelistedEndpoint(qualified_name, _allow_guest(node, import_map), span, symbol_id))
+		if _is_report_path(source.relative_path) and node.name == "execute":
+			self.report_entry_points.append(ReportEntryPointRecord(source.relative_path, node.name, symbol_id, span))
+		if _has_search_inputs_validator(node, import_map):
+			self.permission_checks.append(PermCheckRecord(qualified_name, span, symbol_id))
 		visitor = _FunctionBodyVisitor(
 			source,
 			lines,
@@ -307,6 +348,7 @@ class _IndexCollector:
 			import_map=import_map,
 		)
 		visitor._current_class_doctype = doctype_name
+		visitor._class_valid_attrs = class_valid_attrs
 		
 		# Collect mutable default args
 		def _check_default(default_node: ast.AST, arg_name: str) -> None:
@@ -356,6 +398,18 @@ class _IndexCollector:
 		self.fieldname_references.extend(visitor.fieldname_references)
 		self.queries_in_loop.extend(visitor.queries_in_loop)
 		self.hardcoded_user_strings.extend(visitor.hardcoded_user_strings)
+		self.mutations.extend(visitor.mutations)
+		for span, call_name in visitor.raw_path_traversals:
+			self.path_traversals.append(
+				PathTraversalRecord(
+					function=qualified_name,
+					span=span,
+					symbol_id=symbol_id,
+					call_name=call_name,
+					has_guard=visitor.has_path_guard,
+					request_controlled=True,
+				)
+			)
 
 	def _collect_unused_imports(
 		self, source: SourceFile, tree: ast.Module, import_map: dict[str, str]
@@ -407,6 +461,9 @@ class _IndexCollector:
 			fieldname_references=tuple(self.fieldname_references),
 			queries_in_loop=tuple(self.queries_in_loop),
 			hardcoded_user_strings=tuple(self.hardcoded_user_strings),
+			mutations=tuple(self.mutations),
+			path_traversals=tuple(self.path_traversals),
+			report_entry_points=tuple(self.report_entry_points),
 			unused_imports=tuple(self.unused_imports),
 			parse_errors=tuple(self.parse_errors),
 		)
@@ -434,6 +491,18 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		self.import_map = import_map
 		self._current_class_doctype: str | None = None
 		self.values: dict[str, ast.AST] = {}
+		# Guard: True while we are visiting the `func` child of an ast.Call node.
+		# When True, visit_Attribute must NOT record a fieldname_reference because
+		# the attribute is the callee of a method invocation, not a field read.
+		# Example: `self.set_status()` — the `self.set_status` Attribute node has
+		# ctx=Load, identical to a field read — this flag is the only way to
+		# distinguish them inside a NodeVisitor traversal.
+		self._in_call_func: bool = False
+		# FIX B & FIX A: names of methods/properties and instance attributes defined
+		# directly in the enclosing class body.
+		# These are valid attribute names on `self` even if absent from the DocType schema.
+		# Set by _collect_function from the per-class set built in _collect_class.
+		self._class_valid_attrs: frozenset[str] = frozenset()
 		self.ignore_permissions: list[IgnorePermissionsRecord] = []
 		self.sql_calls: list[SqlCallRecord] = []
 		self.permission_checks: list[PermCheckRecord] = []
@@ -454,6 +523,9 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		self.fieldname_references: list[FieldnameRefRecord] = []
 		self.queries_in_loop: list[QueryInLoopRecord] = []
 		self.hardcoded_user_strings: list[HardcodedStringRecord] = []
+		self.mutations: list[MutationRecord] = []
+		self.raw_path_traversals: list[tuple[SourceSpan, str]] = []
+		self.has_path_guard: bool = False
 
 	def visit_Try(self, node: ast.Try) -> None:
 		for handler in node.handlers:
@@ -481,14 +553,42 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		self.collector._collect_function(self.source, node, self.lines, (self.qualified_name,))
 
 	def visit_Attribute(self, node: ast.Attribute) -> None:
-		if isinstance(node.value, ast.Name):
+		# Check for frappe.session.user access (session-user scoped query/logic)
+		if _call_name(node, self.import_map) == "frappe.session.user":
+			self.permission_checks.append(
+				PermCheckRecord(self.function, _span(self.source, node, self.lines), self.symbol_id)
+			)
+		# Skip when this Attribute node is the `func` of an enclosing Call node
+		# (i.e. a method invocation target like `self.set_status` in `self.set_status()`).
+		# Both method call targets and field reads have ctx=Load; the _in_call_func
+		# flag set by visit_Call is the only reliable way to distinguish them.
+		if not self._in_call_func and isinstance(node.value, ast.Name):
+			attr_name = node.attr
+			# FIX A: exclude leading-underscore attributes unconditionally.
+			# Python convention for private/internal attrs (_x, __x). These are never
+			# persisted DocType fields. Firing on them is always a false positive.
+			# Examples from hrms: self._condition, self._advance_deduction_entries,
+			# self._holidays_between_dates, salary_structure._doc_before_save.
+			if attr_name.startswith("_"):
+				self.generic_visit(node)
+				return
+			# FIX A: assignments to self (ast.Store context) define/update instance attributes,
+			# not schema field reads.
+			if node.value.id == "self" and isinstance(node.ctx, ast.Store):
+				self.generic_visit(node)
+				return
 			doctype, confidence = self._resolve_doctype_for_var(node.value.id)
 			if doctype is not None and isinstance(node.ctx, (ast.Load, ast.Store)):
+				# FIX B & FIX A: exclude names that are methods/properties or instance attributes
+				# defined in the same class body on `self`.
+				if node.value.id == "self" and attr_name in self._class_valid_attrs:
+					self.generic_visit(node)
+					return
 				self.fieldname_references.append(FieldnameRefRecord(
 					symbol_id=self.symbol_id,
 					span=_span(self.source, node, self.lines),
 					doctype=doctype,
-					fieldname=node.attr,
+					fieldname=attr_name,
 					access_kind="attr",
 					doctype_resolution_confidence=confidence,
 				))
@@ -508,12 +608,26 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		if iterates_query_result:
 			for inner in ast.walk(node):
 				if isinstance(inner, ast.Call) and _call_name(inner.func) == "frappe.get_doc":
-					self.queries_in_loop.append(QueryInLoopRecord(
-						symbol_id=self.symbol_id,
-						span=_span(self.source, inner, self.lines),
-						query_kind="get_doc",
-						loop_iterates_over_query_result=True,
-					))
+					# Only count as database read if first arg is NOT a dict literal
+					# e.g. frappe.get_doc("DocType", name) -> DB read query
+					# frappe.get_doc({"doctype": ...}) or frappe.get_doc(dict(...)) -> in-memory construction
+					is_dict_construction = False
+					if inner.args:
+						first_arg = inner.args[0]
+						if isinstance(first_arg, ast.Dict):
+							is_dict_construction = True
+						elif isinstance(first_arg, ast.Call) and _call_name(first_arg.func) == "dict":
+							is_dict_construction = True
+					elif inner.keywords:
+						is_dict_construction = any(kw.arg == "doctype" for kw in inner.keywords)
+
+					if not is_dict_construction:
+						self.queries_in_loop.append(QueryInLoopRecord(
+							symbol_id=self.symbol_id,
+							span=_span(self.source, inner, self.lines),
+							query_kind="get_doc",
+							loop_iterates_over_query_result=True,
+						))
 		self.generic_visit(node)
 
 	def _iter_is_query_result(self, iter_node: ast.AST) -> bool:
@@ -551,6 +665,30 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 			self.permission_checks.append(
 				PermCheckRecord(self.function, _span(self.source, node, self.lines), self.symbol_id)
 			)
+		if self._check_path_guard(node.test):
+			self.has_path_guard = True
+		self.generic_visit(node)
+
+	def _check_path_guard(self, test_node: ast.AST) -> bool:
+		for subnode in ast.walk(test_node):
+			if isinstance(subnode, ast.Call):
+				fn_name = _call_name(subnode.func, self.import_map)
+				attr = subnode.func.attr if isinstance(subnode.func, ast.Attribute) else ""
+				if attr in {"startswith", "is_relative_to", "is_safe_path"} or fn_name in {
+					"is_safe_path", "frappe.utils.file_manager.is_safe_path",
+					"os.path.commonpath", "os.path.commonprefix", "validate_path"
+				}:
+					return True
+		return False
+
+	def visit_Raise(self, node: ast.Raise) -> None:
+		if node.exc:
+			exc_target = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
+			exc_name = _call_name(exc_target, self.import_map)
+			if "PermissionError" in exc_name:
+				self.permission_checks.append(
+					PermCheckRecord(self.function, _span(self.source, node, self.lines), self.symbol_id)
+				)
 		self.generic_visit(node)
 
 	def visit_Call(self, node: ast.Call) -> None:
@@ -570,7 +708,29 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 					query,
 				)
 			)
-		if name in {"frappe.has_permission", "frappe.only_for"}:
+		# Permission checks:
+		# a) frappe.has_permission, frappe.only_for, frappe.permissions.*
+		# b) instance methods: self.check_permission, doc.check_permission, *.has_permission, *.only_for
+		if (
+			name in {"frappe.has_permission", "frappe.only_for", "frappe.permissions.has_permission", "frappe.permissions.has_role"}
+			or (isinstance(node.func, ast.Attribute) and node.func.attr in {"check_permission", "has_permission", "only_for"})
+		):
+			self.permission_checks.append(PermCheckRecord(self.function, span, self.symbol_id))
+
+		# c) Explicit PermissionError throw
+		if name in {"frappe.throw", "throw"} or (isinstance(node.func, ast.Attribute) and node.func.attr == "throw"):
+			has_perm_err = any(
+				"PermissionError" in _call_name(arg, self.import_map)
+				for arg in node.args
+			) or any(
+				keyword.arg == "exc" and "PermissionError" in _call_name(keyword.value, self.import_map)
+				for keyword in node.keywords
+			)
+			if has_perm_err:
+				self.permission_checks.append(PermCheckRecord(self.function, span, self.symbol_id))
+
+		# d) Session-scoped helpers
+		if name in {"get_current_employee", "get_current_user_info", "get_current_user", "frappe.session.user", "frappe.get_user"}:
 			self.permission_checks.append(PermCheckRecord(self.function, span, self.symbol_id))
 		if name == "frappe.db.commit":
 			self.commit_calls.append(CommitCallRecord(self.function, span, self.symbol_id))
@@ -587,7 +747,45 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 					self.symbol_id,
 				)
 			)
-		# frappe.enqueue detection
+		# Mutation / write operation detection
+		is_mutation = False
+		if isinstance(node.func, ast.Attribute) and node.func.attr in {
+			"save", "insert", "delete", "cancel", "submit", "db_set", "db_insert", "db_update", "db_delete",
+		}:
+			is_mutation = True
+		elif name in {
+			"frappe.db.set_value", "frappe.db.set_values", "frappe.db.delete",
+			"frappe.delete_doc", "frappe.db.commit", "frappe.db.truncate", "frappe.enqueue",
+		}:
+			is_mutation = True
+		elif name == "frappe.db.sql":
+			query_node = _resolve_expression(node.args[0], self.values) if node.args else None
+			query = _literal_string(query_node)
+			if query and re.search(r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|REPLACE|TRUNCATE)\b", query, re.IGNORECASE):
+				is_mutation = True
+
+		if is_mutation:
+			self.mutations.append(MutationRecord(self.function, span, self.symbol_id, name))
+
+		# Path traversal detection (FR-PATH-001)
+		is_file_sink = False
+		path_arg = None
+		if name in {"open", "io.open", "frappe.get_file", "frappe.read_file", "os.remove", "os.unlink", "os.listdir", "os.scandir", "os.walk"}:
+			is_file_sink = True
+			path_arg = node.args[0] if node.args else None
+		elif name in {"shutil.copy", "shutil.copyfile", "shutil.copy2", "shutil.move", "shutil.rmtree"}:
+			is_file_sink = True
+			path_arg = node.args[0] if node.args else None
+		elif isinstance(node.func, ast.Attribute) and node.func.attr in {"read_text", "read_bytes", "write_text", "write_bytes"}:
+			is_file_sink = True
+			path_arg = node.func.value
+
+		if is_file_sink and path_arg is not None:
+			is_controlled = _request_controlled(path_arg, self.values, self.parameters, self.import_map)
+			if is_controlled:
+				self.raw_path_traversals.append((span, name or node.func.attr))
+
+		# frappe.enqueue detection (for FR-HOOK-004)
 		if name == "frappe.enqueue":
 			has_dedupe = any(keyword.arg in {"deduplicate", "job_id", "queue_id"} for keyword in node.keywords)
 			self.enqueue_calls.append(
@@ -603,7 +801,7 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 			)
 		# frappe.qb dynamic table detection
 		if name in {"frappe.qb.from_", "frappe.qb.DocType"}:
-			dynamic = _is_dynamic_qb_target(node.args[0] if node.args else None, self.values)
+			dynamic = _is_dynamic_qb_target(node.args[0] if node.args else None, self.values, self.parameters, self.import_map)
 			self.query_builder_calls.append(
 				QueryBuilderRecord(self.function, dynamic, span, self.symbol_id)
 			)
@@ -643,7 +841,16 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 			self.calls.append(CallRecord(self.symbol_id, node.func.id, span))
 		elif not name:
 			self.unresolved.append(f"{self.symbol_id}:{span.line_start}:dynamic_call")
-		self.generic_visit(node)
+		# Visit the func child with the guard raised so that visit_Attribute
+		# knows not to treat method callee attributes as field references.
+		self._in_call_func = True
+		try:
+			self.visit(node.func)
+		finally:
+			self._in_call_func = False
+		# Visit args/keywords normally (field reads inside arguments are valid).
+		for child in (*node.args, *node.keywords):
+			self.visit(child)
 
 		# String dispatch: frappe.call("a.b.c") / frappe.enqueue("a.b.c")
 		if name in {"frappe.call", "frappe.enqueue"}:
@@ -681,7 +888,7 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		if name in {"frappe.msgprint", "frappe.throw"}:
 			uses_user_input = False
 			if node.args:
-				uses_user_input = _request_controlled(node.args[0], self.values, self.parameters, self.import_map)
+				uses_user_input = _is_dangerous_msgprint_arg(node.args[0], self.values, self.parameters, self.import_map)
 			if uses_user_input:
 				self.msgprint_calls.append(
 					MsgprintRecord(self.function, uses_user_input, span, self.symbol_id)
@@ -697,9 +904,24 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 			)
 
 
+def _is_report_path(path: str) -> bool:
+	parts = [part.lower() for part in path.replace("\\", "/").split("/")]
+	return "report" in parts or any(part.endswith("_report") for part in parts)
+
+
 def _is_whitelisted(node: ast.FunctionDef | ast.AsyncFunctionDef, import_map: dict[str, str] | None = None) -> bool:
 	return any(
 		_call_name(decorator.func if isinstance(decorator, ast.Call) else decorator, import_map) == "frappe.whitelist"
+		for decorator in node.decorator_list
+	)
+
+
+def _has_search_inputs_validator(node: ast.FunctionDef | ast.AsyncFunctionDef, import_map: dict[str, str] | None = None) -> bool:
+	return any(
+		_call_name(decorator.func if isinstance(decorator, ast.Call) else decorator, import_map) in {
+			"frappe.validate_and_sanitize_search_inputs",
+			"validate_and_sanitize_search_inputs",
+		}
 		for decorator in node.decorator_list
 	)
 
@@ -739,8 +961,9 @@ def _literal_string(node: ast.AST | None) -> str | None:
 		for part in node.values:
 			if isinstance(part, ast.Constant) and isinstance(part.value, str):
 				parts.append(part.value)
-			elif isinstance(part, ast.FormattedValue):
-				parts.append("%")
+			else:
+				# Contains dynamic formatted value/expression — not a static literal string
+				return None
 		return "".join(parts)
 	return None
 
@@ -767,30 +990,65 @@ def _request_controlled(
 		return _request_controlled(values[node.id], values, parameters, import_map, seen | {node.id})
 	if isinstance(node, ast.Attribute):
 		attr_name = _call_name(node, import_map)
-		return attr_name.startswith("frappe.form_dict") or attr_name.startswith("frappe.local.form_dict") or attr_name.startswith("frappe.request")
+		if attr_name.startswith("frappe.form_dict") or attr_name.startswith("frappe.local.form_dict") or attr_name.startswith("frappe.request"):
+			return True
+		return _request_controlled(node.value, values, parameters, import_map, seen)
+	if isinstance(node, ast.Subscript):
+		return _request_controlled(node.value, values, parameters, import_map, seen)
 	if isinstance(node, ast.Call):
 		func_name = _call_name(node.func, import_map)
 		is_source = func_name.startswith("frappe.form_dict") or func_name.startswith("frappe.local.form_dict") or func_name.startswith("frappe.request")
-		return is_source or any(
+		if is_source:
+			return True
+		if isinstance(node.func, ast.Attribute) and _request_controlled(node.func.value, values, parameters, import_map, seen):
+			return True
+		return any(
 			_request_controlled(argument, values, parameters, import_map, seen)
 			for argument in (*node.args, *(item.value for item in node.keywords))
 		)
 	return any(_request_controlled(child, values, parameters, import_map, seen) for child in ast.iter_child_nodes(node))
 
 
-def _is_dynamic_qb_target(node: ast.AST | None, values: dict[str, ast.AST]) -> bool:
+def _is_dangerous_msgprint_arg(
+	arg: ast.AST, values: dict[str, ast.AST], parameters: set[str], import_map: dict[str, str] | None = None
+) -> bool:
+	if not _request_controlled(arg, values, parameters, import_map):
+		return False
+	# Plain string translations without HTML tags are escaped by Frappe Desk UI
+	if isinstance(arg, ast.Call):
+		func_name = _call_name(arg.func, import_map)
+		if isinstance(arg.func, ast.Attribute) and arg.func.attr == "format":
+			target_str = _literal_string(_resolve_expression(arg.func.value, values))
+			if target_str and ("<" not in target_str and ">" not in target_str):
+				return False
+		elif func_name in {"_", "frappe._"} or func_name.endswith("._"):
+			return False
+	return True
+
+
+def _is_dynamic_qb_target(
+	node: ast.AST | None, values: dict[str, ast.AST], parameters: set[str] | None = None, import_map: dict[str, str] | None = None
+) -> bool:
 	if node is None:
 		return False
 	resolved = _resolve_expression(node, values)
 	if isinstance(resolved, ast.Constant):
 		return False
+	if isinstance(resolved, (ast.JoinedStr, ast.BinOp)):
+		return True
 	if isinstance(resolved, ast.Call):
-		func_name = _call_name(resolved.func)
+		func_name = _call_name(resolved.func, import_map)
 		if (func_name in {"frappe.qb.DocType", "qb.DocType", "DocType"} or func_name.endswith(".DocType")) and resolved.args:
 			arg_res = _resolve_expression(resolved.args[0], values)
 			if isinstance(arg_res, ast.Constant):
 				return False
-	return True
+			if isinstance(arg_res, (ast.JoinedStr, ast.BinOp)):
+				return True
+			if parameters is not None:
+				return _request_controlled(arg_res, values, parameters, import_map)
+	if parameters is not None:
+		return _request_controlled(resolved, values, parameters, import_map)
+	return False
 
 
 def _set_value_field_name(node: ast.Call) -> str | None:
@@ -868,6 +1126,17 @@ def _is_explicit_owner_or_role_guard(node: ast.If, import_map: dict[str, str] | 
 		call in _ROLE_PERMISSION_CALL_NAMES or call.endswith(_ROLE_PERMISSION_CALL_SUFFIXES)
 		for call in condition_calls
 	)
+	has_dev_mode = any(name.endswith("developer_mode") for name in condition_names)
+
+	if has_dev_mode:
+		for statement in node.body:
+			if isinstance(statement, (ast.Raise, ast.Return)):
+				return True
+			for call in ast.walk(statement):
+				if isinstance(call, ast.Call):
+					call_name = _call_name(call.func, import_map)
+					if call_name in {"frappe.throw", "frappe.msgprint"} or call_name.endswith(".throw"):
+						return True
 
 	if not has_session_user or not (has_owner or has_role_check):
 		return False

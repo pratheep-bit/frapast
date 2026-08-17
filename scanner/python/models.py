@@ -60,6 +60,32 @@ class DirectWriteRecord:
 
 
 @dataclass(frozen=True)
+class MutationRecord:
+	function: str
+	span: SourceSpan
+	symbol_id: str
+	kind: str
+
+
+@dataclass(frozen=True)
+class PathTraversalRecord:
+	function: str
+	span: SourceSpan
+	symbol_id: str
+	call_name: str
+	has_guard: bool
+	request_controlled: bool
+
+
+@dataclass(frozen=True)
+class ReportEntryPointRecord:
+	file: str
+	function: str
+	symbol_id: str
+	span: SourceSpan
+
+
+@dataclass(frozen=True)
 class FunctionRecord:
 	id: str
 	file: str
@@ -271,6 +297,9 @@ class PythonSymbolIndex:
 	fieldname_references: tuple[FieldnameRefRecord, ...] = ()
 	queries_in_loop: tuple[QueryInLoopRecord, ...] = ()
 	hardcoded_user_strings: tuple[HardcodedStringRecord, ...] = ()
+	mutations: tuple[MutationRecord, ...] = ()
+	path_traversals: tuple[PathTraversalRecord, ...] = ()
+	report_entry_points: tuple[ReportEntryPointRecord, ...] = ()
 	unused_imports: tuple[UnusedImportRecord, ...] = ()
 	parse_errors: tuple[PythonParseErrorRecord, ...] = ()
 

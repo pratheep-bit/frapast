@@ -1053,10 +1053,155 @@ function openDrawer(key) {
   toggleDrawerField('drawerEvidenceWrap', 'drawerEvidence', f.evidence, true);
   toggleDrawerField('drawerRemediationWrap', 'drawerRemediation', f.remediation);
 
+  loadDrawerProofDetails(f);
+  loadDrawerFixDetails(f);
+
   els.drawer.classList.add('open');
   els.drawer.setAttribute('aria-hidden', 'false');
   els.drawerBackdrop.classList.add('open');
   els.drawerCloseBtn.focus();
+}
+
+function loadDrawerProofDetails(f) {
+  if (!els.drawerProofSection) return;
+
+  const findingId = f.id;
+  if (!findingId) {
+    els.drawerProofLoading.style.display = 'block';
+    els.drawerProofLoading.textContent = 'No finding ID available to query proof details.';
+    els.drawerProofContent.style.display = 'none';
+    return;
+  }
+
+  els.drawerProofLoading.style.display = 'block';
+  els.drawerProofLoading.textContent = 'Loading verification details…';
+  els.drawerProofContent.style.display = 'none';
+  els.drawerProofStatusBadge.innerHTML = '';
+
+  fetch(`/api/findings/${encodeURIComponent(findingId)}/proof`)
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then((proof) => {
+      els.drawerProofLoading.style.display = 'none';
+      els.drawerProofContent.style.display = 'flex';
+
+      const pStatus = normalizeStatus(proof.proof_status || f.status);
+      els.drawerProofStatusBadge.innerHTML = statusBadgeHtml(pStatus);
+
+      // Meta row
+      els.drawerProofExitCode.textContent = proof.exit_code !== null && proof.exit_code !== undefined
+        ? String(proof.exit_code)
+        : (pStatus === 'skipped' ? 'N/A' : '—');
+      els.drawerProofDuration.textContent = Number.isFinite(proof.duration_seconds)
+        ? `${proof.duration_seconds.toFixed(3)}s`
+        : '—';
+      els.drawerProofTier.textContent = Number.isFinite(proof.proof_tier)
+        ? `Tier ${proof.proof_tier}`
+        : 'Tier 0';
+
+      // Skip reason
+      if (proof.skip_reason) {
+        els.drawerProofSkipWrap.style.display = 'block';
+        els.drawerProofSkipReason.textContent = proof.skip_reason;
+      } else {
+        els.drawerProofSkipWrap.style.display = 'none';
+      }
+
+      // Reproducer script
+      if (proof.reproducer_source) {
+        els.drawerProofScriptWrap.style.display = 'block';
+        els.drawerProofScriptPath.textContent = proof.reproducer_path || 'synthesized';
+        els.drawerProofScript.textContent = proof.reproducer_source;
+      } else {
+        els.drawerProofScriptWrap.style.display = 'none';
+      }
+
+      // Stdout
+      if (proof.stdout && proof.stdout.trim()) {
+        els.drawerProofStdoutWrap.style.display = 'block';
+        els.drawerProofStdout.textContent = proof.stdout;
+      } else {
+        els.drawerProofStdoutWrap.style.display = 'none';
+      }
+
+      // Stderr
+      if (proof.stderr && proof.stderr.trim()) {
+      els.drawerProofStderrWrap.style.display = 'none';
+      }
+    })
+    .catch((err) => {
+      els.drawerProofLoading.style.display = 'block';
+      els.drawerProofLoading.textContent = `Could not load proof details: ${err.message}`;
+      els.drawerProofContent.style.display = 'none';
+    });
+}
+
+function loadDrawerFixDetails(f) {
+  const fixSection = $('drawerFixSection');
+  if (!fixSection) return;
+
+  const fixDesc = $('drawerFixDescription');
+  const fixDiff = $('drawerFixDiff');
+  const applyBtn = $('drawerApplyFixBtn');
+
+  fixSection.style.display = 'none';
+  if (applyBtn) {
+    applyBtn.textContent = 'Apply Fix';
+    applyBtn.disabled = false;
+    applyBtn.style.background = '#10b981';
+  }
+
+  fetch('/api/fix/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ finding_id: f.id, finding_data: f })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.has_fix && data.diff) {
+      fixSection.style.display = 'block';
+      fixDesc.textContent = data.description || 'Automated code transformation available';
+      fixDiff.textContent = data.diff;
+
+      if (applyBtn) {
+        applyBtn.onclick = () => {
+          applyBtn.textContent = 'Applying…';
+          applyBtn.disabled = true;
+          fetch('/api/fix/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ finding_id: f.id, finding_data: f })
+          })
+          .then(r => r.json())
+          .then(res => {
+            if (res.success) {
+              applyBtn.textContent = '✅ Applied to File';
+              applyBtn.style.background = '#059669';
+              if (typeof showToast === 'function') {
+                showToast(res.message || 'Fix applied successfully!', 'success');
+              }
+            } else {
+              applyBtn.textContent = 'Failed';
+              applyBtn.style.background = '#ef4444';
+              if (typeof showToast === 'function') {
+                showToast(res.error || 'Failed to apply fix', 'error');
+              }
+            }
+          })
+          .catch(err => {
+            applyBtn.textContent = 'Error';
+            applyBtn.style.background = '#ef4444';
+            if (typeof showToast === 'function') {
+              showToast(`Error: ${err.message}`, 'error');
+            }
+          });
+        };
+      }
+    }
+  })
+  .catch(() => {});
 }
 
 function toggleDrawerField(wrapId, valueId, value, isCode) {
@@ -1487,6 +1632,12 @@ function cacheEls() {
     'browseBtn', 'folderModalOverlay', 'folderModalClose', 'folderModalCancel', 'folderModalSelectBtn',
     'folderQuickLocations', 'folderUpBtn', 'folderCurrentPath', 'folderList', 'folderSelectedLabel',
     'nativePickerBtn', 'nativeFolderInput',
+    // Proof evidence elements in drawer
+    'drawerProofSection', 'drawerProofStatusBadge', 'drawerProofLoading', 'drawerProofContent',
+    'drawerProofMetaRow', 'drawerProofExitCode', 'drawerProofDuration', 'drawerProofTier',
+    'drawerProofSkipWrap', 'drawerProofSkipReason', 'drawerProofScriptWrap', 'drawerProofScriptPath',
+    'drawerProofScript', 'drawerProofStdoutWrap', 'drawerProofStdout', 'drawerProofStderrWrap',
+    'drawerProofStderr',
   ].forEach((id) => { els[id] = $(id); });
 }
 
