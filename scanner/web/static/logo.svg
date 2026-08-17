@@ -1,6 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <title>frapAST Logo (Dark)</title>
-  <rect width="512" height="512" rx="96" fill="#0f172a"/>
-  <rect x="2" y="2" width="508" height="508" rx="94" fill="none" stroke="#1e293b" stroke-width="4"/>
-  <polyline points="144,372 256,140 368,372" fill="none" stroke="#38bdf8" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <!-- Soft Ambient Drop Shadow for the Diamond Card -->
+    <filter id="cardShadow_dark" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#090D16" flood-opacity="0.4"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#090D16" flood-opacity="0.1"/>
+    </filter>
+
+    <clipPath id="squircleClip">
+      <rect x="-175" y="-175" width="350" height="350" rx="88"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background 4-Color Layer (Upright Rounded Squircle with 4 Color Quadrants) -->
+  <g transform="translate(256, 256)">
+    <g clip-path="url(#squircleClip)">
+      <!-- Top-Left / Top Orange Sector -->
+      <rect x="-180" y="-180" width="185" height="185" fill="#FF7A45"/>
+      <!-- Top-Right / Right Rose Pink Sector -->
+      <rect x="0" y="-180" width="185" height="185" fill="#F472B6"/>
+      <!-- Bottom-Right / Bottom Sky Blue Sector -->
+      <rect x="0" y="0" width="185" height="185" fill="#38BDF8"/>
+      <!-- Bottom-Left / Left Golden Yellow Sector -->
+      <rect x="-180" y="0" width="185" height="185" fill="#FBBF24"/>
+    </g>
+  </g>
+
+  <!-- Central Tilted 45-Degree Diamond Card -->
+  <g transform="translate(256, 256) rotate(45)">
+    <rect x="-148" y="-148" width="296" height="296" rx="72" fill="#0F172A" filter="url(#cardShadow_dark)"/>
+    <rect x="-148" y="-148" width="296" height="296" rx="72" fill="none" stroke="#1E293B" stroke-width="2"/>
+  </g>
+
+  <!-- Foreground Λ Symbol centered on the Card -->
+  <g transform="translate(256, 256)">
+    <polyline points="-72,75 0,-68 72,75" fill="none" stroke="#FFFFFF" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
 </svg>
