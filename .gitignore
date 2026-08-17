@@ -8,6 +8,7 @@ env/
 venv/
 ENV/
 .venv/
+path/
 
 # OS / IDE
 .DS_Store
@@ -20,12 +21,21 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+*.bak
 
 # Logs & Temporary Scan Artifacts
 *.log
 build/
 *.egg-info/
-__pycache__/
 dist/
 findings/
 runtime/
+
+# Raw PR analysis & scraping data dumps
+erpnext_*.json
+ERPNEXT_*.md
+CODEBASE_80_20.md
+SCANNER_ARCHITECTURE.md
+SCANNER_MASTER_REFERENCE.md
+rm.md
+run_full_pipeline.sh

@@ -1,9 +1,0 @@
-id: FR-INJ-001
-name: Mass assignment via kwargs
-description: >
-  Request dictionaries flow into document construction without allowlists.
-ast_confidence: low
-runtime_required: true
-historical_evidence:
-  - infra.md taxonomy category definition
-detector_status: none

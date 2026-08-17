@@ -1,9 +1,0 @@
-id: FR-DATA-002
-name: Site isolation leak
-description: >
-  Request or cache state leaks across sites in a shared bench.
-ast_confidence: low
-runtime_required: true
-historical_evidence:
-  - infra.md taxonomy category definition
-detector_status: none

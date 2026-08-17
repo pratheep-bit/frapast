@@ -1,9 +1,0 @@
-id: FR-HOOK-004
-name: Background job non-idempotency
-description: >
-  Enqueued mutating job lacks dedupe or locking and may double-process.
-ast_confidence: partial
-runtime_required: true
-historical_evidence:
-  - infra.md taxonomy category definition
-detector_status: partial

@@ -1,9 +1,0 @@
-id: FR-PERM-005
-name: Hook coverage gap
-description: >
-  Permission hooks cover list views but not an internal access path.
-ast_confidence: low
-runtime_required: true
-historical_evidence:
-  - infra.md taxonomy category definition
-detector_status: none

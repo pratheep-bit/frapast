@@ -1,9 +1,0 @@
-id: FR-PERM-004
-name: Report or Query Report row-level leak
-description: >
-  Report SQL bypasses row-level permission filtering.
-ast_confidence: low
-runtime_required: true
-historical_evidence:
-  - infra.md taxonomy category definition
-detector_status: none

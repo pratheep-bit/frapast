@@ -1,9 +1,0 @@
-id: FR-PERM-002
-name: ignore_permissions reachable from unprivileged whitelisted method
-description: >
-  ignore_permissions=True can be reached from a whitelisted method.
-ast_confidence: high
-runtime_required: true
-historical_evidence:
-  - infra.md taxonomy category definition
-detector_status: implemented

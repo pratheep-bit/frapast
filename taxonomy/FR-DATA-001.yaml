@@ -1,9 +1,0 @@
-id: FR-DATA-001
-name: Child table mutation without parent revalidation
-description: >
-  Bulk child-table writes skip parent validation and derived totals.
-ast_confidence: low
-runtime_required: true
-historical_evidence:
-  - infra.md taxonomy category definition
-detector_status: none

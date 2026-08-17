@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_taxonomy_v1_has_all_26_categories():
-	files = sorted((ROOT / "taxonomy").glob("FR-*.yaml"))
+	files = sorted((ROOT / "scanner" / "taxonomy").glob("FR-*.yaml"))
 	assert len(files) == 26
 	for path in files:
 		data = yaml.safe_load(path.read_text(encoding="utf-8"))

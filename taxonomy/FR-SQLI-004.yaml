@@ -1,9 +1,0 @@
-id: FR-SQLI-004
-name: Query Builder raw SQL misuse
-description: >
-  Query Builder embeds dynamic raw SQL fragments.
-ast_confidence: low
-runtime_required: true
-historical_evidence:
-  - infra.md taxonomy category definition
-detector_status: none

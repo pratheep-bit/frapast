@@ -1,9 +1,0 @@
-id: FR-HOOK-002
-name: Cross-app hook ordering conflict
-description: >
-  Multiple apps hook the same doctype event with order-sensitive behavior.
-ast_confidence: low
-runtime_required: true
-historical_evidence:
-  - infra.md taxonomy category definition
-detector_status: none

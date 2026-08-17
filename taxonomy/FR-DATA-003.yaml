@@ -1,9 +1,0 @@
-id: FR-DATA-003
-name: Naming series race
-description: >
-  Concurrent submissions race and produce duplicate names.
-ast_confidence: low
-runtime_required: true
-historical_evidence:
-  - infra.md taxonomy category definition
-detector_status: none
