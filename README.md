@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="scanner/web/static/logo.svg" alt="frapAST Logo" width="96" height="96" />
+
 # frapAST
 
 ### Runtime-Proven Static Security and Performance Engine for Frappe and ERPNext
