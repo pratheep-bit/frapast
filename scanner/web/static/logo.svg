@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <title>frapAST Logo (Dark)</title>
-  <rect width="512" height="512" rx="96" fill="#111111"/>
-  <polyline points="144,372 256,140 368,372" fill="none" stroke="#FFFFFF" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <rect x="2" y="2" width="508" height="508" rx="94" fill="none" stroke="#1e293b" stroke-width="4"/>
+  <polyline points="144,372 256,140 368,372" fill="none" stroke="#38bdf8" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
