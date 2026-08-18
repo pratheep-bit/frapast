@@ -295,10 +295,8 @@ class _Handler(BaseHTTPRequestHandler):
             target = Path(repo_path).expanduser().resolve()
 
             home = Path.home().resolve()
-            home_root = Path("/home").resolve() if Path("/home").exists() else home
-            users_root = Path("/Users").resolve() if Path("/Users").exists() else home
             tmp_root = Path("/tmp").resolve()
-            allowed_roots = [home, home_root, users_root, tmp_root]
+            allowed_roots = [home, tmp_root]
 
             # Security containment: prevent scanning arbitrary system directories outside user workspace/tmp
             is_allowed = any(target == r or r in target.parents for r in allowed_roots)
@@ -614,9 +612,7 @@ class _Handler(BaseHTTPRequestHandler):
 
             target = Path(raw_path).expanduser().resolve()
             home = Path.home().resolve()
-            home_root = Path("/home").resolve() if Path("/home").exists() else home
-            users_root = Path("/Users").resolve() if Path("/Users").exists() else home
-            allowed_roots = [home, home_root, users_root]
+            allowed_roots = [home]
 
             # Security containment: prevent browsing outside user home/workspace roots (e.g. /etc, /var)
             is_allowed = any(target == r or r in target.parents for r in allowed_roots)

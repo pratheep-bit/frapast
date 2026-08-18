@@ -132,9 +132,9 @@ class TestWebLayerPathTraversal:
         assert status == 404
 
     def test_api_scan_rejects_system_directories(self, web_test_server):
-        """POST /api/scan with /etc or /var must be rejected with 403 Forbidden."""
+        """POST /api/scan with system directories must be rejected with 403 Forbidden."""
         trusted_headers = {"Origin": f"http://127.0.0.1:{web_test_server.port}"}
-        forbidden_targets = ["/etc", "/var", "/System", "../../../../etc"]
+        forbidden_targets = ["/etc", "/var", "/usr", "/boot", "/root"]
         for target in forbidden_targets:
             status, body = _http_request(
                 web_test_server.base_url,
