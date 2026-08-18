@@ -67,7 +67,7 @@ jobs:
         run: python scanner/proof/validate_reproducer_markers.py
 
       - name: Upload Coverage Report
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         if: matrix.python-version == '3.11'
         with:
           files: coverage.xml
