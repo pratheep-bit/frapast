@@ -23,7 +23,7 @@ class TestAllRulesCoverage(unittest.TestCase):
 		for rule in ALL_RULES:
 			self.assertTrue(callable(rule))
 		# Taxonomy consistency assertion passes at import time
-		self.assertEqual(RENAMED_TAXONOMY["fr_xss_001"], "FR-INJ-005")
+		self.assertEqual(RENAMED_TAXONOMY["fr_corr_001_bare_except"], "FR-HOOK-006")
 
 	def test_rules_execution_on_fixtures(self):
 		fixture_dir = ROOT / "tests" / "python" / "fixtures"

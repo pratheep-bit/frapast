@@ -156,3 +156,104 @@ def get_template(filename: str):
 	candidates = execute_rules(schema, hooks, py_idx, call_graph=cg)
 	path_findings = [c for c in candidates if c.rule_id == "FR-PATH-001"]
 	assert len(path_findings) == 0
+
+
+def test_path_traversal_hardcoded_path_no_false_positive(tmp_path):
+	"""Verify FR-PATH-001 does NOT fire on hardcoded internal file paths."""
+	util_dir = tmp_path / "erpnext" / "utilities"
+	util_dir.mkdir(parents=True, exist_ok=True)
+	util_file = util_dir / "static_reader.py"
+	util_file.write_text("""import frappe
+import os
+
+@frappe.whitelist()
+def read_system_status():
+	with open("/etc/app_version", "r") as f:
+		return f.read()
+""")
+
+	source = SourceFile(path=util_file, root=tmp_path)
+	clear_rule_caches()
+	py_idx = build_python_index([source])
+	cg = build_call_graph(py_idx)
+	schema = build_schema_index([])
+	hooks = build_hook_index([])
+
+	candidates = execute_rules(schema, hooks, py_idx, call_graph=cg)
+	path_findings = [c for c in candidates if c.rule_id == "FR-PATH-001"]
+	assert len(path_findings) == 0
+
+
+def test_ghsa_745c_5q8r_vgj2_multihop_script_report_recall(tmp_path):
+	"""Verify FR-SQLI-001 detects GHSA-745c-5q8r-vgj2 multi-hop report filter SQL injection."""
+	report_dir = tmp_path / "hrms" / "hr" / "report" / "monthly_attendance_sheet"
+	report_dir.mkdir(parents=True, exist_ok=True)
+	report_file = report_dir / "monthly_attendance_sheet.py"
+	report_file.write_text("""import frappe
+
+def execute(filters=None):
+	if not filters:
+		filters = {}
+	return get_columns(filters), get_data(filters)
+
+def get_columns(filters):
+	return ["Employee:Link/Employee:120", "Attendance:Data:100"]
+
+def get_data(filters):
+	conditions = get_conditions(filters)
+	return frappe.db.sql(f"select employee, status from `tabAttendance` where docstatus < 2 {conditions}", as_dict=1)
+
+def get_conditions(filters):
+	cond = ""
+	if filters.get("company"):
+		cond += f" and company = '{filters.get('company')}'"
+	return cond
+""")
+
+	source = SourceFile(path=report_file, root=tmp_path)
+	clear_rule_caches()
+	py_idx = build_python_index([source])
+	cg = build_call_graph(py_idx)
+	schema = build_schema_index([])
+	hooks = build_hook_index([])
+
+	candidates = execute_rules(schema, hooks, py_idx, call_graph=cg)
+	sqli_findings = [c for c in candidates if c.rule_id == "FR-SQLI-001"]
+	assert len(sqli_findings) == 1
+	assert sqli_findings[0].function == "get_data"
+
+
+def test_talos_2020_1091_synthetic_recall(tmp_path):
+	"""Verify FR-PATH-001 detects TALOS-2020-1091 arbitrary file read / deletion."""
+	file_dir = tmp_path / "frappe" / "core" / "doctype" / "file"
+	file_dir.mkdir(parents=True, exist_ok=True)
+	file_py = file_dir / "file.py"
+	file_py.write_text("""import frappe
+import os
+
+@frappe.whitelist()
+def download_file(file_url: str):
+	file_path = os.path.join(frappe.get_site_path(), "public", file_url)
+	with open(file_path, "rb") as f:
+		return f.read()
+
+@frappe.whitelist()
+def remove_custom_file(path: str):
+	full_path = "/var/uploads/" + path
+	os.remove(full_path)
+""")
+
+	source = SourceFile(path=file_py, root=tmp_path)
+	clear_rule_caches()
+	py_idx = build_python_index([source])
+	cg = build_call_graph(py_idx)
+	schema = build_schema_index([])
+	hooks = build_hook_index([])
+
+	candidates = execute_rules(schema, hooks, py_idx, call_graph=cg)
+	path_findings = [c for c in candidates if c.rule_id == "FR-PATH-001"]
+	assert len(path_findings) == 2
+	functions = {c.function for c in path_findings}
+	assert "download_file" in functions
+	assert "remove_custom_file" in functions
+

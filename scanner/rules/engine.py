@@ -19,9 +19,30 @@ from scanner.shared import stable_hash
 RENAMED_TAXONOMY: dict[str, str] = {
 	"fr_corr_001_bare_except": "FR-HOOK-006",     # was FR-CORR-001
 	"fr_corr_002_mutable_default": "FR-HOOK-007", # was FR-CORR-002
-	"fr_xss_001": "FR-INJ-005",                   # was FR-XSS-001
+	# "fr_xss_001": "FR-INJ-005",                 # Disabled: was FR-XSS-001 (~6% precision on HRMS)
 }
 
+
+_PUBLIC_METADATA_FUNCTIONS: frozenset[str] = frozenset({
+	"get_currency_symbols",
+	"get_company_currencies",
+	"get_doctype_fields",
+	"get_doctype_states",
+	"get_workflow",
+	"get_hr_settings",
+	"are_push_notifications_enabled",
+	"oauth_providers",
+	"get_default_company",
+	"get_attendance_years",
+	"get_years",
+	"get_retirement_date",
+	"get_payroll_settings_for_payment_days",
+	"get_country",
+	"get_leave_types",
+	"get_expense_claim_types",
+	"get_expense_type_description",
+	"get_attachments",
+})
 
 
 HOOK_LIFECYCLE_METHODS = frozenset(
@@ -130,6 +151,7 @@ def fr_sqli_003(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 	controller's validate() and before_save() chain, silently desyncing derived fields.
 	"""
 	reachable = _reachable_from_whitelisted(python, graph)
+	perm_check_symbols = {p.symbol_id for p in python.permission_checks}
 	return [
 		_candidate(
 			"FR-SQLI-003",
@@ -141,7 +163,10 @@ def fr_sqli_003(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 			"Invoke the endpoint, then verify the target doctype's validate() was not triggered and derived fields are stale.",
 		)
 		for record in python.set_value_calls
-		if record.symbol_id in reachable and not _is_non_runtime_path(record.span.file)
+		if record.symbol_id in reachable
+		and not _is_non_runtime_path(record.span.file)
+		and record.symbol_id not in perm_check_symbols
+		and record.field_name not in {"read", "is_read", "seen", "viewed", "docstatus"}
 	]
 
 
@@ -197,6 +222,9 @@ def fr_perm_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 					fix_confidence="high",
 				))
 			else:
+				fn_name = endpoint.function.rsplit(".", 1)[-1]
+				if fn_name in _PUBLIC_METADATA_FUNCTIONS:
+					continue
 				out.append(_candidate(
 					"FR-PERM-001",
 					endpoint.span.file,
@@ -498,12 +526,15 @@ def fr_wkfl_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 	"""
 	submittable_names = {doctype.name for doctype in schema.submittable_doctypes()}
 	reachable = _reachable_from_whitelisted(python, graph)
+	perm_check_symbols = {p.symbol_id for p in python.permission_checks}
 	candidates: list[Candidate] = []
 	for record in python.set_value_calls:
 		if (
 			record.doctype_arg in submittable_names
 			and record.symbol_id in reachable
 			and not _is_non_runtime_path(record.span.file)
+			and record.symbol_id not in perm_check_symbols
+			and record.field_name not in {"docstatus"}
 		):
 			candidates.append(
 				_candidate(
@@ -966,7 +997,7 @@ ALL_RULES: tuple[Rule, ...] = (
 	fr_inj_001,
 	fr_inj_002,
 	# FR-XSS family
-	fr_xss_001,
+	# fr_xss_001,  # Disabled (FR-INJ-005): ~6% precision on real-world validation (frappe/hrms) — flags frappe.throw/msgprint formatting containing server-generated HTML (e.g. frappe.bold, get_link_to_form) as raw user input. Requires fine-grained taint tracking to distinguish safe server HTML from untrusted user input before re-enabling.
 	# FR-CSRF family
 	fr_csrf_001,
 	# FR-SSRF family
