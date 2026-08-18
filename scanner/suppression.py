@@ -46,17 +46,22 @@ _SUPPRESS_RE = re.compile(
 
 
 def _parse_suppress_comment(line: str) -> set[str] | None:
-    """Return the set of rule IDs suppressed by a comment, or None if not a suppression.
+    """Return the set of rule IDs suppressed by comment(s), or None if not a suppression.
 
     An empty set means "suppress all rules on this line."
+    Supports multiple `# frapast: ignore` directives on the same line as well as
+    comma- or space-separated rule lists.
     """
-    m = _SUPPRESS_RE.search(line)
-    if m is None:
+    matches = list(_SUPPRESS_RE.finditer(line))
+    if not matches:
         return None
-    raw = m.group("rules")
-    if not raw:
-        return set()  # suppress all
-    return {r.strip() for r in re.split(r"[\s,]+", raw.strip()) if r.strip()}
+    suppressed: set[str] = set()
+    for m in matches:
+        raw = m.group("rules")
+        if not raw:
+            return set()  # wildcard suppress all
+        suppressed.update(r.strip() for r in re.split(r"[\s,]+", raw.strip()) if r.strip())
+    return suppressed
 
 
 def is_suppressed(
@@ -114,8 +119,15 @@ def filter_suppressed(
 # --------------------------------------------------------------------------- #
 
 def _fingerprint(candidate: "Candidate") -> str:
-    """Stable fingerprint for a candidate: rule_id + file + line + code_location_hash."""
-    key = f"{candidate.rule_id}|{candidate.file}|{candidate.line}|{candidate.code_location_hash}"
+    """Stable semantic fingerprint for a candidate: rule_id + file + function + code_location_hash.
+
+    Using the enclosing function and AST code fragment hash ensures that the baseline is
+    resilient to line-number shifts caused by adding comments or code above the finding,
+    while still immediately flagging any change to the vulnerable code itself or any new
+    finding introduced in the file.
+    """
+    func = getattr(candidate, "function", "")
+    key = f"{candidate.rule_id}|{candidate.file}|{func}|{candidate.code_location_hash}"
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:32]
 
 
