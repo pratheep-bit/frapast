@@ -101,9 +101,7 @@ jobs:
         env:
           PYTHONPATH: .
         run: |
-          set +e
-          python -m scanner.cli scan . --format sarif --limit 0 > frapast-self.sarif 2>&1 || true
-          # Validate the SARIF file was written and is valid JSON
+          python -m scanner.cli scan tests/python/fixtures --sarif frapast-self.sarif || true
           python3 -c "
           import json, sys
           try:

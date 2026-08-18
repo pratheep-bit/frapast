@@ -435,6 +435,7 @@ def _build_parser() -> argparse.ArgumentParser:
 	scan_parser.add_argument("--diff", help="Scan only files modified relative to a git branch/commit (e.g. main, origin/main)")
 	scan_parser.add_argument("--limit", type=int, default=20, help="Maximum number of candidates to display in human output (default: 20; 0 for all)")
 	scan_parser.add_argument("--format", choices=["human", "yaml", "json", "sarif"], default="human", help="Output format (default: human)")
+	scan_parser.add_argument("--sarif", default="", help="Export SARIF 2.1.0 report directly to file path")
 	# Tier 2 bench configuration for scan --prove / --ui
 	scan_parser.add_argument("--bench-url", default="", help="Frappe bench base URL for Tier 2 HTTP/RPC proof (e.g. http://localhost:8000)")
 	scan_parser.add_argument("--bench-port", "--port", type=int, default=None, help="Frappe bench webserver port (e.g. 8005 or 8000)")
@@ -449,6 +450,7 @@ def _build_parser() -> argparse.ArgumentParser:
 	prove_parser.add_argument("--ledger-dir", default="findings", help="Directory for findings YAML files")
 	prove_parser.add_argument("--repo-id", default="local", help="Repository identifier for generated finding IDs")
 	prove_parser.add_argument("--format", choices=["human", "yaml", "json", "sarif"], default="human", help="Output format")
+	prove_parser.add_argument("--sarif", default="", help="Export SARIF 2.1.0 report directly to file path")
 	prove_parser.add_argument("--limit", type=int, default=20, help="Maximum number of candidates to display in human output")
 	# Tier 2 bench configuration
 	prove_parser.add_argument("--bench-url", default="", help="Frappe bench base URL for Tier 2 HTTP/RPC proof (e.g. http://localhost:8000)")
@@ -489,6 +491,12 @@ def _build_parser() -> argparse.ArgumentParser:
 	bench_check_parser.add_argument("--bench-site", default="", help="Frappe site name")
 
 	return parser
+
+
+def _export_sarif_file(payload: dict, file_path: str | Path, repo_path: Path | None = None) -> None:
+	from scanner.reporting.sarif import export_sarif
+	content = export_sarif(_prepare_output_candidates(_extract_candidate_list(payload)), repo_path or Path("."))
+	Path(file_path).write_text(content, encoding="utf-8")
 
 
 def _write_json_or_yaml(payload: dict, fmt: str, repo_path: Path | None = None) -> None:
@@ -610,6 +618,8 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		output = {"results": results}
 		if proven_findings:
 			output["proven"] = proven_findings
+		if getattr(args, "sarif", None):
+			_export_sarif_file(output, args.sarif)
 		if args.format in ("json", "yaml", "sarif"):
 			_write_json_or_yaml(output, args.format)
 		else:
@@ -679,6 +689,8 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 			bench_password=bench_password,
 			bench_site=bench_site,
 		)
+		if getattr(args, "sarif", None):
+			_export_sarif_file({"candidates": candidates, "proven": proven_findings}, args.sarif, repo)
 		if args.format in ("json", "yaml", "sarif"):
 			_write_json_or_yaml({"candidates": candidates, "proven": proven_findings}, args.format, repo)
 		else:
@@ -689,6 +701,8 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 			ui.render_results(repo, proven_findings or candidates_to_prove, num_files, elapsed, limit=args.limit)
 		return 1 if len(proven_findings) > 0 else 0
 	else:
+		if getattr(args, "sarif", None):
+			_export_sarif_file(output, args.sarif, repo)
 		if args.format in ("json", "yaml", "sarif"):
 			_write_json_or_yaml(output, args.format, repo)
 		elif not interactive:
