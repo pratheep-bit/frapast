@@ -206,6 +206,12 @@ frapast scan ./myapp --baseline .frapast-baseline.json
 
 ---
 
+## Integration & GitHub Action Testing
+
+The repository [`pratheep-bit/frapast-action-test`](https://github.com/pratheep-bit/frapast-action-test) is maintained as a permanent, public smoke-test fixture to verify end-to-end composite action workflows (`action.yml`), SARIF generation, and Code Scanning alert ingestion against live GitHub infrastructure.
+
+---
+
 ## Privacy and Confidentiality
 
 All contributions must comply with [AGENTS.md](AGENTS.md):
