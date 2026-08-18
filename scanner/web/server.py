@@ -293,22 +293,24 @@ class _Handler(BaseHTTPRequestHandler):
                 self._serve_json({"error": "repo_path is required"}, status=400)
                 return
             target = Path(repo_path).expanduser().resolve()
-            if not target.exists():
-                self._serve_json({"error": f"Path '{repo_path}' does not exist"}, status=400)
-                return
-            if not target.is_dir():
-                self._serve_json({"error": f"Path '{repo_path}' is not a directory"}, status=400)
-                return
 
             home = Path.home().resolve()
+            home_root = Path("/home").resolve() if Path("/home").exists() else home
             users_root = Path("/Users").resolve() if Path("/Users").exists() else home
             tmp_root = Path("/tmp").resolve()
-            allowed_roots = [home, users_root, tmp_root]
+            allowed_roots = [home, home_root, users_root, tmp_root]
 
             # Security containment: prevent scanning arbitrary system directories outside user workspace/tmp
             is_allowed = any(target == r or r in target.parents for r in allowed_roots)
             if not is_allowed:
                 self._serve_json({"error": f"Path '{repo_path}' is outside allowed workspace roots"}, status=403)
+                return
+
+            if not target.exists():
+                self._serve_json({"error": f"Path '{repo_path}' does not exist"}, status=400)
+                return
+            if not target.is_dir():
+                self._serve_json({"error": f"Path '{repo_path}' is not a directory"}, status=400)
                 return
 
             with _lock:
@@ -612,8 +614,9 @@ class _Handler(BaseHTTPRequestHandler):
 
             target = Path(raw_path).expanduser().resolve()
             home = Path.home().resolve()
+            home_root = Path("/home").resolve() if Path("/home").exists() else home
             users_root = Path("/Users").resolve() if Path("/Users").exists() else home
-            allowed_roots = [home, users_root]
+            allowed_roots = [home, home_root, users_root]
 
             # Security containment: prevent browsing outside user home/workspace roots (e.g. /etc, /var)
             is_allowed = any(target == r or r in target.parents for r in allowed_roots)
