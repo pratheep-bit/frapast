@@ -4,10 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scanner.rules import Candidate
-from scanner.validate import validate_and_stage
-from scanner.severity import score_candidate
 from scanner.python.engine import _is_explicit_owner_or_role_guard
+from scanner.rules import Candidate
+from scanner.severity import score_candidate
+from scanner.validate import validate_and_stage
 
 
 class TestNoFrozenDataclassMutation(unittest.TestCase):

@@ -7,7 +7,6 @@ import yaml
 
 from scanner.fp import precision_by_rule
 
-
 STATUS_ORDER = ("candidate", "proven", "merged", "patched", "false_positive", "regressed")
 
 RULE_FAMILIES = {

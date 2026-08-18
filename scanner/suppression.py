@@ -65,7 +65,7 @@ def _parse_suppress_comment(line: str) -> set[str] | None:
 
 
 def is_suppressed(
-    candidate: "Candidate",
+    candidate: Candidate,
     source_lines: dict[str, list[str]],
 ) -> bool:
     """Return True if the candidate has an inline ``# frapast: ignore`` suppression.
@@ -107,9 +107,9 @@ def is_suppressed(
 
 
 def filter_suppressed(
-    candidates: list["Candidate"],
+    candidates: list[Candidate],
     source_lines: dict[str, list[str]],
-) -> list["Candidate"]:
+) -> list[Candidate]:
     """Return candidates that are not suppressed by inline comments."""
     return [c for c in candidates if not is_suppressed(c, source_lines)]
 
@@ -118,7 +118,7 @@ def filter_suppressed(
 # Baseline file management
 # --------------------------------------------------------------------------- #
 
-def _fingerprint(candidate: "Candidate") -> str:
+def _fingerprint(candidate: Candidate) -> str:
     """Stable semantic fingerprint for a candidate: rule_id + file + function + code_location_hash.
 
     Using the enclosing function and AST code fragment hash ensures that the baseline is
@@ -131,7 +131,7 @@ def _fingerprint(candidate: "Candidate") -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:32]
 
 
-def generate_baseline(candidates: list["Candidate"], path: Path) -> None:
+def generate_baseline(candidates: list[Candidate], path: Path) -> None:
     """Write a baseline file from the given list of candidates.
 
     Usage::
@@ -165,9 +165,9 @@ def load_baseline(path: Path) -> set[str]:
 
 
 def apply_baseline(
-    candidates: list["Candidate"],
+    candidates: list[Candidate],
     baseline_fingerprints: set[str],
-) -> list["Candidate"]:
+) -> list[Candidate]:
     """Filter out candidates that are already known in the baseline."""
     if not baseline_fingerprints:
         return candidates

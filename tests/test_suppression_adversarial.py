@@ -10,20 +10,14 @@ Tests five specific adversarial scenarios:
 
 from __future__ import annotations
 
-import json
-import tempfile
 import textwrap
-from pathlib import Path
 from types import SimpleNamespace
-
-import pytest
 
 from scanner.suppression import (
     SuppressionConfig,
     _fingerprint,
     _parse_suppress_comment,
     apply_baseline,
-    filter_suppressed,
     generate_baseline,
     is_suppressed,
     load_baseline,

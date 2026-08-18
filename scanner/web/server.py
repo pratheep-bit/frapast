@@ -33,9 +33,9 @@ import queue
 import sys
 import threading
 import time
+import urllib.parse
 import uuid
 import webbrowser
-import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PureWindowsPath
 
@@ -427,7 +427,7 @@ class _Handler(BaseHTTPRequestHandler):
                     continue
                 if payload is None:
                     break
-                self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                self.wfile.write(f"data: {payload}\n\n".encode())
                 self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError):
             pass
@@ -802,13 +802,14 @@ def _run_scan_in_background(repo: Path) -> None:
     """Run a full static scan in background, writing to DB and broadcasting SSE events."""
     scan_id = str(uuid.uuid4())
     try:
-        from scanner.python import load as load_python
-        from scanner.schema import load as load_schema
-        from scanner.hooks import load as load_hooks
-        from scanner.rules import execute_rules
         from dataclasses import asdict
+
+        from scanner.cli import _candidate_repo_id, _finding_id
+        from scanner.hooks import load as load_hooks
+        from scanner.python import load as load_python
+        from scanner.rules import execute_rules
+        from scanner.schema import load as load_schema
         from scanner.severity import score_candidates
-        from scanner.cli import _finding_id, _candidate_repo_id
 
         _broadcast_sse({"type": "scan_start", "repo": str(repo), "scan_id": scan_id})
         _db.create_scan(scan_id, str(repo.resolve()))
@@ -905,10 +906,10 @@ def _select_candidates(candidates: list[dict], spec) -> list[dict]:
 
 def _run_proof_in_background(spec) -> None:
     """Run proof pipeline, persisting results to DB and sending SSE events."""
-    from scanner.proof.orchestrator import ProofOrchestrator
-    from scanner.proof.models import ProofStatus
-    from scanner.cli import _finding_id, _candidate_repo_id
     from dataclasses import replace as dc_replace
+
+    from scanner.proof.models import ProofStatus
+    from scanner.proof.orchestrator import ProofOrchestrator
 
     with _lock:
         scan_id = _state.get("current_scan_id")
@@ -1111,7 +1112,7 @@ def start_server(
     if candidates:
         scan_id = str(uuid.uuid4())
         _db.create_scan(scan_id, str(repo.resolve()) if str(repo) and str(repo) != "." else "")
-        from scanner.cli import _finding_id, _candidate_repo_id
+        from scanner.cli import _candidate_repo_id, _finding_id
         for c in candidates:
             if not c.get("id"):
                 crid = _candidate_repo_id(c, "local")
@@ -1148,6 +1149,7 @@ def start_server(
 
     url = f"http://localhost:{port}"
     import platform
+
     from scanner.ui.theme import console
 
     py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
@@ -1171,7 +1173,7 @@ def start_server(
     console.print("[dim]└──────────────────────────────────────────────────────────────────┘[/dim]\n")
     console.print(f"  [dim]Environment  :[/dim] [white]{os_info} | Python {py_ver}[/white]")
     console.print(f"  [dim]Persistence  :[/dim] [white]{data_dir / 'frapast_web.db'}[/white]")
-    console.print(f"  [dim]Security     :[/dim] [white]Origin-gated localhost bridge[/white]\n")
+    console.print("  [dim]Security     :[/dim] [white]Origin-gated localhost bridge[/white]\n")
     console.print("  [dim]Press [bold white]Ctrl+C[/bold white] to stop the dashboard server.[/dim]\n")
 
     if open_browser:

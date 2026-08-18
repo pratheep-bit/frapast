@@ -1,10 +1,8 @@
 """Unit tests for scanner scan configuration loader."""
 
-from pathlib import Path
-import tempfile
 import unittest
 
-from scanner.config import RepoConfig, ScanConfig, load_config
+from scanner.config import RepoConfig, ScanConfig
 
 
 class TestConfigLoader(unittest.TestCase):

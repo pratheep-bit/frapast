@@ -1,12 +1,9 @@
 """Task 1 acceptance test: string-dispatch and dynamic-method callgraph edges."""
-from pathlib import Path
 from textwrap import dedent
 
 from scanner.callgraph.builder import build_call_graph
-from scanner.callgraph.models import EdgeKind
 from scanner.hooks import build_hook_index, discover_hooks_files
 from scanner.python import build_python_index, discover_python_files
-from scanner.shared import SourceFile
 
 
 def test_string_dispatch_creates_reachable_edge(tmp_path):

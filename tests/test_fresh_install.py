@@ -10,10 +10,8 @@ Skip in normal `pytest` runs unless the environment variable
 """
 
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest

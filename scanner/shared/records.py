@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from pathlib import Path
-
-
 from functools import cached_property
+from pathlib import Path
 
 
 @dataclass(frozen=True)

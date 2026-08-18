@@ -1,8 +1,8 @@
 """Frappe Security Scanner — Static Analysis Engine."""
 from scanner.cli import scan, scan_multi
-from scanner.config import ScanConfig, RepoConfig, load_config
+from scanner.config import RepoConfig, ScanConfig, load_config
 from scanner.logger import logger
-from scanner.rules import Candidate, execute_rules, clear_rule_caches
+from scanner.rules import Candidate, clear_rule_caches, execute_rules
 
 __version__ = "1.2.0"
 

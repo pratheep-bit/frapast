@@ -35,7 +35,7 @@ import textwrap
 from collections.abc import Callable
 from pathlib import Path
 
-from scanner.proof.models import PROOF_MODE_MARKER, VALID_PROOF_MODES
+from scanner.proof.models import PROOF_MODE_MARKER
 
 _SynthFn = Callable[[str, dict], str | None]
 

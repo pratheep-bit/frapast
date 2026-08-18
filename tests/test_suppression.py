@@ -8,10 +8,6 @@ from __future__ import annotations
 
 import json
 import textwrap
-from dataclasses import replace
-from pathlib import Path
-
-import pytest
 
 from scanner.suppression import (
     SuppressionConfig,
@@ -23,7 +19,6 @@ from scanner.suppression import (
     load_config,
     path_is_excluded,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

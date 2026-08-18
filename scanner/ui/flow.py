@@ -21,7 +21,6 @@ from pathlib import Path
 
 from scanner.ui.theme import console
 
-
 # ---------------------------------------------------------------------------
 # Proof summary dataclass
 # ---------------------------------------------------------------------------
@@ -112,12 +111,13 @@ def run_proof_pipeline(
         ProofSummary with counts and the list of proven findings.
     """
     from dataclasses import replace as dc_replace
+
+    from scanner import ui
+    from scanner.cli import _candidate_repo_id, _finding_id
+    from scanner.ledger_io import update_ledger_after_proof
     from scanner.proof.models import ProofStatus
     from scanner.proof.orchestrator import ProofOrchestrator
     from scanner.ui.results import candidate_score
-    from scanner.cli import _finding_id, _candidate_repo_id
-    from scanner.ledger_io import update_ledger_after_proof
-    from scanner import ui
 
     summary = ProofSummary()
 
@@ -140,7 +140,7 @@ def run_proof_pipeline(
         bench_site_name=bench_site,
     )
 
-    from scanner.ledger_io import update_ledger_after_proof, index_ledger_entries
+    from scanner.ledger_io import index_ledger_entries
     ledger_index = index_ledger_entries(findings_dir) if findings_dir is not None else None
 
     with ui.proof_progress(len(slice_), "Proving findings") as advance:
@@ -186,7 +186,6 @@ def run_proof_pipeline(
 def show_proof_summary(summary: ProofSummary) -> None:
     """Render a compact, colourful proof result panel."""
     from rich.panel import Panel
-    from rich.text import Text
 
     if summary.total == 0:
         console.print("[muted]No findings were verified.[/muted]\n")
@@ -308,7 +307,7 @@ def post_proof_menu(
 
 
 def _handle_view_bug(repo: Path, candidates: list[dict]) -> None:
-    from scanner.ui.results import render_code_snippet, candidate_score
+    from scanner.ui.results import candidate_score, render_code_snippet
     sorted_cands = sorted(candidates, key=candidate_score, reverse=True)
     console.print(f"[muted]Enter bug number (1 – {len(sorted_cands)}), or press Enter to cancel:[/muted]")
     try:
@@ -335,6 +334,7 @@ def _handle_export_json(repo: Path, candidates: list[dict]) -> None:
 def _handle_report() -> None:
     try:
         from rich.markdown import Markdown
+
         from scanner.reporting.engine import render_track_record
         console.print(Markdown(render_track_record("findings")))
     except Exception as exc:
@@ -371,8 +371,8 @@ def run_full_pipeline(
 
     Returns exit code (0 = success, 1 = findings found).
     """
-    from scanner.cli import _scan_repo_with_severity, _write_candidates
     from scanner import ui
+    from scanner.cli import _scan_repo_with_severity, _write_candidates
 
     # ── Step 1: Scan ──────────────────────────────────────────────────────
     console.print(f"\n[bold]🔍 Scanning[/bold] [cyan]{repo}[/cyan]…\n")

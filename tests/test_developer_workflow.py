@@ -6,8 +6,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from scanner.python import load as load_python
-from scanner.rules.engine import Candidate, _filter_suppressed_candidates
 from scanner.reporting.sarif import export_sarif
+from scanner.rules.engine import Candidate, _filter_suppressed_candidates
 
 
 class TestDeveloperWorkflowFeatures(unittest.TestCase):

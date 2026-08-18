@@ -9,11 +9,11 @@ against a ledger path.
 from __future__ import annotations
 
 import contextlib
-from datetime import date
 import hashlib
 import os
 import tempfile
 import time
+from datetime import date
 from pathlib import Path
 
 import yaml
@@ -37,7 +37,7 @@ def write_ledger_entry(path: Path, entry: dict) -> None:
 def read_ledger_entry(path: Path) -> dict | None:
 	"""Read a ledger entry, returning None on missing/invalid file rather than raising."""
 	try:
-		with open(path, "r", encoding="utf-8") as f:
+		with open(path, encoding="utf-8") as f:
 			data = yaml.safe_load(f)
 		return data if isinstance(data, dict) else None
 	except (FileNotFoundError, yaml.YAMLError):
@@ -85,7 +85,7 @@ def ledger_lock(findings_dir: Path, timeout: float = 15.0):
 					f"Ledger at {findings_dir} is locked by another process "
 					f"(stale lock at {lock_path}? delete it manually if you're sure "
 					f"nothing else is running)."
-				)
+				) from None
 			time.sleep(0.05)
 	try:
 		yield

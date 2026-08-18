@@ -7,7 +7,6 @@ import yaml
 from scanner.fp.models import FalsePositiveRecord, PrecisionMetric, SuppressionResult
 from scanner.rules import Candidate
 
-
 PROVEN_STATUSES = frozenset({"proven", "merged", "patched", "regressed"})
 
 

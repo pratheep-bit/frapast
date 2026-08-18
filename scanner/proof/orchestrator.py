@@ -8,9 +8,7 @@ import tempfile
 import time
 from pathlib import Path
 
-import yaml
-
-from scanner.proof.models import ProofResult, ProofStatus, PROOF_MODE_MARKER, VALID_PROOF_MODES
+from scanner.proof.models import PROOF_MODE_MARKER, VALID_PROOF_MODES, ProofResult, ProofStatus
 
 # ---------------------------------------------------------------------------
 # Tier 1 reproducer helpers

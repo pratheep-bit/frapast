@@ -20,12 +20,11 @@ from pathlib import Path
 
 import pytest
 
-from scanner.python import load as load_python
-from scanner.schema import load as load_schema
 from scanner.hooks import load as load_hooks
+from scanner.python import load as load_python
 from scanner.rules import execute_rules
 from scanner.rules.engine import _RESERVED_DOC_ATTRS
-
+from scanner.schema import load as load_schema
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -48,9 +47,9 @@ def _run_rules_on_fixture(fixture_name: str) -> list[dict]:
 
 def _fieldname_refs_for_file(src: str) -> list:
     """Parse a Python snippet and run just the indexer to get fieldname_references."""
-    import ast
     import tempfile
-    from scanner.python.engine import _IndexCollector, SourceFile
+
+    from scanner.python.engine import SourceFile, _IndexCollector
 
     dedented = textwrap.dedent(src)
     tree = ast.parse(dedented)

@@ -1,10 +1,9 @@
 """Unit test suite for server.py security controls, path resolution, and CORS."""
-import json
 import unittest
 from pathlib import Path, PureWindowsPath
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
-from scanner.web.server import _resolve_file_path, PORT, _Handler
+from scanner.web.server import PORT, _Handler, _resolve_file_path
 
 
 class TestServerSecurity(unittest.TestCase):
@@ -39,11 +38,11 @@ class TestServerSecurity(unittest.TestCase):
 		handler.rfile = MagicMock()
 		handler.wfile = MagicMock()
 		handler.headers = {}
-		
+
 		# Test directory path traversal attempting to escape to /etc
 		handler.path = "/api/browse?path=../../../../etc"
 		handler.command = "GET"
-		
+
 		_Handler._serve_browse(handler, {"path": ["../../../../etc"]})
 		self.assertTrue(handler._serve_json.called)
 		args = handler._serve_json.call_args[0][0]

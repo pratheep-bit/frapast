@@ -1,13 +1,9 @@
-import ast
-import tempfile
-from pathlib import Path
-import pytest
 
-from scanner.python import build_python_index
 from scanner.callgraph import build_call_graph
-from scanner.schema import build_schema_index
 from scanner.hooks import build_hook_index
-from scanner.rules import execute_rules, clear_rule_caches
+from scanner.python import build_python_index
+from scanner.rules import clear_rule_caches, execute_rules
+from scanner.schema import build_schema_index
 from scanner.shared import SourceFile
 
 

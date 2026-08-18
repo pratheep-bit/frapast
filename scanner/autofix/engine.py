@@ -4,8 +4,8 @@ from __future__ import annotations
 import ast
 import difflib
 import re
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from scanner.autofix.models import FixPatch
 
@@ -76,7 +76,7 @@ def fix_hook_001(file_path: Path, source: str, finding_data: dict) -> FixPatch |
                 break
 
     cancel_method_lines = [
-        f"\n",
+        "\n",
         f"{class_indent}def on_cancel(self):\n",
         f"{class_indent}    # Automatically generated rollback handler by frapAST\n",
         f"{class_indent}    pass\n",

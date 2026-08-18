@@ -7,7 +7,6 @@ from scanner.hooks.models import HookHandlerRecord, HookIndex
 from scanner.logger import logger
 from scanner.shared import SourceFile
 
-
 SKIP_DIRS = {".git", "node_modules", ".venv", "env", "__pycache__", "benchmark", "fixtures", "scratch", "tmp", "sites"}
 
 
