@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+  security-events: write   # required for SARIF upload to Code Scanning
+
 jobs:
   test:
     name: Tests (Python ${{ matrix.python-version }})
@@ -68,6 +72,54 @@ jobs:
           fail_ci_if_error: false
         continue-on-error: true
 
+  self-scan:
+    name: frapAST Self-Scan (SARIF)
+    runs-on: ubuntu-latest
+    needs: [test]
+    # Only run on push to main/develop so we get SARIF results in Code Scanning.
+    # PR scans from forks don't have security-events write permission.
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install frapAST (editable)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run frapAST Self-Scan
+        env:
+          PYTHONPATH: .
+        run: |
+          set +e
+          python -m scanner.cli scan . --format sarif --limit 0 > frapast-self.sarif 2>&1 || true
+          # Validate the SARIF file was written and is valid JSON
+          python3 -c "
+          import json, sys
+          try:
+              data = json.load(open('frapast-self.sarif'))
+              count = sum(len(r.get('results', [])) for r in data.get('runs', []))
+              print(f'SARIF valid. Findings in self-scan: {count}')
+          except Exception as e:
+              print(f'SARIF parse failed: {e}')
+              sys.exit(1)
+          "
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: frapast-self.sarif
+          category: frapast-self-scan
+        continue-on-error: true
+
   supply-chain-audit:
     name: Supply-Chain Vulnerability Audit
     runs-on: ubuntu-latest
@@ -80,14 +132,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install pip-audit
-        run: pip install pip-audit
-
-      - name: Audit frapAST Dependencies
-        run: pip-audit --requirement <(pip install -e ".[dev]" --dry-run 2>&1 | grep "Would install" | sed 's/Would install //' | tr ' ' '\n' | sed 's/==/==/' || echo "pyyaml rich libcst")
-        continue-on-error: true
-
-      - name: Audit Direct Dependencies
+      - name: Install Package and Audit Dependencies
         run: |
-          pip install pyyaml rich libcst
-          pip-audit
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install pip-audit
+
+      - name: Run pip-audit
+        # Generate a requirements file from installed packages and audit them.
+        # The prior sweep used bash process substitution which fails on non-bash shells.
+        run: |
+          pip freeze > /tmp/installed.txt
+          pip-audit --requirement /tmp/installed.txt --skip-editable || true
