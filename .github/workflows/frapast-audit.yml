@@ -2,9 +2,9 @@ name: frapAST Security Audit
 
 on:
   push:
-    branches: [ "main", "develop", "version-*" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main", "develop", "version-*" ]
+    branches: [ "main", "develop" ]
   workflow_dispatch:
 
 permissions:
@@ -27,17 +27,17 @@ jobs:
 
       - name: Install frapAST & Dependencies
         run: |
-          pip install --upgrade pip
-          pip install pyyaml rich libcst pytest
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
 
       - name: Run Test Suite
+        env:
+          PYTHONPATH: .
         run: |
           pytest tests/
 
       - name: Run frapAST CLI Audit
+        env:
+          PYTHONPATH: .
         run: |
           python -m scanner.cli scan . --format human --limit 20
-
-      - name: Check for Autofixable Boilerplate
-        run: |
-          python -m scanner.cli fix . --rule FR-HOOK-001 || true
