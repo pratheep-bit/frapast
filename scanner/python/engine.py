@@ -806,7 +806,7 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		# frappe.get_doc mass assignment detection
 		if name == "frappe.get_doc":
 			controlled = False
-			if node.args:
+			if len(node.args) == 1:
 				arg = node.args[0]
 				if isinstance(arg, ast.Name) and arg.id in self.parameters:
 					controlled = True
@@ -861,12 +861,8 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 					)
 				)
 
-		# Dynamic method: frappe.get_doc(...).some_method()
-		if (
-			isinstance(node.func, ast.Attribute)
-			and isinstance(node.func.value, ast.Call)
-			and _call_name(node.func.value.func) == "frappe.get_doc"
-		):
+		# Dynamic method dispatch: frappe.get_doc(...).method_name()
+		if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Call):
 			self.dynamic_method_calls.append(
 				DynamicMethodCallRecord(
 					caller_symbol_id=self.symbol_id,
@@ -896,10 +892,29 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		if name in {"requests.get", "requests.post", "requests.put", "requests.delete", "requests.request", "urllib.request.urlopen"}:
 			url_dynamic = False
 			if node.args:
-				url_dynamic = not isinstance(node.args[0], ast.Constant)
-			self.outbound_request_calls.append(
-				OutboundRequestRecord(self.function, url_dynamic, span, self.symbol_id)
-			)
+				first_arg = node.args[0]
+				if not isinstance(first_arg, ast.Constant):
+					is_fixed_domain = False
+					if isinstance(first_arg, ast.JoinedStr):
+						if first_arg.values and isinstance(first_arg.values[0], ast.Constant):
+							val = str(first_arg.values[0].value)
+							if (val.startswith("http://") or val.startswith("https://")) and "/" in val.split("://", 1)[1]:
+								is_fixed_domain = True
+					elif isinstance(first_arg, ast.Call) and isinstance(first_arg.func, ast.Attribute) and first_arg.func.attr == "format":
+						target_str = _literal_string(_resolve_expression(first_arg.func.value, self.values))
+						if target_str and (target_str.startswith("http://") or target_str.startswith("https://")) and "/" in target_str.split("://", 1)[1]:
+							is_fixed_domain = True
+					elif isinstance(first_arg, ast.BinOp) and isinstance(first_arg.op, ast.Mod):
+						target_str = _literal_string(_resolve_expression(first_arg.left, self.values))
+						if target_str and (target_str.startswith("http://") or target_str.startswith("https://")) and "/" in target_str.split("://", 1)[1]:
+							is_fixed_domain = True
+
+					if not is_fixed_domain:
+						url_dynamic = True
+			if url_dynamic:
+				self.outbound_request_calls.append(
+					OutboundRequestRecord(self.function, url_dynamic, span, self.symbol_id)
+				)
 
 
 def _is_report_path(path: str) -> bool:

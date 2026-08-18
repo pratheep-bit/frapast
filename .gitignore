@@ -40,5 +40,15 @@ SCANNER_MASTER_REFERENCE.md
 rm.md
 run_full_pipeline.sh
 
+# Local credentials, bench configs, & secrets
+site_config.json
+**/site_config.json
+*.env
+.env*
+secrets.*
+*.key
+*.pem
+*.pfx
+
 # Local documentation backup
 _local_docs/
