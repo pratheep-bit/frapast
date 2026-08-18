@@ -90,8 +90,12 @@ runs:
         import json, sys, os
         sarif_path = "${{ inputs.sarif-file }}"
         fail_on = "${{ inputs.fail-on }}".lower()
+        if fail_on == "none":
+            sys.exit(0)
         severity_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1, "none": 0}
         gate = severity_rank.get(fail_on, 4)
+        if gate == 0:
+            sys.exit(0)
         try:
             data = json.load(open(sarif_path))
         except Exception:
