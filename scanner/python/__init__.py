@@ -20,8 +20,22 @@ from scanner.python.models import (
 )
 
 __all__ = [
+	"CallRecord",
+	"ClassLifecycleRecord",
+	"CommitCallRecord",
+	"DirectWriteRecord",
+	"EnqueueCallRecord",
+	"EvalExecRecord",
+	"FunctionRecord",
+	"GetDocKwargsRecord",
+	"IgnorePermissionsRecord",
+	"ImportRecord",
+	"PermCheckRecord",
 	"PythonParseError",
 	"PythonSymbolIndex",
+	"QueryBuilderRecord",
+	"SetValueRecord",
+	"SqlCallRecord",
 	"WhitelistedEndpoint",
 	"build_python_index",
 	"discover_python_files",

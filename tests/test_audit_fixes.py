@@ -1,22 +1,18 @@
 """Unit tests verifying all 9 Codebase Audit fixes (P0, P1, P2) in frapAST Security Engine.
 """
-import sys
-import unittest
 import tempfile
-import threading
-import json
+import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
-from scanner.hooks.engine import build_hook_index, discover_hooks_files
-from scanner.hooks.models import HookIndex
-from scanner.shared import SourceFile
-from scanner.web.server import _run_proof_in_background, _state, _lock
-from scanner.proof.orchestrator import _write_reproducer
-from scanner.ledger_io import index_ledger_entries, update_ledger_after_proof
-from scanner.severity.models import SeverityScore
 from scanner.cli import RepoScanResult
+from scanner.hooks.engine import build_hook_index
+from scanner.hooks.models import HookIndex
+from scanner.ledger_io import index_ledger_entries
+from scanner.proof.orchestrator import _write_reproducer
+from scanner.severity.models import SeverityScore
+from scanner.shared import SourceFile
 from scanner.ui.menus import _score
+from scanner.web.server import _lock, _state
 
 
 class TestCodebaseAuditFixes(unittest.TestCase):

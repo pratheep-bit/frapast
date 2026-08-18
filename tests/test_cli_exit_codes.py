@@ -1,9 +1,8 @@
 """Unit test suite for frapast CLI exit codes and command dispatch."""
 import unittest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from scanner.cli import main, _run_scan_command
+from scanner.cli import main
 from scanner.proof.models import ProofResult, ProofStatus
 
 
@@ -47,7 +46,7 @@ class TestCLIExitCodes(unittest.TestCase):
 			"status": "candidate",
 		}
 		mock_scan.return_value = ([candidate], 10, 0.5)
-		
+
 		mock_orch = MagicMock()
 		mock_orch.prove_candidate.return_value = ProofResult(
 			finding_id="FR-PERM-001-abc",
@@ -80,7 +79,7 @@ class TestCLIExitCodes(unittest.TestCase):
 			"status": "candidate",
 		}
 		mock_scan.return_value = ([candidate], 10, 0.5)
-		
+
 		mock_orch = MagicMock()
 		mock_orch.prove_candidate.return_value = ProofResult(
 			finding_id="FR-HOOK-007-abc",

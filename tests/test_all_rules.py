@@ -6,9 +6,9 @@ from pathlib import Path
 from scanner.callgraph import build_call_graph
 from scanner.hooks import build_hook_index, discover_hooks_files
 from scanner.python import build_python_index
-from scanner.shared import SourceFile
-from scanner.rules import execute_rules, clear_rule_caches
+from scanner.rules import clear_rule_caches, execute_rules
 from scanner.schema import build_schema_index, discover_doctype_json
+from scanner.shared import SourceFile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -66,6 +66,7 @@ class TestAllRulesCoverage(unittest.TestCase):
 	def test_fr_sqli_001_fstring_detection(self):
 		"""Verify FR-SQLI-001 properly flags f-string SQL injections with variable interpolation."""
 		import tempfile
+
 		from scanner.rules.engine import fr_sqli_001
 		with tempfile.TemporaryDirectory() as td:
 			p = Path(td)

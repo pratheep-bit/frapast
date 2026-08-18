@@ -68,12 +68,18 @@ tests/
 
 ## Adding a New Rule
 
-A complete rule addition requires the following:
+frapAST enforces strict precision and root-cause engineering standards. A rule is not considered "done" because a basic AST check passes; it must be proven safe against false positives and validated across real Frappe/ERPNext application trees.
 
-### 1. Add the detector function to `scanner/rules/engine.py`
+A complete rule addition requires following the steps below:
 
-Follow the naming convention `fr_<category>_<number>` and the existing function
-signature:
+### 1. Root-Cause Diagnosis and AST Visitor Mechanics
+
+When designing a detector function in `scanner/rules/engine.py`:
+
+- **Distinguish Method Invocations from Attribute Reads**: If detecting an unvalidated field access or method call, ensure your AST visitor distinguishes `visit_Call` from `visit_Attribute`. Never confuse `doc.fieldname` with `doc.method_name()`.
+- **Fail-Closed Schema Resolution**: When querying DocType schemas via `SchemaIndex`, only assert missing fields if the DocType definition was resolved with 100% confidence. If schema resolution is ambiguous, do not emit spurious findings.
+- **Respect Reserved Framework Attributes**: Always check against `_RESERVED_DOC_ATTRS` and standard `BaseDocument`/`Document` methods before flagging attribute accesses.
+- **Function Signature**: Follow the standard detector signature:
 
 ```python
 def fr_perm_007(
@@ -82,63 +88,87 @@ def fr_perm_007(
     python: PythonSymbolIndex,
     graph: CallGraph,
 ) -> list[Candidate]:
-    """FR-PERM-007: Brief one-line description.
+    """FR-PERM-007: Short descriptive title.
 
-    Detailed explanation of what this rule detects, why it is a vulnerability,
-    and any known false-positive patterns.
+    Detailed root-cause explanation:
+    - Vulnerability class and mechanism.
+    - Conditions under which this triggers.
+    - Known false-positive edge cases and how they are handled.
     """
     ...
 ```
 
-### 2. Register the rule in `ALL_RULES`
+### 2. Register the Rule in `ALL_RULES`
 
-Add your function to the `ALL_RULES` tuple at the bottom of `scanner/rules/engine.py`.
+Add your detector function to the `ALL_RULES` tuple at the bottom of `scanner/rules/engine.py`.
 
-### 3. Add a rule YAML file (`scanner/rules/FR-PERM-007.yaml`)
+### 3. Add Rule and Taxonomy YAML Metadata
 
-```yaml
-taxonomy_id: FR-PERM-007
-rule_version: "1.0.0"
-severity: high
-title: "Short human-readable title"
-description: |
-  What this rule detects and why it matters for Frappe applications.
-references:
-  - https://frappeframework.com/docs/user/en/api/... (if applicable)
+1. **Rule Descriptor (`scanner/rules/FR-PERM-007.yaml`)**:
+   ```yaml
+   taxonomy_id: FR-PERM-007
+   rule_version: "1.0.0"
+   severity: high
+   title: "Missing Permission Check on Sensitive DocType Method"
+   description: |
+     Detailed explanation of what the detector checks and the remediation guidance.
+   references:
+     - https://frappeframework.com/docs/user/en/api/document
+   ```
+
+2. **Taxonomy Descriptor (`scanner/taxonomy/FR-PERM-007.yaml`)**:
+   ```yaml
+   id: FR-PERM-007
+   runtime_required: true
+   detector_status: implemented
+   category: permission
+   title: "Missing Permission Check"
+   description: |
+     Canonical taxonomy entry for this rule class.
+   references: []
+   ```
+
+3. **Registry Registration**: Add the rule ID under the `implemented` list in `scanner/taxonomy/taxonomy_registry.yaml`.
+
+### 4. Mandatory Dual Unit Test Suite (TP & TN Fixtures)
+
+Every rule **must** have both positive and negative unit tests in `tests/test_ast_rule_coverage.py` or a dedicated test module:
+
+- **True-Positive (TP) Test**: Asserts that vulnerable code patterns produce exact candidates with accurate line numbers, rule IDs, and evidence strings.
+- **True-Negative (TN) Test**: Asserts that safe, idiomatic Frappe patterns (e.g., proper permission checks, whitelisted endpoints with guards, doc.save() with validation) produce **zero** findings.
+
+### 5. Real-World Application Revalidation
+
+Before submitting a PR, test your new rule against real open-source Frappe applications (e.g. `frappe/erpnext`, `frappe/hrms`):
+
+```bash
+# Example: Run scanner against a real Frappe app clone
+frapast scan /path/to/cloned/erpnext --rule FR-PERM-007 --format json
 ```
 
-### 4. Add a taxonomy YAML file (`scanner/taxonomy/FR-PERM-007.yaml`)
+Verify that all reported findings are legitimate true positives and that valid business logic is not falsely flagged.
 
-```yaml
-id: FR-PERM-007
-runtime_required: true
-detector_status: implemented
-category: permission
-title: "Short title"
-description: |
-  Stable taxonomy definition.
-references: []
+### 6. Register Precision Benchmark Bounds
+
+Add or update the expected finding count range in `RULE_BOUNDS` in `tests/test_precision_benchmark.py`. This ensures automated CI regression gates prevent precision drift across releases:
+
+```python
+RULE_BOUNDS = {
+    ...
+    "FR-PERM-007": (1, 3),  # (min_expected, max_expected) on standard benchmark corpus
+}
 ```
 
-### 5. Register in `scanner/taxonomy/taxonomy_registry.yaml`
+### 7. Tier 1 / Tier 2 Runtime Proof Integration (If Applicable)
 
-Add the new ID under the `implemented` section.
+If the vulnerability class can be proven at runtime:
+- **Tier 1**: Implement shell/bash reproducer generation in `scanner/proof/orchestrator.py`.
+- **Tier 2**: Implement HTTP RPC proof synthesis in `scanner/proof/http_synthesis.py` and `scanner/proof/bench_runner.py`.
+- **Security Invariant**: Always sanitize synthesized strings with `_reject_if_newline()` to eliminate reproducer script injection risks.
 
-### 6. Write unit tests
+### 8. Full Local Verification
 
-**Mandatory minimum**:
-
-- One test that feeds code triggering the rule and asserts a non-empty finding list.
-- One test that feeds the safe equivalent and asserts an empty finding list.
-
-Add these to `tests/test_all_rules.py` or a dedicated `tests/test_fr_perm_007.py`.
-
-### 7. Add precision bounds
-
-Add an entry to `RULE_BOUNDS` in `tests/test_precision_benchmark.py` with the
-expected finding count range on the fixture corpus.
-
-### 8. Verify everything passes
+Run the entire verification suite locally:
 
 ```bash
 pytest

@@ -26,6 +26,7 @@ from scanner.proof.http_client import (
     FrappeConnectionError,
     FrappeHTTPClient,
     FrappeHTTPError,
+    FrappeResponse,
 )
 from scanner.proof.http_synthesis import synthesize_http_rpc_reproducer
 from scanner.proof.models import ProofResult, ProofStatus

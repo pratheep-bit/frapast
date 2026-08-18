@@ -25,12 +25,10 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
-
 from scanner.callgraph import build_call_graph
-from scanner.hooks import build_hook_index
+from scanner.hooks import build_hook_index, discover_hooks_files
 from scanner.python import build_python_index
-from scanner.rules import execute_rules, clear_rule_caches
+from scanner.rules import clear_rule_caches, execute_rules
 from scanner.schema import build_schema_index, discover_doctype_json
 from scanner.shared import SourceFile
 
@@ -39,7 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def _index_from_src(src: str, filename: str = "test_fixture.py"):
     """Write inline source to a tempfile and build a PythonSymbolIndex from it."""
-    import tempfile, os
+    import tempfile
     content = textwrap.dedent(src)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", prefix="frapast_test_", delete=False, encoding="utf-8") as f:
         f.write(content)
@@ -54,6 +52,7 @@ def _index_from_src(src: str, filename: str = "test_fixture.py"):
 def _run_rules(src: str, filename: str = "test_fixture.py"):
     """Return the set of rule_ids fired against an inline source string."""
     import tempfile
+
     from scanner.hooks import discover_hooks_files
     content = textwrap.dedent(src)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", prefix="frapast_test_", delete=False, encoding="utf-8") as f:
@@ -325,11 +324,6 @@ def test_fr_data_001_true_positive():
     # whether the indexer can resolve 'Employee' with sufficient confidence from
     # a single-file tempfile context (no cross-file call graph).
     # What we assert: the rule fires on the full fixture suite which contains a
-    # known-bad field reference in phase3_patterns.py and has schema fixtures.
-    from scanner.hooks import discover_hooks_files
-    python = build_python_index(list(ROOT.glob("tests/python/fixtures/**/*.py"))  # type: ignore[arg-type]
-        if False else  # keep the temp-file approach for isolation
-        [])
     # Simplified: confirm the rule fires on the full fixture set
     import tempfile
     content = textwrap.dedent("""
@@ -367,6 +361,7 @@ def test_fr_data_001_true_negative():
     """A reference to a real field on Employee does NOT trigger FR-DATA-001."""
     clear_rule_caches()
     import tempfile
+
     from scanner.hooks import discover_hooks_files
     content = textwrap.dedent("""
     import frappe

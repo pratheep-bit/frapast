@@ -76,10 +76,23 @@ addopts   = "-v --tb=short"
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+exclude = [
+    "tests/python/fixtures",
+    "tests/schema/fixtures",
+    ".venv",
+    "build",
+    "dist",
+]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B"]
+select = ["E", "F", "W", "UP", "B"]
 ignore = [
+    "W191",   # Frappe Framework uses tabs for indentation
+    "E101",   # Indentation contains mixed spaces and tabs
     "E501",   # line-length enforced via formatter
-    "B008",   # function call in default argument (intentional in some cases)
+    "B008",   # function call in default argument
+    "E701",   # multiple statements on one line (compact rule definitions)
+    "E402",   # module level import not at top of file
+    "W291",   # trailing whitespace in banners
+    "W293",   # blank line contains whitespace
 ]

@@ -5,6 +5,7 @@ placeholder fields — this is what stops new categories from being quietly
 rubber-stamped the way FR-CSRF/SSRF/PERF/I18N were."""
 import sys
 from pathlib import Path
+
 import yaml
 
 REGISTRY = Path(__file__).parent / "taxonomy" / "taxonomy_registry.yaml"

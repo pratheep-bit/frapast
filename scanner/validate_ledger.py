@@ -1,6 +1,5 @@
 """CI gate: every findings/*.yaml entry must pass ledger_schema.validate_entry."""
 import sys
-from pathlib import Path
 
 import yaml
 

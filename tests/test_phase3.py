@@ -15,13 +15,13 @@ def test_phase3_rules_detect_new_patterns():
     )
     hooks = build_hook_index(discover_hooks_files(ROOT / "tests" / "hooks" / "fixtures"))
     python = build_python_index(discover_python_files(ROOT / "tests" / "python" / "fixtures"))
-    
+
     # We should detect patterns in phase3_patterns.py
     graph = build_call_graph(python)
     candidates = execute_rules(schema, hooks, python, graph)
-    
+
     by_rule = {candidate.rule_id: candidate for candidate in candidates if "phase3_patterns.py" in candidate.file}
-    
+
     # Assert specific rules fired on the new patterns
     assert "FR-INJ-001" in by_rule, "Should detect mass_assign via get_doc(kwargs)"
     assert "FR-INJ-002" in by_rule, "Should detect dangerous_eval"

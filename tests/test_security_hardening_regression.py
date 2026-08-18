@@ -13,9 +13,6 @@ from __future__ import annotations
 import html
 import http.server
 import json
-import os
-import subprocess
-import sys
 import tempfile
 import threading
 import time
@@ -33,10 +30,8 @@ from scanner.proof.http_synthesis import (
     synthesize_http_rpc_reproducer,
 )
 from scanner.proof.orchestrator import ProofOrchestrator, ProofStatus
-from scanner.rules.engine import Candidate
 from scanner.suppression import is_suppressed
 from scanner.web.server import _Handler, _resolve_file_path
-
 
 # ---------------------------------------------------------------------------
 # Test Server Fixture for Web-Layer Real HTTP Testing
@@ -266,6 +261,7 @@ class TestWebUIXSSPrevention:
         ]
         for raw, expected in payloads:
             escaped = html.escape(raw, quote=True).replace("'", "&#39;")
+            assert escaped == expected
             assert "<" not in escaped
             assert ">" not in escaped
             assert '"' not in escaped

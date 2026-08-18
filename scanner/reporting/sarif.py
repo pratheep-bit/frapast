@@ -20,7 +20,6 @@ def export_sarif(candidates: list[dict[str, object]], repo_path: Path) -> str:
 
 	for c in candidates:
 		rule_id = str(c.get("rule_id", "UNKNOWN"))
-		tax_id = str(c.get("taxonomy_id", rule_id))
 		file_path = str(c.get("file", ""))
 		line_num = int(c.get("line", 1) or 1)
 		evidence = str(c.get("evidence", ""))

@@ -2,14 +2,12 @@ from pathlib import Path
 
 import yaml
 
-from scanner.cli import scan
-from scanner.hooks import build_hook_index, discover_hooks_files
 from scanner.callgraph import build_call_graph
-from scanner.cli import _write_candidates
+from scanner.cli import _write_candidates, scan
+from scanner.hooks import build_hook_index, discover_hooks_files
 from scanner.python import build_python_index, discover_python_files
 from scanner.rules import execute_rules
-from scanner.schema import SchemaParseError, build_schema_index, discover_doctype_json, load as load_schema
-
+from scanner.schema import SchemaParseError, build_schema_index, discover_doctype_json
 
 ROOT = Path(__file__).resolve().parents[1]
 

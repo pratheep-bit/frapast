@@ -3,9 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scanner.schema.models import DocTypeRecord, FieldRecord, PermissionRecord, SchemaIndex, SchemaParseError
+from scanner.schema.models import (
+	DocTypeRecord,
+	FieldRecord,
+	PermissionRecord,
+	SchemaIndex,
+	SchemaParseError,
+)
 from scanner.shared import SourceFile
-
 
 SKIP_DIRS = {".git", "node_modules", ".venv", "env", "__pycache__", "tests", "benchmark", "fixtures", "scratch", "tmp", "sites"}
 

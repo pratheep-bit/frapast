@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-
 PROOF_MODE_MARKER = "# PROOF_MODE:"
 VALID_PROOF_MODES = ("direct_call", "http_rpc")
 

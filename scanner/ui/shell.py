@@ -14,7 +14,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from scanner.ui.banner import print_banner, print_orientation
-from scanner.ui.theme import SYMBOL_ARROW, SYMBOL_BULLET, console
+from scanner.ui.theme import SYMBOL_BULLET, console
 
 try:
 	from prompt_toolkit import PromptSession

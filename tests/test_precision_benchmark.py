@@ -23,7 +23,6 @@ from scanner.rules.engine import ALL_RULES
 from scanner.schema.engine import build_schema_index
 from scanner.shared.records import SourceFile
 
-
 # ---------------------------------------------------------------------------
 # Corpora paths
 # ---------------------------------------------------------------------------
@@ -381,8 +380,10 @@ class TestRootCauseRegressions:
                     self.notify_update()
                     return self.valid_field
         """)
+        import ast
+        import tempfile
+
         from scanner.python.engine import _IndexCollector
-        import ast, tempfile
 
         tree = ast.parse(code)
         lines = code.splitlines()
@@ -417,7 +418,8 @@ class TestRootCauseRegressions:
                 for item in items:
                     frappe.get_doc({"doctype": "Log", "msg": item.name}).insert()
         """)
-        import ast, tempfile
+        import tempfile
+
         from scanner.rules.engine import fr_perf_001_query_in_loop
 
         with tempfile.TemporaryDirectory() as td:

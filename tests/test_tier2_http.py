@@ -30,19 +30,16 @@ if str(ROOT) not in sys.path:
 
 from scanner.proof.http_client import (
     FrappeAuthError,
-    FrappeConnectionError,
     FrappeHTTPClient,
-    FrappeHTTPError,
     FrappePermissionError,
     FrappeResponse,
 )
 from scanner.proof.http_synthesis import synthesize_http_rpc_reproducer
-from scanner.proof.models import PROOF_MODE_MARKER, VALID_PROOF_MODES, ProofStatus
+from scanner.proof.models import PROOF_MODE_MARKER, ProofStatus
 from scanner.proof.validate_reproducer_markers import (
     run_validation,
     validate_file,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -261,7 +258,7 @@ class TestHTTPSynthesisPerRule(unittest.TestCase):
                         continue
                     content = path.read_text()
                     lines = content.splitlines()
-                    marker_lines = [l.strip() for l in lines[:3] if PROOF_MODE_MARKER in l]
+                    marker_lines = [line.strip() for line in lines[:3] if PROOF_MODE_MARKER in line]
                     self.assertTrue(marker_lines, f"No marker line in {rule_id}")
                     mode = marker_lines[0][len(PROOF_MODE_MARKER):].strip()
                     self.assertEqual(mode, "http_rpc", f"Wrong mode for {rule_id}: {mode!r}")

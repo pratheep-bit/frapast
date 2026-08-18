@@ -63,7 +63,7 @@ class Candidate:
 	fix_confidence: str = "none"
 	target_arg: str | None = None
 
-	def with_status(self, status: str) -> "Candidate":
+	def with_status(self, status: str) -> Candidate:
 		return replace(self, status=status)
 
 
@@ -218,8 +218,8 @@ def fr_perm_002(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 	"""
 	permission_checks = {record.symbol_id for record in python.permission_checks}
 	safe_calls = {
-		"frappe.get_all", "frappe.get_list", "frappe.get_value", 
-		"frappe.db.get_all", "frappe.db.get_list", "frappe.db.get_value", 
+		"frappe.get_all", "frappe.get_list", "frappe.get_value",
+		"frappe.db.get_all", "frappe.db.get_list", "frappe.db.get_value",
 		"frappe.db.count", "frappe.count"
 	}
 	candidates: list[Candidate] = []
@@ -780,7 +780,6 @@ _RESERVED_DOC_ATTRS: frozenset[str] = frozenset({
     "get_label_from_fieldname", "update_modified",
     "get_invalid_links", "set_fetch_from_value",
     # internal but commonly called from controllers:
-    "docstatus",          # also a property
     "_table_fieldnames", "_non_computed_table_fieldnames",
     "_get_table_fields", "_init_child", "_fix_numeric_types",
     "_get_missing_mandatory_fields", "_validate_selects",
@@ -812,8 +811,6 @@ _RESERVED_DOC_ATTRS: frozenset[str] = frozenset({
     "add_comment", "set_onload", "add_tag",
     # Commonly used Frappe controller utilities (set_status from frappe.model.workflow)
     "set_status",
-    # Workflow
-    "validate_workflow",
     # Frappe publish/realtime
     "publish_update", "publish_realtime",
     # Child-table helpers
@@ -1148,7 +1145,7 @@ def _has_unchecked_whitelisted_path(
 		is_one_hop_sink = sink_id in graph.edges.get(endpoint.symbol_id, ())
 		if not (is_direct_sink or is_one_hop_sink):
 			continue
-		
+
 		# If the endpoint or its 1-hop helpers have a permission check, it's considered guarded
 		cache_key = (id(python), id(graph), endpoint.symbol_id)
 		if cache is not None and cache_key in cache.endpoint_reachable:
@@ -1157,7 +1154,7 @@ def _has_unchecked_whitelisted_path(
 			endpoint_reachable = set(graph.reachable_from(endpoint.symbol_id, max_hops=1))
 			if cache is not None:
 				cache.endpoint_reachable[cache_key] = endpoint_reachable
-		
+
 		if not (endpoint_reachable & permission_checks):
 			return True
 	return False

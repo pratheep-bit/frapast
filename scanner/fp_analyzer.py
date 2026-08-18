@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from pathlib import Path
 
-import yaml
-
-from scanner.ledger_io import read_ledger_entry, discover_all_findings_dirs
+from scanner.ledger_io import discover_all_findings_dirs, read_ledger_entry
 
 # Any status past "proven" in the lifecycle is still a confirmed true positive
 # for precision purposes. "regressed" means it was real, got fixed, and broke

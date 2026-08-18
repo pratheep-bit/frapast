@@ -8,8 +8,9 @@ import yaml
 
 class TestIdentityHashStability(unittest.TestCase):
 	def test_identity_excludes_line_number(self):
-		from scanner.cli import _write_candidates
 		import inspect
+
+		from scanner.cli import _write_candidates
 		src = inspect.getsource(_write_candidates)
 		self.assertNotIn("candidate['line']", src.replace('"', "'"))
 		self.assertIn("candidate['function']", src.replace('"', "'"))
@@ -22,7 +23,7 @@ class TestTaxonomyValidator(unittest.TestCase):
 			registry_path = Path("scanner/taxonomy_registry.yaml")
 		registry = yaml.safe_load(registry_path.read_text())
 		additional = registry.get("additional_categories", {})
-		for prefix, meta in additional.items():
+		for _prefix, meta in additional.items():
 			blob = " ".join(str(v) for v in meta.values())
 			if "FILL IN" in blob or "TBD" in blob:
 				validator_src = Path("scanner/validate_taxonomy.py").read_text()

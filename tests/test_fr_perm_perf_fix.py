@@ -10,16 +10,15 @@ FR-PERF-001 fixes:
 - Excludes test files, patch files, and setup scripts via _is_non_runtime_path
 - Excludes in-memory dict construction (frappe.get_doc(dict(...)) or frappe.get_doc({"doctype": ...}))
 """
-import pytest
-from pathlib import Path
 import tempfile
 import textwrap
+from pathlib import Path
 
-from scanner.python import build_python_index
 from scanner.callgraph import build_call_graph
-from scanner.schema import build_schema_index
 from scanner.hooks import build_hook_index
-from scanner.rules import execute_rules, clear_rule_caches
+from scanner.python import build_python_index
+from scanner.rules import clear_rule_caches, execute_rules
+from scanner.schema import build_schema_index
 from scanner.shared import SourceFile
 
 

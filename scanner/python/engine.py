@@ -7,6 +7,7 @@ from pathlib import Path
 
 from scanner.logger import logger
 from scanner.python.models import (
+	BareExceptRecord,
 	CallRecord,
 	ClassLifecycleRecord,
 	CommitCallRecord,
@@ -14,33 +15,30 @@ from scanner.python.models import (
 	DynamicMethodCallRecord,
 	EnqueueCallRecord,
 	EvalExecRecord,
+	FieldnameRefRecord,
 	FunctionRecord,
 	GetDocKwargsRecord,
+	HardcodedStringRecord,
 	IgnorePermissionsRecord,
 	ImportRecord,
 	MsgprintRecord,
+	MutableDefaultArgRecord,
 	MutationRecord,
 	OutboundRequestRecord,
 	PathTraversalRecord,
 	PermCheckRecord,
-	PythonParseError,
 	PythonParseErrorRecord,
 	PythonSymbolIndex,
 	QueryBuilderRecord,
+	QueryInLoopRecord,
 	ReportEntryPointRecord,
 	SetValueRecord,
 	SqlCallRecord,
-	BareExceptRecord,
-	MutableDefaultArgRecord,
-	FieldnameRefRecord,
-	QueryInLoopRecord,
-	HardcodedStringRecord,
-	UnusedImportRecord,
 	StringDispatchRecord,
+	UnusedImportRecord,
 	WhitelistedEndpoint,
 )
 from scanner.shared import SourceFile, SourceSpan, stable_hash
-
 
 SKIP_DIRS = {".git", "node_modules", ".venv", "env", "__pycache__", "benchmark", "fixtures", "scratch", "tmp", "sites"}
 
@@ -329,7 +327,7 @@ class _IndexCollector:
 		span = _span(source, node, lines)
 		qualified_name = ".".join((*class_stack, node.name))
 		symbol_id = f"{source.relative_path}:{qualified_name}"
-		
+
 		self.functions.append(FunctionRecord(symbol_id, source.relative_path, node.name, qualified_name, span))
 		if _is_whitelisted(node, import_map):
 			self.whitelisted.append(WhitelistedEndpoint(qualified_name, _allow_guest(node, import_map), span, symbol_id))
@@ -349,7 +347,7 @@ class _IndexCollector:
 		)
 		visitor._current_class_doctype = doctype_name
 		visitor._class_valid_attrs = class_valid_attrs
-		
+
 		# Collect mutable default args
 		def _check_default(default_node: ast.AST, arg_name: str) -> None:
 			if isinstance(default_node, ast.List):
@@ -373,7 +371,7 @@ class _IndexCollector:
 		offset = len(combined_args) - len(node.args.defaults)
 		for i, default in enumerate(node.args.defaults):
 			_check_default(default, combined_args[offset + i].arg)
-		for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults):
+		for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults, strict=False):
 			if default:
 				_check_default(default, arg.arg)
 		for statement in node.body:

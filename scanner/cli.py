@@ -15,13 +15,18 @@ import yaml
 __version__ = "1.2.0"
 
 from scanner import ui
-from scanner.config import default_config, load_config
+from scanner.config import load_config
 from scanner.fp import apply_fp_suppression, load_false_positives
 from scanner.hooks import load as load_hooks
-from scanner.ledger_io import ledger_lock, read_ledger_entry, update_ledger_after_proof, write_ledger_entry
+from scanner.ledger_io import (
+	ledger_lock,
+	read_ledger_entry,
+	update_ledger_after_proof,
+	write_ledger_entry,
+)
 from scanner.python import load as load_python
 from scanner.reporting import render_track_record
-from scanner.rules import Candidate, execute_rules
+from scanner.rules import execute_rules
 from scanner.schema import load as load_schema
 from scanner.severity import score_candidates
 from scanner.shared import stable_hash
@@ -38,17 +43,10 @@ class RepoScanResult:
 
 
 def _get_version_string() -> str:
+	import importlib.util
 	py_ver = f"Python {platform.python_version()}"
-	try:
-		import rich
-		rich_status = "rich: available"
-	except ImportError:
-		rich_status = "rich: unavailable"
-	try:
-		import libcst
-		libcst_status = "libcst: available"
-	except ImportError:
-		libcst_status = "libcst: unavailable"
+	rich_status = "rich: available" if importlib.util.find_spec("rich") else "rich: unavailable"
+	libcst_status = "libcst: available" if importlib.util.find_spec("libcst") else "libcst: unavailable"
 	return f"frapast {__version__} ({py_ver}, {rich_status}, {libcst_status})"
 
 
@@ -138,8 +136,9 @@ def _run_gated_workflow_command(args: argparse.Namespace, workflow_name: str) ->
 
 
 def _run_fix_command(args: argparse.Namespace) -> int:
-	from scanner.autofix import FixEngine
 	from rich.syntax import Syntax
+
+	from scanner.autofix import FixEngine
 
 	repo = Path(getattr(args, "repo_path", ".")).expanduser().resolve()
 	if not repo.exists():
@@ -190,7 +189,7 @@ def _run_fix_command(args: argparse.Namespace) -> int:
 		_write_json_or_yaml({"patches": patch_dicts}, args.format, repo)
 		return 0
 
-	console.print(f"\n[bold cyan]✨ frapAST Automated Remediation Engine[/bold cyan]")
+	console.print("\n[bold cyan]✨ frapAST Automated Remediation Engine[/bold cyan]")
 	console.print(f"[bold]{len(patches)} patch(es) synthesized[/bold] across {len({p.file_path for p in patches})} file(s):\n")
 
 	for idx, p in enumerate(patches, 1):
@@ -761,7 +760,7 @@ def _legacy_main(argv: list[str] | None = None) -> int:
 
 def _run_post_scan_inspector_loop(repo: Path, candidates: list[dict]) -> None:
 	from scanner.ui.menus import select_bug_to_view
-	from scanner.ui.results import render_code_snippet, candidate_score
+	from scanner.ui.results import candidate_score, render_code_snippet
 	bug_idx = select_bug_to_view(candidates)
 	if bug_idx is not None:
 		sorted_cands = sorted(candidates, key=candidate_score, reverse=True)
@@ -779,8 +778,8 @@ def _run_proof_verification(
 	bench_password: str = "",
 	bench_site: str = "",
 ) -> list[dict]:
-	from scanner.proof.orchestrator import ProofOrchestrator
 	from scanner.proof.models import ProofStatus
+	from scanner.proof.orchestrator import ProofOrchestrator
 
 	orchestrator = ProofOrchestrator(
 		workspace_root=repo,
@@ -792,7 +791,7 @@ def _run_proof_verification(
 	proven_findings: list[dict] = []
 	if not candidates_to_prove:
 		return proven_findings
-	from scanner.ledger_io import update_ledger_after_proof, index_ledger_entries
+	from scanner.ledger_io import index_ledger_entries, update_ledger_after_proof
 	ledger_index = index_ledger_entries(findings_dir) if findings_dir is not None else None
 	with ui.proof_progress(len(candidates_to_prove), "Verifying candidates") as advance:
 		for c in candidates_to_prove:
@@ -956,7 +955,7 @@ def _run_interactive(initial_repo: str | None = None) -> int:
 		ui.render_results(repo, candidates, int(state.get("num_files", 0)), float(state.get("elapsed", 0.0)), limit=20)
 
 	def do_view(*, bug_id: int) -> None:
-		from scanner.ui.results import render_code_snippet, candidate_score
+		from scanner.ui.results import candidate_score, render_code_snippet
 		cands = state.get("candidates") or []
 		repo = state.get("repo") or Path(".")
 		if not cands:
@@ -1141,7 +1140,7 @@ def main(argv: list[str] | None = None) -> int:
 		reach_status = "[green]REACHABLE[/green]" if rep["reachable"] else "[red]UNREACHABLE[/red]"
 		site_status = "[green]VALID[/green]" if rep["site_valid"] else "[red]404 / INVALID[/red]"
 		auth_status = "[green]SUCCESS[/green]" if rep["authenticated"] else "[yellow]NOT AUTHENTICATED[/yellow]"
-		
+
 		console.print(f" 🌐 Bench URL:       {rep['url']} ({reach_status})")
 		console.print(f" 🏠 Bench Site:      {rep['site']} ({site_status})")
 		console.print(f" 🔑 Authentication:  {rep['user']} ({auth_status})")

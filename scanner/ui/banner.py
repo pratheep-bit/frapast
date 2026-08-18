@@ -11,7 +11,7 @@ from rich.align import Align
 from rich.panel import Panel
 from rich.text import Text
 
-from scanner.ui.theme import ACCENT, BANNER_GRADIENT, SYMBOL_ARROW, SYMBOL_BULLET, console
+from scanner.ui.theme import BANNER_GRADIENT, SYMBOL_ARROW, SYMBOL_BULLET, console
 
 try:
 	import pyfiglet

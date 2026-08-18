@@ -59,7 +59,7 @@ def validate_file(path: Path) -> str | None:
             return None
 
     # Not found in first 3 lines
-    first_3 = " | ".join(repr(l) for l in lines[:3])
+    first_3 = " | ".join(repr(line) for line in lines[:3])
     return f"missing or invalid {PROOF_MODE_MARKER} in first 3 lines. Found: {first_3}"
 
 
