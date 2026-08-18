@@ -12,9 +12,7 @@ from pathlib import Path
 
 import yaml
 
-__version__ = "1.2.0"
-
-from scanner import ui
+from scanner import __version__, ui
 from scanner.config import load_config
 from scanner.fp import apply_fp_suppression, load_false_positives
 from scanner.hooks import load as load_hooks

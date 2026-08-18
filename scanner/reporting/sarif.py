@@ -7,10 +7,14 @@ from pathlib import Path
 def _tool_version() -> str:
 	"""Return the installed frapast version, falling back gracefully."""
 	try:
-		from scanner import __version__
-		return __version__
+		from importlib.metadata import version
+		return version("frapast")
 	except Exception:
-		return "unknown"
+		try:
+			from scanner import __version__
+			return __version__
+		except Exception:
+			return "0.1.0"
 
 
 def export_sarif(candidates: list[dict[str, object]], repo_path: Path) -> str:
