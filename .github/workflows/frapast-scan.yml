@@ -1,4 +1,4 @@
-name: frapAST Security Scan
+name: frapAST Security Action Test
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  frapast-scan:
+  action-test:
+    name: Test Composite Action (action.yml)
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -16,9 +17,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Run frapAST Security Action
-        uses: pratheep-bit/frapast@v1.2.0
+      - name: Run frapAST Composite Action
+        uses: ./
         with:
-          path: 'scanner'
-          sarif: 'true'
-          fail-on-proven: 'true'
+          repo-path: 'tests/python/fixtures'
+          fail-on: 'critical'
+          format: 'sarif'
+          sarif-file: 'frapast-results.sarif'
+          upload-sarif: 'true'
