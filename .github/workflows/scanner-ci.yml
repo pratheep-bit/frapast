@@ -2,32 +2,42 @@ name: Scanner Engine CI
 
 on:
   push:
-    branches: [ develop, main ]
+    branches: [main, develop]
   pull_request:
-    branches: [ develop, main ]
+    branches: [main, develop]
 
 jobs:
-  test-and-validate:
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install libcst pyyaml ruff pytest rich
+          pip install -e ".[dev]"
 
-      - name: Run Python Unit Tests
+      - name: Run Linter (ruff)
+        run: ruff check .
+
+      - name: Run Unit Tests with Coverage
         env:
           PYTHONPATH: .
         run: |
-          python -m unittest discover -s tests/ -p "test_*.py"
+          pytest --cov=scanner --cov-report=term-missing --cov-report=xml -v
 
       - name: Validate Taxonomy Registry
         env:
@@ -48,3 +58,36 @@ jobs:
         env:
           PYTHONPATH: .
         run: python scanner/proof/validate_reproducer_markers.py
+
+      - name: Upload Coverage Report
+        uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.11'
+        with:
+          files: coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  supply-chain-audit:
+    name: Supply-Chain Vulnerability Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit frapAST Dependencies
+        run: pip-audit --requirement <(pip install -e ".[dev]" --dry-run 2>&1 | grep "Would install" | sed 's/Would install //' | tr ' ' '\n' | sed 's/==/==/' || echo "pyyaml rich libcst")
+        continue-on-error: true
+
+      - name: Audit Direct Dependencies
+        run: |
+          pip install pyyaml rich libcst
+          pip-audit

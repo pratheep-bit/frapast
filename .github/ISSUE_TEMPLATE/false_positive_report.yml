@@ -1,0 +1,65 @@
+name: False Positive Report
+description: Report a finding that frapAST incorrectly flags as a security issue.
+title: "[FP]: "
+labels: ["false-positive", "precision"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A false positive (FP) is a finding that frapAST reports as a security issue, but which is actually safe code.
+        Providing the exact code context is essential for us to reproduce and fix the issue.
+
+  - type: input
+    id: rule_id
+    attributes:
+      label: Rule ID
+      description: The rule ID shown in the finding (e.g. FR-PERM-001, FR-SQLI-003).
+      placeholder: "FR-PERM-001"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: frapAST Version
+      placeholder: "e.g. 1.0.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: code_snippet
+    attributes:
+      label: Code Snippet That Triggers the Finding
+      description: |
+        Paste the minimum amount of code that reproduces the false positive.
+        Please remove any private company names, credentials, or proprietary context.
+      render: python
+    validations:
+      required: true
+
+  - type: input
+    id: file_path
+    attributes:
+      label: File Path (relative to app root)
+      description: The file path shown in the finding.
+      placeholder: "e.g. frappe_custom_app/api.py:L45"
+    validations:
+      required: false
+
+  - type: textarea
+    id: why_safe
+    attributes:
+      label: Why This Code Is Safe
+      description: Explain why frapAST's finding is incorrect for this case. What guards or context make this safe?
+    validations:
+      required: true
+
+  - type: textarea
+    id: frappe_context
+    attributes:
+      label: Frappe/ERPNext Context
+      description: |
+        Optional — relevant Frappe-specific context (DocType name, role permissions configured in JSON,
+        hooks.py registration, etc.) that frapAST may not have visibility into.
+    validations:
+      required: false

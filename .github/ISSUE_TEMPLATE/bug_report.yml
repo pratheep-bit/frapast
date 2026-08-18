@@ -1,0 +1,76 @@
+name: Bug Report
+description: Report a scanner crash, CLI error, or unexpected behavior.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. Please fill in the fields below so the issue can be reproduced and triaged efficiently.
+
+  - type: input
+    id: version
+    attributes:
+      label: frapAST Version
+      description: Output of `frapast --version` or the PyPI release tag.
+      placeholder: "e.g. 1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python Version
+      description: Output of `python --version`.
+      placeholder: "e.g. 3.11.9"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of what went wrong.
+      placeholder: "When I run `frapast scan ./myapp`, it crashes with..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: Exact commands and any relevant code snippets needed to reproduce the issue.
+      placeholder: |
+        1. Run `frapast scan ./myapp --format json`
+        2. Observe the traceback...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Output / Traceback
+      description: Paste the full error message or traceback here.
+      render: shell
+    validations:
+      required: false

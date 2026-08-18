@@ -1,0 +1,11 @@
+- id: frapast
+  name: frapAST Security Audit
+  language: python
+  entry: frapast scan
+  types: [python]
+  args: ["--format", "human", "--limit", "50"]
+  pass_filenames: false
+  description: >
+    Run frapAST static security analysis on modified Python files.
+    Detects Frappe/ERPNext-specific vulnerabilities including SQL injection,
+    permission bypass, hook misconfiguration, and workflow issues.

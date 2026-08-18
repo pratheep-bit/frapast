@@ -1,36 +1,43 @@
-name: "frapAST Security & Performance Audit"
-description: "Autonomous, runtime-proven security, performance & compatibility audit for Frappe and ERPNext custom apps."
-author: "Pratheep S"
+name: "frapAST Security and Performance Audit"
+description: "Runtime-proven static security, performance, and anti-pattern audit for Frappe and ERPNext custom applications."
+author: "frapAST"
 branding:
-  icon: "shield-check"
+  icon: "shield"
   color: "blue"
 
 inputs:
   repo-path:
-    description: "Path to repository or Frappe app directory to audit"
+    description: "Path to the Frappe application directory to audit."
     required: false
     default: "."
-  fail-on-critical:
-    description: "Fail the CI step if critical findings are detected"
+  fail-on:
+    description: "Minimum severity level that causes the step to fail. Options: critical, high, medium, low, none."
     required: false
-    default: "true"
+    default: "critical"
   format:
-    description: "Output format: sarif, json, or human"
+    description: "Output format: sarif, json, or human."
     required: false
     default: "sarif"
   sarif-file:
-    description: "Path to output SARIF report"
+    description: "Path to write the SARIF 2.1.0 output file."
     required: false
     default: "frapast-results.sarif"
   python-version:
-    description: "Python version to use"
+    description: "Python version to use when running frapAST."
     required: false
     default: "3.11"
+  upload-sarif:
+    description: "Upload the SARIF file to GitHub Code Scanning (requires write permissions)."
+    required: false
+    default: "true"
 
 outputs:
   sarif-path:
-    description: "Path to the generated SARIF report"
+    description: "Absolute path to the generated SARIF report."
     value: ${{ inputs.sarif-file }}
+  findings-count:
+    description: "Total number of findings emitted by the scan."
+    value: ${{ steps.run-scan.outputs.findings_count }}
 
 runs:
   using: "composite"
@@ -43,18 +50,73 @@ runs:
     - name: Install frapAST
       shell: bash
       run: |
-        pip install --upgrade pip
-        pip install pyyaml rich libcst
+        python -m pip install --upgrade pip
+        pip install frapast
 
     - name: Run frapAST Security Audit
+      id: run-scan
       shell: bash
       run: |
-        python -m scanner.cli scan "${{ inputs.repo-path }}" --format "${{ inputs.format }}" --sarif "${{ inputs.sarif-file }}" || true
-        python -m scanner.cli scan "${{ inputs.repo-path }}" --limit 25
+        set +e
+        python -m scanner.cli scan "${{ inputs.repo-path }}" \
+          --format "${{ inputs.format }}" \
+          --sarif "${{ inputs.sarif-file }}"
+        EXIT_CODE=$?
+
+        # Count findings in SARIF if available
+        if [ -f "${{ inputs.sarif-file }}" ]; then
+          FINDINGS=$(python3 -c "
+        import json, sys
+        try:
+            data = json.load(open('${{ inputs.sarif-file }}'))
+            count = sum(len(run.get('results', [])) for run in data.get('runs', []))
+            print(count)
+        except Exception:
+            print(0)
+        ")
+          echo "findings_count=$FINDINGS" >> $GITHUB_OUTPUT
+          echo "frapAST found $FINDINGS finding(s)."
+        else
+          echo "findings_count=0" >> $GITHUB_OUTPUT
+        fi
+
+        # Apply fail-on severity gate
+        FAIL_ON="${{ inputs.fail-on }}"
+        if [ "$FAIL_ON" = "none" ]; then
+          exit 0
+        fi
+
+        python3 - << 'PYEOF'
+        import json, sys, os
+        sarif_path = "${{ inputs.sarif-file }}"
+        fail_on = "${{ inputs.fail-on }}".lower()
+        severity_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1, "none": 0}
+        gate = severity_rank.get(fail_on, 4)
+        try:
+            data = json.load(open(sarif_path))
+        except Exception:
+            sys.exit(0)
+        for run in data.get("runs", []):
+            for result in run.get("results", []):
+                level = result.get("level", "warning").lower()
+                level_map = {"error": "critical", "warning": "high", "note": "medium", "none": "low"}
+                mapped = level_map.get(level, "medium")
+                if severity_rank.get(mapped, 0) >= gate:
+                    print(f"Severity gate breached: {mapped} finding detected (gate={fail_on}).")
+                    sys.exit(78)
+        sys.exit(0)
+        PYEOF
+
+        PY_EXIT=$?
+        if [ "$PY_EXIT" -eq 78 ]; then
+          exit 1
+        fi
+        exit 0
 
     - name: Upload SARIF to GitHub Code Scanning
-      if: inputs.format == 'sarif' && always()
+      if: ${{ inputs.upload-sarif == 'true' && always() }}
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: ${{ inputs.sarif-file }}
+        category: frapast
       continue-on-error: true

@@ -1,0 +1,78 @@
+name: New Rule Request
+description: Request a new security, performance, or anti-pattern detector for Frappe/ERPNext.
+title: "[Rule]: "
+labels: ["rule-request", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Propose a new frapAST detector rule. The more concrete the vulnerability class and code example, the easier
+        it is to implement and validate precision. All new rules require a minimum of one confirmed true positive
+        from a real Frappe application before they can be enabled by default.
+
+  - type: input
+    id: proposed_id
+    attributes:
+      label: Proposed Rule ID (if known)
+      description: e.g. FR-PERM-007, FR-SQLI-005, FR-DATA-004
+      placeholder: "FR-PERM-007"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Permission / Authorization (FR-PERM-*)
+        - SQL Injection (FR-SQLI-*)
+        - Injection / XSS (FR-INJ-*)
+        - Hook Misconfiguration (FR-HOOK-*)
+        - Workflow / State Machine (FR-WKFL-*)
+        - Data Integrity (FR-DATA-*)
+        - Performance (FR-PERF-*)
+        - Path Traversal (FR-PATH-*)
+        - CSRF (FR-CSRF-*)
+        - SSRF (FR-SSRF-*)
+        - Internationalisation (FR-I18N-*)
+        - Correlation / Quality (FR-CORR-*)
+        - New Category (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Vulnerability or Anti-Pattern Description
+      description: What does this rule detect? What is the security or quality impact?
+    validations:
+      required: true
+
+  - type: textarea
+    id: trigger_example
+    attributes:
+      label: Code Example That Should Trigger the Rule
+      render: python
+      description: Minimum code snippet that represents the vulnerable or problematic pattern.
+    validations:
+      required: true
+
+  - type: textarea
+    id: safe_example
+    attributes:
+      label: Code Example That Should NOT Trigger the Rule
+      render: python
+      description: The safe equivalent of the above, that the rule must not flag.
+    validations:
+      required: true
+
+  - type: textarea
+    id: real_world_occurrence
+    attributes:
+      label: Real-World Occurrence
+      description: |
+        Has this pattern been found in a real Frappe/ERPNext application? If so, describe it
+        using only open-source repository references (frappe/erpnext, frappe/hrms, etc.).
+        Do not include private company or client names.
+    validations:
+      required: false

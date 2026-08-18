@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "frapast"
-version = "1.2.0"
-description = "Runtime-Proven Static Security Analysis Engine for Frappe & ERPNext"
+version = "1.0.0"
+description = "Runtime-Proven Static Security Analysis Engine for Frappe and ERPNext"
 readme = "README.md"
 authors = [
     { name = "Pratheep S", email = "pratheeps2024@gmail.com" }
@@ -13,19 +13,23 @@ authors = [
 license = "MIT"
 keywords = ["frappe", "erpnext", "security", "sast", "static-analysis", "vulnerability-scanner"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
 ]
 requires-python = ">=3.10"
 dependencies = [
     "pyyaml>=6.0",
     "rich>=13.0.0",
     "libcst>=1.0.0",
+    "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [project.scripts]
@@ -35,12 +39,27 @@ frapast = "scanner.cli:main"
 frapast = "scanner.bench_commands:commands"
 
 [project.urls]
-Homepage = "https://github.com/pratheep-bit/frapast"
-Repository = "https://github.com/pratheep-bit/frapast"
-Issues = "https://github.com/pratheep-bit/frapast/issues"
+Homepage    = "https://github.com/pratheep-bit/frapast"
+Repository  = "https://github.com/pratheep-bit/frapast"
+Issues      = "https://github.com/pratheep-bit/frapast/issues"
+Security    = "https://github.com/pratheep-bit/frapast/security/advisories"
+Changelog   = "https://github.com/pratheep-bit/frapast/releases"
+
+[project.optional-dependencies]
+# pip install frapast[shell]  — interactive REPL with history/tab-completion
+shell = ["prompt_toolkit>=3.0"]
+# pip install frapast[dev]  — test, lint, audit, and build dependencies
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+    "build>=1.0.0",
+    "pip-audit>=2.7.0",
+    "libcst>=1.0.0",
+]
 
 [tool.setuptools.packages.find]
-where = ["."]
+where   = ["."]
 include = ["scanner*"]
 
 [tool.setuptools.package-data]
@@ -50,8 +69,17 @@ scanner = [
     "web/static/*",
 ]
 
-[project.optional-dependencies]
-# pip install frapast[shell]  — enables the interactive REPL with history/tab-completion
-shell = ["prompt_toolkit>=3.0"]
-# pip install frapast[dev]  — test and lint dependencies
-dev  = ["pytest>=7.0", "ruff", "libcst>=1.0.0"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts   = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",   # line-length enforced via formatter
+    "B008",   # function call in default argument (intentional in some cases)
+]
