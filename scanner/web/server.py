@@ -1165,7 +1165,8 @@ def start_server(
                | |                           
                |_|                           [/bold cyan]""")
     console.print()
-    console.print("  [bold white]frapAST Security Engine[/bold white] — [dim]v1.2.0 (Public Beta)[/dim]")
+    from scanner import __version__
+    console.print(f"  [bold white]frapAST Security Engine[/bold white] — [dim]v{__version__} (Public Beta)[/dim]")
     console.print("  [dim]Enterprise SAST & DAST Platform for Frappe / ERPNext[/dim]\n")
     console.print("[dim]┌──────────────────────────────────────────────────────────────────┐[/dim]")
     console.print(f"[dim]│[/dim]   [bold white]Local Dashboard[/bold white]   [bold green]● ONLINE[/bold green]   [underline blue]{url}[/underline blue]             [dim]│[/dim]")
