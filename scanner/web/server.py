@@ -29,6 +29,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import queue
 import sys
 import threading
@@ -60,7 +61,7 @@ _state: dict = {
     # Bench config — loaded from DB on startup, kept in memory for fast reads
     "bench_url": "",
     "bench_user": "Administrator",
-    "bench_password": "admin",
+    "bench_password": "",
     "bench_site": "",
 }
 
@@ -90,6 +91,13 @@ def _broadcast_sse(event: dict) -> None:
 class _Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # silence default logging
         pass
+
+    def address_string(self) -> str:
+        # On Windows, the default BaseHTTPRequestHandler.address_string() does
+        # a blocking reverse DNS / NetBIOS lookup (socket.getfqdn) on 127.0.0.1.
+        # This causes a 2-5 second hang on EVERY SINGLE HTTP request in the UI.
+        # Returning the raw IP directly eliminates this entire delay.
+        return self.client_address[0]
 
     def _is_trusted_origin(self) -> bool:
         origin = self.headers.get("Origin")
@@ -281,13 +289,15 @@ class _Handler(BaseHTTPRequestHandler):
                 if "bench_user" in data:
                     _state["bench_user"] = cfg["bench_user"] = str(data["bench_user"]).strip()
                 if "bench_password" in data:
-                    _state["bench_password"] = cfg["bench_password"] = str(data["bench_password"]).strip()
+                    # Password is kept strictly in-memory in _state, never passed to SQLite
+                    _state["bench_password"] = str(data["bench_password"]).strip()
                 if "bench_site" in data:
                     _state["bench_site"] = cfg["bench_site"] = str(data["bench_site"]).strip()
             _db.save_bench_config(cfg)
             self._serve_json({"status": "saved"})
 
         elif path == "/api/scan":
+            import re as _re
             repo_path = str(data.get("repo_path", "")).strip()
             if not repo_path:
                 self._serve_json({"error": "repo_path is required"}, status=400)
@@ -311,6 +321,19 @@ class _Handler(BaseHTTPRequestHandler):
                 self._serve_json({"error": f"Path '{repo_path}' is not a directory"}, status=400)
                 return
 
+            # Optional: incremental scan against a git ref (e.g. "main", "origin/main", "abc1234")
+            raw_diff_ref = str(data.get("diff_ref", "")).strip()
+            diff_ref: str | None = None
+            if raw_diff_ref:
+                # Defence-in-depth: reject values that could escape the git argv list.
+                # The subprocess call already uses list-form argv (no shell=True), but
+                # this guard blocks obviously malicious input at the HTTP boundary.
+                _SAFE_REF_RE = _re.compile(r"^[a-zA-Z0-9_./@-]{1,200}$")
+                if not _SAFE_REF_RE.match(raw_diff_ref):
+                    self._serve_json({"error": "diff_ref contains invalid characters"}, status=400)
+                    return
+                diff_ref = raw_diff_ref
+
             with _lock:
                 if _state["scan_running"]:
                     self._serve_json({"status": "already_running"})
@@ -325,14 +348,14 @@ class _Handler(BaseHTTPRequestHandler):
 
             def _scan_worker():
                 try:
-                    _run_scan_in_background(target)
+                    _run_scan_in_background(target, diff_ref=diff_ref)
                 finally:
                     with _lock:
                         _state["scan_running"] = False
                     _broadcast_sse({"type": "scan_done", "repo": str(target)})
 
             threading.Thread(target=_scan_worker, daemon=True).start()
-            self._serve_json({"status": "scanning", "repo": str(target)})
+            self._serve_json({"status": "scanning", "repo": str(target), "diff_ref": diff_ref})
 
         elif path == "/api/fix/preview":
             self._handle_fix_preview(data)
@@ -459,9 +482,16 @@ class _Handler(BaseHTTPRequestHandler):
 
     _report_cache: dict = {"time": 0.0, "text": ""}
 
+    @classmethod
+    def invalidate_report_cache(cls) -> None:
+        cls._report_cache = {"time": 0.0, "text": ""}
+
     def _serve_report(self):
         try:
-            scan_id = _db.get_latest_scan_id()
+            with _lock:
+                scan_id = _state.get("current_scan_id")
+            if not scan_id:
+                scan_id = _db.get_latest_scan_id()
             candidates: list[dict] = _db.get_findings(scan_id) if scan_id else []
             repo = ""
             if scan_id:
@@ -483,27 +513,66 @@ class _Handler(BaseHTTPRequestHandler):
             cache_text = _Handler._report_cache["text"]
 
             if now - cache_time > 10.0 or not cache_text:
-                from scanner.reporting import render_track_record
-                new_text = render_track_record("findings")
+                stats = _db.get_scan_stats(scan_id)
+                repo_name = Path(repo).name if repo else "Scanned Repo"
 
-                if candidates and ("| candidate | 0 |" in new_text or "| proven | 0 |" in new_text):
-                    stats = _db.get_scan_stats(scan_id)
-                    repo_name = Path(repo).name if repo else "Scanned Repo"
-                    new_text = (
-                        f"# Security Track-Record Report for {repo_name}\n\n"
-                        f"## Evidence Status\n\n"
-                        f"Static candidates are internal-only Tier 0 records.\n\n"
-                        f"| Status | Count |\n"
-                        f"| --- | ---: |\n"
-                        f"| candidate | {stats['candidate']} |\n"
-                        f"| proven | {stats['proven']} |\n"
-                        f"| false_positive | 0 |\n"
-                        f"| patched | 0 |\n\n"
-                        f"## Target Summary\n\n"
-                        f"Scanned repository path: `{repo}`\n\n"
-                        f"Total candidate findings detected: **{stats['total']}**\n"
-                    )
+                from collections import Counter
+                status_counts = Counter(c.get("status", "candidate") for c in candidates)
 
+                from scanner.ui.results import severity_style, candidate_score
+                sev_counts = Counter()
+                for c in candidates:
+                    lbl, _ = severity_style(candidate_score(c))
+                    sev_counts[lbl] += 1
+
+                lines = [
+                    f"# Security Track-Record Report for {repo_name}",
+                    "",
+                    "## Target Summary",
+                    "",
+                    f"- **Target Repository:** `{repo}`",
+                    f"- **Total Findings Analyzed:** **{len(candidates)}**",
+                    f"- **Active Verification Status:** {stats.get('proven', 0)} Proven, {stats.get('refuted', 0)} Refuted, {stats.get('skipped', 0)} Skipped, {stats.get('candidate', 0)} Unproven Candidates",
+                    "",
+                    "## Evidence Status",
+                    "",
+                    "Static candidates are internal-only Tier 0 records. Proven findings have automated Tier 1 or Tier 2 verification evidence.",
+                    "",
+                    "| Status | Count |",
+                    "| --- | ---: |",
+                    f"| candidate | {status_counts.get('candidate', 0)} |",
+                    f"| proven | {status_counts.get('proven', 0)} |",
+                    f"| refuted | {status_counts.get('refuted', 0)} |",
+                    f"| skipped | {status_counts.get('skipped', 0)} |",
+                    f"| patched | {status_counts.get('patched', 0)} |",
+                    f"| false_positive | {status_counts.get('false_positive', 0)} |",
+                    "",
+                    "## Severity Distribution",
+                    "",
+                    "| Severity Level | Count |",
+                    "| --- | ---: |",
+                    f"| CRITICAL | {sev_counts.get('CRITICAL', 0)} |",
+                    f"| HIGH | {sev_counts.get('HIGH', 0)} |",
+                    f"| MEDIUM | {sev_counts.get('MEDIUM', 0)} |",
+                    f"| LOW | {sev_counts.get('LOW', 0)} |",
+                    "",
+                    "## Findings by Rule",
+                    "",
+                    "| Rule ID | Findings | Status Breakdown |",
+                    "| --- | ---: | --- |",
+                ]
+
+                by_rule = {}
+                for c in candidates:
+                    rid = c.get("rule_id", "UNKNOWN")
+                    by_rule.setdefault(rid, []).append(c)
+
+                for rid, r_cands in sorted(by_rule.items()):
+                    r_status = Counter(c.get("status", "candidate") for c in r_cands)
+                    status_str = ", ".join(f"{count} {st}" for st, count in sorted(r_status.items()) if count > 0)
+                    lines.append(f"| {rid} | {len(r_cands)} | {status_str} |")
+
+                new_text = "\n".join(lines)
                 _Handler._report_cache["text"] = new_text
                 _Handler._report_cache["time"] = now
                 cache_text = new_text
@@ -788,6 +857,9 @@ class _Handler(BaseHTTPRequestHandler):
 
         ok = fix_engine.apply_patch(patch)
         if ok:
+            if finding_id:
+                _db.update_finding_status(finding_id, "patched", "patched", 0)
+            _Handler.invalidate_report_cache()
             self._serve_json({"success": True, "message": f"Successfully applied fix to {patch.file_path.name}"})
         else:
             self._serve_json({"success": False, "error": "Failed to write patch to disk"}, status=500)
@@ -798,26 +870,63 @@ class _Handler(BaseHTTPRequestHandler):
 # ---------------------------------------------------------------------------
 
 
-def _run_scan_in_background(repo: Path) -> None:
-    """Run a full static scan in background, writing to DB and broadcasting SSE events."""
+def _run_scan_in_background(repo: Path, *, diff_ref: str | None = None) -> None:
+    """Run a full static scan in background, writing to DB and broadcasting SSE events.
+
+    Parameters
+    ----------
+    repo:
+        Absolute path to the Frappe application directory to scan.
+    diff_ref:
+        Optional git branch or commit reference (e.g. ``"main"``, ``"origin/main"``,
+        ``"abc1234"``). When supplied, only findings whose source file appears in
+        ``git diff --name-only <diff_ref>`` are persisted — equivalent to the CLI
+        ``frapast scan --diff <diff_ref>`` flag.
+    """
     scan_id = str(uuid.uuid4())
     try:
         from dataclasses import asdict
 
-        from scanner.cli import _candidate_repo_id, _finding_id
+        from scanner.cli import _candidate_repo_id, _filter_candidates_by_diff, _finding_id
         from scanner.hooks import load as load_hooks
         from scanner.python import load as load_python
+        from scanner.python.engine import discover_python_files
         from scanner.rules import execute_rules
         from scanner.schema import load as load_schema
         from scanner.severity import score_candidates
 
-        _broadcast_sse({"type": "scan_start", "repo": str(repo), "scan_id": scan_id})
+        _broadcast_sse({"type": "scan_start", "repo": str(repo), "scan_id": scan_id, "diff_ref": diff_ref})
         _db.create_scan(scan_id, str(repo.resolve()))
 
         with _lock:
             _state["current_scan_id"] = scan_id
 
-        python_index = load_python(repo)
+        # Discover files first so the UI can show a live total immediately.
+        python_files = discover_python_files(repo)
+        total_files = len(python_files)
+        _broadcast_sse({
+            "type": "scan_indexing",
+            "scan_id": scan_id,
+            "files_total": total_files,
+            "files_done": 0,
+            "repo": str(repo),
+        })
+
+        # Progress callback: fires every 50 files so the dashboard shows a
+        # live counter instead of a frozen "Initializing" spinner.
+        _PROGRESS_INTERVAL = 50
+
+        def _progress(done: int, total: int) -> None:
+            if done % _PROGRESS_INTERVAL == 0 or done == total:
+                _broadcast_sse({
+                    "type": "scan_indexing",
+                    "scan_id": scan_id,
+                    "files_total": total,
+                    "files_done": done,
+                    "repo": str(repo),
+                })
+
+        python_index = load_python(repo, progress_callback=_progress, files=python_files)
         schema_index = load_schema(repo)
         hooks_index = load_hooks(repo)
 
@@ -842,9 +951,14 @@ def _run_scan_in_background(repo: Path) -> None:
             cd["id"] = fid
             candidates.append(cd)
 
+        # Incremental (diff) mode: filter to only changed files when a ref is provided
+        if diff_ref:
+            candidates = _filter_candidates_by_diff(candidates, repo, diff_ref)
+
         # Persist to DB
         _db.upsert_findings(scan_id, candidates)
         _db.finish_scan(scan_id, status="done")
+        _Handler.invalidate_report_cache()
 
         with _lock:
             _state["summary"] = {
@@ -858,6 +972,8 @@ def _run_scan_in_background(repo: Path) -> None:
             "count": len(candidates),
             "repo": str(repo),
             "scan_id": scan_id,
+            "diff_mode": bool(diff_ref),
+            "diff_ref": diff_ref,
         })
 
     except Exception as exc:
@@ -898,7 +1014,11 @@ def _select_candidates(candidates: list[dict], spec) -> list[dict]:
             selected.append(c)
         return selected
 
-    sorted_cands = sorted(candidates, key=candidate_score, reverse=True)
+    # For general count or "all", prioritize unproven candidates and skipped findings (e.g. from offline bench runs)
+    provable = [c for c in candidates if c.get("status") in ("candidate", "skipped")]
+    pool = provable if provable else candidates
+
+    sorted_cands = sorted(pool, key=candidate_score, reverse=True)
     if isinstance(spec, int):
         return sorted_cands[:spec]
     return sorted_cands  # "all"
@@ -1059,6 +1179,7 @@ def _run_proof_in_background(spec) -> None:
             "errors": errors,
             "proven_findings": proven_findings,
         }
+    _Handler.invalidate_report_cache()
 
 
 # ---------------------------------------------------------------------------
@@ -1103,7 +1224,7 @@ def start_server(
     with _lock:
         _state["bench_url"] = bench_url or persisted.get("bench_url", "")
         _state["bench_user"] = bench_user or persisted.get("bench_user", "Administrator")
-        _state["bench_password"] = bench_password or persisted.get("bench_password", "admin")
+        _state["bench_password"] = bench_password or persisted.get("bench_password", "")
         _state["bench_site"] = bench_site or persisted.get("bench_site", "")
         _state["running"] = False
         _state["scan_running"] = False
@@ -1147,7 +1268,7 @@ def start_server(
     server.daemon_threads = True
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
-    url = f"http://localhost:{port}"
+    url = f"http://127.0.0.1:{port}"
     import platform
 
     from scanner.ui.theme import console
@@ -1228,10 +1349,14 @@ def _resolve_file_path(repo_root: Path, rel_file: str) -> Path | None:
 
     fname = p.name
     if fname:
-        candidates = [
-            m for m in repo_root_resolved.rglob(fname)
-            if m.is_file() and _within_repo(m)
-        ]
+        candidates = []
+        _SKIP_DIRS = {".git", "node_modules", ".venv", "env", "__pycache__"}
+        for dirpath, dirs, filenames in os.walk(repo_root_resolved):
+            dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and not d.startswith(".")]
+            if fname in filenames:
+                m = Path(dirpath) / fname
+                if _within_repo(m):
+                    candidates.append(m)
         exact_suffix = [m for m in candidates if str(m).endswith(rel_file)]
         if len(exact_suffix) == 1:
             return exact_suffix[0]

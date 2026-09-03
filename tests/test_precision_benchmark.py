@@ -208,7 +208,7 @@ RULE_BOUNDS: list[RuleBound] = [
         description="TP: Dynamic code execution via eval/exec.",
     ),
     RuleBound(
-        "FR-XSS-001",
+        "FR-INJ-005",
         "phase1_patterns.py",
         min_expected=0,
         max_expected=2,
@@ -229,14 +229,14 @@ RULE_BOUNDS: list[RuleBound] = [
         description="TP: Unvalidated URL in frappe.integrations / requests.get.",
     ),
     RuleBound(
-        "FR-CORR-001",
+        "FR-HOOK-006",
         "phase1_patterns.py",
         min_expected=0,
         max_expected=2,
         description="TP: Bare except clause in controller logic.",
     ),
     RuleBound(
-        "FR-CORR-002",
+        "FR-HOOK-007",
         "phase1_patterns.py",
         min_expected=0,
         max_expected=2,

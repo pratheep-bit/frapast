@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "frapast"
-version = "0.1.0"
+version = "0.1.6"
 description = "Runtime-Proven Static Security Analysis Engine for Frappe and ERPNext"
 readme = "README.md"
 authors = [

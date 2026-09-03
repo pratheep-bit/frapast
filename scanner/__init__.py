@@ -2,7 +2,7 @@ try:
 	from importlib.metadata import version
 	__version__ = version("frapast")
 except Exception:
-	__version__ = "0.1.0"
+	__version__ = "0.1.6"
 
 from scanner.cli import scan, scan_multi
 from scanner.config import RepoConfig, ScanConfig, load_config
@@ -20,4 +20,3 @@ __all__ = [
 	"scan",
 	"scan_multi",
 ]
-

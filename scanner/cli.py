@@ -182,8 +182,7 @@ def _run_fix_command(args: argparse.Namespace) -> int:
 			for p in patches
 		]
 		if apply_mode:
-			for p in patches:
-				fix_engine.apply_patch(p)
+			fix_engine.apply_patches(patches)
 		_write_json_or_yaml({"patches": patch_dicts}, args.format, repo)
 		return 0
 
@@ -199,12 +198,112 @@ def _run_fix_command(args: argparse.Namespace) -> int:
 		console.print("")
 
 	if apply_mode:
-		success_count = sum(1 for p in patches if fix_engine.apply_patch(p))
-		console.print(f"[success]✓ Successfully applied {success_count} / {len(patches)} patch(es) to disk.[/success]\n")
-		return 0
+		yes_flag = getattr(args, "yes", False)
+		if not yes_flag:
+			if not sys.stdin.isatty():
+				console.print(
+					"[bold red]Notice: Running in non-interactive mode. To apply fixes in scripts or CI, pass --yes / -y explicitly.[/bold red]\n"
+				)
+				return 1
+
+			unique_files = {p.file_path for p in patches}
+			is_git = _is_git_repo(repo)
+			if not is_git:
+				console.print(
+					f"[bold red]Warning: '{repo}' is not a git repository. These changes cannot be undone with git.[/bold red]"
+				)
+				prompt_text = "Continue? [y/N]: "
+			else:
+				prompt_text = f"Apply {len(patches)} patch(es) to {len(unique_files)} file(s)? [y/N]: "
+
+			try:
+				response = input(prompt_text).strip().lower()
+			except (EOFError, KeyboardInterrupt):
+				response = "n"
+
+			if response not in ("y", "yes"):
+				console.print("[muted]Aborted. No changes were written to disk.[/muted]\n")
+				return 1
+
+		success_count, failure_details = _apply_patches_with_detail(fix_engine, patches)
+		total = len(patches)
+
+		if success_count == total:
+			# All patches applied cleanly.
+			console.print(f"[success]✓ Successfully applied {success_count} / {total} patch(es) to disk.[/success]\n")
+			return 0
+		elif success_count == 0:
+			# Complete failure — nothing was written.
+			console.print(
+				f"[bold red]✗ Failed to apply {total} patch(es) — 0 succeeded.[/bold red] "
+				"Check file permissions and try again.\n"
+			)
+			for rel, err in failure_details:
+				console.print(f"  [red]✗[/red] {rel}: {err}")
+			console.print()
+			return 2
+		else:
+			# Partial success — report both what succeeded and what failed.
+			console.print(
+				f"[bold yellow]! Partially applied {success_count} / {total} patch(es).[/bold yellow] "
+				"The following files could not be written:\n"
+			)
+			for rel, err in failure_details:
+				console.print(f"  [red]✗[/red] {rel}: {err}")
+			console.print()
+			return 1
 	else:
 		console.print("[yellow]Preview mode (dry-run).[/yellow] Run [bold green]frapast fix --apply[/bold green] to write these changes to disk.\n")
 		return 0
+
+
+def _is_git_repo(path: Path) -> bool:
+	"""Check if a path is contained within a git repository."""
+	try:
+		curr = path.resolve()
+		while curr != curr.parent:
+			if (curr / ".git").exists():
+				return True
+			curr = curr.parent
+		return (curr / ".git").exists()
+	except Exception:
+		return False
+
+
+def _apply_patches_with_detail(
+	fix_engine,
+	patches: list,
+) -> tuple[int, list[tuple[str, str]]]:
+	"""Apply patches and return (success_count, [(rel_path, error_message), ...]).
+
+	Unlike FixEngine.apply_patches (which returns a bare integer), this helper
+	individually probes each file write so it can report the specific OS-level
+	error reason for each failure — making the output actionable (e.g. the user
+	sees 'Permission denied' rather than a silent zero count).
+	"""
+	from scanner.autofix.models import FixPatch
+
+	# Group patches by file, preserving the engine's own ordering.
+	by_file: dict[Path, list[FixPatch]] = {}
+	for p in patches:
+		by_file.setdefault(p.file_path, []).append(p)
+
+	success_count = 0
+	failure_details: list[tuple[str, str]] = []
+
+	for fpath, file_patches in by_file.items():
+		if not file_patches:
+			continue
+		# The engine writes only the last (most-accumulated) patch per file.
+		last_patch = file_patches[-1]
+		try:
+			last_patch.file_path.write_text(last_patch.modified_source, encoding="utf-8")
+			success_count += len(file_patches)
+		except Exception as exc:
+			rel = str(fpath.name)  # keep output concise: just the filename
+			failure_details.append((str(fpath), f"{type(exc).__name__}: {exc}"))
+
+	return success_count, failure_details
 
 
 def _finding_id(candidate: dict[str, object], repo_id: str) -> str:
@@ -411,8 +510,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 	scan_parser = subparsers.add_parser(
 		"scan",
-		help="Run static security analysis against one or more Frappe repositories",
-		description="Run static security analysis against one or more Frappe repositories.",
+		help="Static code analysis only (no running Frappe bench required)",
+		description="Run static security analysis against one or more Frappe repositories (no running bench required).",
 		formatter_class=argparse.RawDescriptionHelpFormatter,
 		epilog="""Examples:
   frapast scan /path/to/frappe-app
@@ -440,7 +539,7 @@ def _build_parser() -> argparse.ArgumentParser:
 	scan_parser.add_argument("--bench-password", default="", help="Frappe password for Tier 2 bench authentication")
 	scan_parser.add_argument("--bench-site", default="", help="Frappe site name (Host header) for multi-site bench setups")
 
-	prove_parser = subparsers.add_parser("prove", help="Run Tier 1 & Tier 2 proof verification")
+	prove_parser = subparsers.add_parser("prove", help="Active proof verification (Tier 1 AST local / Tier 2 live bench HTTP)")
 	prove_parser.add_argument("repo_path", nargs="?", default=".", help="Path to repository")
 	prove_parser.add_argument("--finding-id", help="Prove a specific finding (or all candidates if omitted)")
 	prove_parser.add_argument("--dry-run", action="store_true", help="Show what would be proven without executing")
@@ -459,6 +558,7 @@ def _build_parser() -> argparse.ArgumentParser:
 	fix_parser = subparsers.add_parser("fix", help="Synthesize and apply automated AST code patches")
 	fix_parser.add_argument("repo_path", nargs="?", default=".", help="Path to repository")
 	fix_parser.add_argument("--apply", action="store_true", help="Apply fixes directly to source files on disk")
+	fix_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt (for CI/scripts)")
 	fix_parser.add_argument("--dry-run", action="store_true", default=True, help="Preview unified diffs without modifying files (default)")
 	fix_parser.add_argument("--rule", help="Filter fixes to a specific rule ID (e.g. FR-HOOK-001)")
 	fix_parser.add_argument("--finding-id", help="Filter fixes to a specific finding ID")
@@ -637,7 +737,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		return 2
 
 	from scanner.python.engine import discover_python_files
-	py_files = discover_python_files(repo)
+	py_files, skipped_files = discover_python_files(repo, return_skipped=True)
 	if not py_files:
 		sys.stderr.write(f"Error: No Python files found in '{args.repo_path}'\n")
 		return 2
@@ -695,7 +795,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 				f"\n[success]✓ proof complete:[/success] "
 				f"{len(proven_findings)} / {len(candidates_to_prove)} candidates verified as PROVEN."
 			)
-			ui.render_results(repo, proven_findings or candidates_to_prove, num_files, elapsed, limit=args.limit)
+			ui.render_results(repo, proven_findings or candidates_to_prove, num_files, elapsed, limit=args.limit, num_skipped=skipped_files)
 		return 1 if len(proven_findings) > 0 else 0
 	else:
 		if getattr(args, "sarif", None):
@@ -703,7 +803,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		if args.format in ("json", "yaml", "sarif"):
 			_write_json_or_yaml(output, args.format, repo)
 		elif not interactive:
-			ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit)
+			ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit, num_skipped=skipped_files)
 
 	return 1 if len(candidates) > 0 else 0
 

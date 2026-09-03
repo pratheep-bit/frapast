@@ -46,7 +46,7 @@ _SynthFn = Callable[[str, dict], str | None]
 # reproducer is regenerated from scratch.  This prevents stale/vulnerable
 # scripts (pre-hardening) from being silently reused.
 # ---------------------------------------------------------------------------
-SYNTHESIS_VERSION = "v2"  # bumped: hardened all synth functions against injection
+SYNTHESIS_VERSION = "v3"  # bumped: module path derivation for dotted Frappe RPC routes
 
 
 # ---------------------------------------------------------------------------
@@ -163,9 +163,37 @@ def _connection_guard() -> str:
     """)
 
 
-def _safe_api_method(func_name: str) -> str:
-    """Normalise a function name to a dotted API path."""
-    return func_name.replace("/", ".").strip(".")
+def _safe_api_method(func_name: str, file_name: str = "") -> str:
+    """Normalise a function name and optional file path to a dotted Frappe API path."""
+    clean_fn = func_name.replace("/", ".").strip(".")
+    raw_fn = clean_fn.split(".")[-1] if clean_fn else ""
+
+    # If the function is already a full dotted path (e.g. frappe.client.get), use it
+    if clean_fn.count(".") >= 2 and not clean_fn.endswith(".py"):
+        return clean_fn
+
+    if not file_name:
+        return clean_fn
+
+    p = Path(file_name)
+    if p.suffix == ".py":
+        p = p.with_suffix("")
+
+    parts = list(p.parts)
+    while parts and (
+        parts[0] in ("apps", "sites", ".", "..")
+        or parts[0].endswith("-develop")
+        or parts[0].endswith("-master")
+    ):
+        parts.pop(0)
+
+    if not parts:
+        return clean_fn
+
+    module_path = ".".join(parts)
+    if raw_fn and not module_path.endswith(f".{raw_fn}"):
+        return f"{module_path}.{raw_fn}"
+    return module_path
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +209,7 @@ def _synth_perm_001(finding_id: str, data: dict) -> str | None:
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\
@@ -221,7 +249,7 @@ def _synth_perm_002(finding_id: str, data: dict) -> str | None:
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\
@@ -253,27 +281,25 @@ def _synth_perm_002(finding_id: str, data: dict) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Rule: FR-PERM-003 — if_owner bypass via frappe.db.set_value
+# Rule: FR-PERM-003 — Sensitive document field exposed via whitelisted query
 # ---------------------------------------------------------------------------
 
 
 def _synth_perm_003(finding_id: str, data: dict) -> str | None:
+    """Proof: call the endpoint as low-privilege / Guest; inspect returned JSON
+    keys for sensitive field names (password, hash, secret, api_key, api_secret).
+    """
     func_name: str = data.get("function", "")
     if not func_name:
         return None
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\
         # Tier 2 proof for {finding_id} — FR-PERM-003
-        # Strategy: authenticate and attempt to write to an if_owner-scoped document
-        # owned by a different user. A missing ownership check means the write succeeds.
-        {_base_imports()}
-        {_connection_guard()}
-        try:
             client.login(BENCH_USER, BENCH_PWD)
         except FrappeAuthError as exc:
             print(f'SKIP: could not authenticate: {{exc}}')
@@ -307,7 +333,7 @@ def _synth_sqli_001(finding_id: str, data: dict) -> str | None:
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\
@@ -353,7 +379,7 @@ def _synth_sqli_003(finding_id: str, data: dict) -> str | None:
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\
@@ -391,7 +417,7 @@ def _synth_sqli_004(finding_id: str, data: dict) -> str | None:
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\
@@ -430,7 +456,7 @@ def _synth_inj_001(finding_id: str, data: dict) -> str | None:
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\
@@ -473,7 +499,7 @@ def _synth_inj_002(finding_id: str, data: dict) -> str | None:
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\
@@ -512,7 +538,7 @@ def _synth_csrf_001(finding_id: str, data: dict) -> str | None:
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\
@@ -555,7 +581,7 @@ def _synth_ssrf_001(finding_id: str, data: dict) -> str | None:
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\
@@ -598,7 +624,7 @@ def _synth_path_001(finding_id: str, data: dict) -> str | None:
     if _reject_if_newline(func_name):
         return None
 
-    api_method = _safe_api_method(func_name)
+    api_method = _safe_api_method(func_name, data.get("file", ""))
     env_exports = f"export FRAPAST_API_METHOD={shlex.quote(api_method)}"
 
     py = textwrap.dedent(f"""\

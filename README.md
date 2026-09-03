@@ -12,7 +12,7 @@
 [![PyPI version](https://img.shields.io/badge/pypi-v0.1.0-blue.svg)](https://pypi.org/project/frapast/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-287%20passed-green.svg)](#test-suite-and-quality-assurance)
+[![Tests](https://img.shields.io/badge/tests-293%20passed-green.svg)](#test-suite-and-quality-assurance)
 [![Rules](https://img.shields.io/badge/detectors-28%20active-blue.svg)](#rule-taxonomy)
 [![Benchmark Speed](https://img.shields.io/badge/speed-16%2C700%2B%20files%2Fsec-green.svg)](#industry-benchmarks-and-performance)
 [![Privacy](https://img.shields.io/badge/privacy-100%25%20Local%20and%20Airgapped-blue.svg)](#data-privacy-and-air-gapped-execution)
@@ -169,7 +169,7 @@ bench frapast check --port 8000
 ```
 
 ### 2. Reusable GitHub Action
-Add `.github/workflows/frapast.yml` to your repository for automated PR security checks and SARIF code scanning annotations:
+Add `.github/workflows/frapast.yml` to your repository for automated PR security checks and SARIF Code Scanning alerts:
 
 ```yaml
 name: frapAST Security Audit
@@ -187,7 +187,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run frapAST Audit
-        uses: pratheep-bit/frapast@main
+        uses: pratheep-bit/frapast@v0.1.0
         with:
           repo-path: '.'
           fail-on: 'critical'
@@ -341,7 +341,7 @@ The codebase includes an automated test suite:
 pytest -v
 ```
 
-- **287 passed tests** covering AST visitors, call graph resolution, rule detectors, server security, reproducer synthesis, adversarial suppression handling, and autofix patches.
+- **293 passed tests** covering AST visitors, call graph resolution, rule detectors, server security, reproducer synthesis, adversarial suppression handling, and autofix patches.
 - **Security hardening**: Hardened shell script generation (`shlex.quote`), path traversal directory containment, and localhost origin gating.
 
 ---

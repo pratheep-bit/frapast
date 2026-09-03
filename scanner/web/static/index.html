@@ -5,7 +5,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>frapAST — Frappe Security Engine</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=0.1.0">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
 </head>
 
 <body>
@@ -16,8 +18,8 @@
     <div class="header-row header-row-top">
       <div class="logo-group">
         <div class="logo">
-          <img src="/static/logo.svg" width="26" height="26" alt="frapAST" style="border-radius: 6px; flex-shrink: 0;" />
-          frapAST <span class="logo-badge">v0.1.0 (Beta)</span>
+          <img src="/logo.png" width="26" height="26" alt="frapAST" style="border-radius: 6px; flex-shrink: 0;" />
+          frapAST <span class="logo-badge" id="appVersionBadge">v0.1.6 (Beta)</span>
         </div>
         <div class="conn-status" id="connStatus" data-state="idle">
           <span class="conn-dot"></span>
@@ -65,7 +67,18 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             Scan
           </button>
+          <!-- Diff scan mode toggle -->
+          <button class="diff-mode-toggle" id="diffModeToggle" title="Toggle incremental diff scan — scan only files changed relative to a git branch/commit" aria-pressed="false">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+            Diff
+          </button>
+          <!-- Diff ref input — hidden until toggle is active -->
+          <div class="diff-ref-wrap" id="diffRefWrap" style="display:none;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted);flex-shrink:0;" aria-hidden="true"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+            <input class="diff-ref-input" id="diffRefInput" type="text" placeholder="main" aria-label="Git branch or commit to diff against" maxlength="200" spellcheck="false">
+          </div>
         </div>
+        <span class="scan-bar-caption" style="display:block;margin-top:4px;font-size:11px;color:var(--text-muted, #8b949e);">Type a path or click Browse to pick one visually.</span>
       </div>
       <span class="scan-status-badge" id="scanStatus" style="display:none;">Ready</span>
     </div>
@@ -197,7 +210,8 @@
             </div>
             <div class="bench-field-group">
               <label class="bench-label" for="benchPasswordInput">Password</label>
-              <input class="bench-input" id="benchPasswordInput" type="password" value="admin" autocomplete="new-password">
+              <input class="bench-input" id="benchPasswordInput" type="password" placeholder="••••••••" autocomplete="new-password">
+              <span class="field-hint" style="margin-top:4px;font-size:11px;color:var(--text-muted, #8b949e);display:block;">Not saved to disk — you'll need to re-enter this after restarting the server.</span>
             </div>
           </div>
           <div class="bench-actions">
@@ -313,8 +327,8 @@
   <footer>frapAST security engine — reads/writes only via the API on this origin</footer>
 
   <!-- Detail drawer -->
-  <div class="drawer-backdrop" id="drawerBackdrop"></div>
-  <aside class="drawer" id="drawer" aria-hidden="true" aria-label="Finding details">
+  <div class="drawer-backdrop" id="drawerBackdrop" role="presentation" aria-hidden="true"></div>
+  <div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="drawerRuleId">
     <div class="drawer-header">
       <div>
         <div class="drawer-title" id="drawerRuleId">—</div>
@@ -383,20 +397,25 @@
       </div>
 
       <!-- Automated Fix / Remediation Section -->
-      <div id="drawerFixSection" style="margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--border); display:none;">
+      <div id="drawerFixSection" style="margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--border);">
         <div class="drawer-field-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <span style="font-weight: 600; color: #10b981;">✨ Automated Remediation (Autofix)</span>
-          <button id="drawerApplyFixBtn" class="btn-primary" style="padding: 4px 12px; font-size: var(--fs-xs); background: #10b981; border: none;">Apply Fix</button>
+          <span style="font-weight: 600; color: #10b981;">Automated Remediation (Autofix)</span>
+          <button id="drawerApplyFixBtn" class="btn-primary" style="padding: 4px 12px; font-size: var(--fs-xs); background: #10b981; border: none; display: none;">Apply Fix</button>
         </div>
-        <div id="drawerFixDescription" style="font-size: var(--fs-sm); color: var(--text-muted); margin-bottom: 8px;"></div>
-        <pre class="drawer-code" id="drawerFixDiff" style="max-height: 200px; background: #020617; color: #a7f3d0; border-left: 3px solid #10b981;"></pre>
+        <div id="drawerFixContent" style="display:none;">
+          <div id="drawerFixDescription" style="font-size: var(--fs-sm); color: var(--text-muted); margin-bottom: 8px;"></div>
+          <pre class="drawer-code" id="drawerFixDiff" style="max-height: 200px; background: #020617; color: #a7f3d0; border-left: 3px solid #10b981;"></pre>
+        </div>
+        <div id="drawerFixUnavailable" style="font-size: var(--fs-xs); color: var(--text-muted); font-style: italic;">
+          No automated 1-click patch available for this rule (manual remediation required).
+        </div>
       </div>
 
     </div>
     <div class="drawer-footer">
       <button class="btn-secondary" id="drawerCloseBtn2">Close</button>
     </div>
-  </aside>
+  </div>
 
   <!-- Report Modal -->
   <div class="modal-overlay" id="reportModalOverlay" style="display:none;" aria-modal="true" role="dialog" aria-label="Track-Record Report">
@@ -462,7 +481,7 @@
   <!-- Toasts -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=0.1.0" defer></script>
 </body>
 
 </html>

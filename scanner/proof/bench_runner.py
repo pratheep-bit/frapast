@@ -34,10 +34,18 @@ from scanner.proof.models import ProofResult, ProofStatus
 
 def auto_detect_bench_url(ports: tuple[int, ...] = (8000, 8001, 8005, 8002, 8003, 8004)) -> str | None:
     """Probes standard Frappe Bench localhost ports. Returns the first reachable URL or None."""
+    import socket
     for port in ports:
-        url = f"http://localhost:{port}"
+        # Fast raw TCP connection check (0.15s) to avoid 5-6s urllib/DNS timeouts on closed ports
         try:
-            client = FrappeHTTPClient(url, timeout=2)
+            with socket.create_connection(("127.0.0.1", port), timeout=0.15):
+                pass
+        except OSError:
+            continue
+
+        url = f"http://127.0.0.1:{port}"
+        try:
+            client = FrappeHTTPClient(url, timeout=1)
             if client.ping():
                 return url
         except Exception:
@@ -94,11 +102,11 @@ def diagnose_bench(
         res = s.connect_ex(("127.0.0.1", port))
         s.close()
         if res == 0:
-            probe_client = FrappeHTTPClient(f"http://localhost:{port}", site_name=site, timeout=2)
+            probe_client = FrappeHTTPClient(f"http://127.0.0.1:{port}", site_name=site, timeout=2)
             try:
                 if probe_client.ping():
                     if not found_bench:
-                        target_url = f"http://localhost:{port}"
+                        target_url = f"http://127.0.0.1:{port}"
                         report["url"] = target_url
                         found_bench = True
             except Exception:
@@ -179,15 +187,25 @@ class BenchRunner:
             if not Path(reproducers_dir).is_absolute()
             else Path(reproducers_dir)
         )
+        self._bench_alive_cache: bool | None = None
+        self._bench_alive_checked_at: float = 0.0
+        self._auth_failed: bool = False
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def is_bench_alive(self) -> bool:
-        """Return True if the bench is reachable and healthy."""
-        client = FrappeHTTPClient(self.base_url, timeout=self.timeout, site_name=self.site_name)
-        return client.ping()
+    def is_bench_alive(self, force: bool = False) -> bool:
+        """Return True if the bench is reachable and healthy (fast 1.5s timeout, cached for 10s)."""
+        now = time.monotonic()
+        if not force and self._bench_alive_cache is not None and (now - self._bench_alive_checked_at < 10.0):
+            return self._bench_alive_cache
+        # Fast probe timeout so offline bench doesn't freeze the run for 30s per finding
+        client = FrappeHTTPClient(self.base_url, timeout=min(self.timeout, 2), site_name=self.site_name)
+        alive = client.ping()
+        self._bench_alive_cache = alive
+        self._bench_alive_checked_at = now
+        return alive
 
     def run_http_proof(self, finding_id: str, candidate_data: dict) -> ProofResult:
         """Execute a Tier 2 HTTP proof for the given finding.
@@ -285,6 +303,19 @@ class BenchRunner:
                 ),
             )
 
+        if self._auth_failed:
+            return ProofResult(
+                finding_id=finding_id,
+                status=ProofStatus.SKIPPED,
+                proof_tier=2,
+                exit_code=None,
+                stdout="",
+                stderr="Authentication failed earlier in this run.",
+                duration_seconds=time.perf_counter() - t0,
+                reproducer_path=reproducer_path_str,
+                error_message="Tier 2 proof skipped: bench authentication failed. Verify credentials and re-run.",
+            )
+
         stdout_lines: list[str] = []
         stderr_lines: list[str] = []
 
@@ -306,6 +337,7 @@ class BenchRunner:
                     break
 
             if not authenticated:
+                self._auth_failed = True
                 return ProofResult(
                     finding_id=finding_id,
                     status=ProofStatus.SKIPPED,
@@ -342,6 +374,8 @@ class BenchRunner:
             )
 
         except FrappeConnectionError as exc:
+            self._bench_alive_cache = False
+            self._bench_alive_checked_at = time.monotonic()
             return ProofResult(
                 finding_id=finding_id,
                 status=ProofStatus.SKIPPED,
