@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Changelog & Release History — frapAST</title>
+    <meta name="description"
+        content="Complete release history and changelog for frapAST, following Semantic Versioning.">
+    <link rel="canonical" href="https://pratheep-bit.github.io/frapast/changelog.html">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pratheep-bit.github.io/frapast/changelog.html">
+    <meta property="og:title" content="Changelog & Release History — frapAST">
+    <meta property="og:description"
+        content="Complete release history and changelog for frapAST, following Semantic Versioning.">
+    <meta property="og:image" content="https://pratheep-bit.github.io/frapast/assets/og-image.png">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://pratheep-bit.github.io/frapast/changelog.html">
+    <meta name="twitter:title" content="Changelog & Release History — frapAST">
+    <meta name="twitter:description"
+        content="Complete release history and changelog for frapAST, following Semantic Versioning.">
+    <meta name="twitter:image" content="https://pratheep-bit.github.io/frapast/assets/og-image.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/logo.png">
+    <link rel="apple-touch-icon" href="assets/logo.png">
+
+    <!-- Fonts & CSS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+
+</head>
+
+<body>
+    <main id="main-content">
+        <header class="page-head">
+            <div class="wrap">
+                <div class="breadcrumbs"><a href="index.html">Home</a> <svg class="icon icon-sm" viewBox="0 0 24 24"
+                        aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg> Changelog</div>
+                <h1>Release Changelog</h1>
+                <p>Generated from the repository <code class="mono">CHANGELOG.md</code> &middot; <a
+                        href="https://github.com/pratheep-bit/frapast/blob/main/CHANGELOG.md" target="_blank"
+                        rel="noopener noreferrer">View raw on GitHub <svg class="icon icon-sm" viewBox="0 0 24 24"
+                            aria-hidden="true">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg></a></p>
+            </div>
+        </header>
+
+        <div class="wrap" style="padding: 48px 24px 80px;">
+            <div class="docs-content"
+                style="max-width: 800px; margin: 0 auto; background: var(--bg-panel); padding: 36px 40px; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+
+                <p>All notable changes to this project are documented in this file. The format follows <a
+                        href="https://keepachangelog.com/en/1.0.0/" target="_blank" rel="noopener noreferrer">Keep a
+                        Changelog</a>, and this project adheres to <a href="https://semver.org/spec/v2.0.0.html"
+                        target="_blank" rel="noopener noreferrer">Semantic Versioning</a>.</p>
+
+                <h2 id="v0-1-0">[0.1.0] &mdash; 2026-08-18</h2>
+
+                <h3>Added</h3>
+
+                <h4>Core Static Analysis Engine</h4>
+                <ul>
+                    <li>DocType JSON schema parser indexing fields, permissions, <code
+                            class="mono">is_submittable</code>, and child table structures.</li>
+                    <li><code class="mono">hooks.py</code> parser indexing doc_events, override_whitelisted_methods, and
+                        scheduler events.</li>
+                    <li>Python AST visitor extracting whitelisted endpoints, database calls, query builders, string
+                        dispatches, dynamic document methods, and script report entry points.</li>
+                    <li>Interprocedural static call graph constructor connecting multi-hop call chains.</li>
+                </ul>
+
+                <h4>Rule Taxonomy (28 Active Detectors)</h4>
+                <ul>
+                    <li><strong>Injection &amp; Access Control:</strong> <code class="mono">FR-SQLI-001</code>, <code
+                            class="mono">FR-SQLI-002</code>, <code class="mono">FR-SQLI-003</code>, <code
+                            class="mono">FR-SQLI-004</code>, <code class="mono">FR-INJ-001</code>, <code
+                            class="mono">FR-INJ-002</code>, <code class="mono">FR-PATH-001</code>, <code
+                            class="mono">FR-SSRF-001</code>, <code class="mono">FR-CSRF-001</code>.</li>
+                    <li><strong>Permissions:</strong> <code class="mono">FR-PERM-001</code>, <code
+                            class="mono">FR-PERM-002</code>, <code class="mono">FR-PERM-003</code>, <code
+                            class="mono">FR-PERM-004</code>, <code class="mono">FR-PERM-005</code>, <code
+                            class="mono">FR-PERM-006</code>.</li>
+                    <li><strong>Lifecycle &amp; Workflow:</strong> <code class="mono">FR-HOOK-001</code>, <code
+                            class="mono">FR-HOOK-002</code>, <code class="mono">FR-HOOK-003</code>, <code
+                            class="mono">FR-HOOK-004</code>, <code class="mono">FR-HOOK-005</code>, <code
+                            class="mono">FR-WKFL-001</code>, <code class="mono">FR-WKFL-002</code>, <code
+                            class="mono">FR-WKFL-003</code>.</li>
+                    <li><strong>Reliability &amp; Correctness:</strong> <code class="mono">FR-PERF-001</code>, <code
+                            class="mono">FR-HOOK-006</code>, <code class="mono">FR-HOOK-007</code>, <code
+                            class="mono">FR-DATA-001</code>, <code class="mono">FR-DATA-002</code>, <code
+                            class="mono">FR-DATA-003</code>, <code class="mono">FR-I18N-001</code>.</li>
+                </ul>
+
+                <h4>Two-Tier Active Proof Engine</h4>
+                <ul>
+                    <li><strong>Tier 1:</strong> Standalone executable AST verification reproducers.</li>
+                    <li><strong>Tier 2:</strong> Live HTTP RPC verification client (<code
+                            class="mono">FrappeHTTPClient</code> / <code class="mono">BenchRunner</code>) executing
+                        authenticated tests against running Frappe bench instances.</li>
+                </ul>
+
+                <h4>CLI Remediation Engine (<code class="mono">frapast fix</code>)</h4>
+                <ul>
+                    <li>Unified diff preview and atomic in-place code modification for <code
+                            class="mono">FR-HOOK-001</code>, <code class="mono">FR-HOOK-004</code>, <code
+                            class="mono">FR-HOOK-006</code>, and <code class="mono">FR-PERM-001</code>.</li>
+                </ul>
+
+                <h3>Changed &mdash; Breaking Taxonomy Renames</h3>
+                <p>Standardized rule ID prefixing to align with the canonical 6-category taxonomy:</p>
+                <ul>
+                    <li><code class="mono">FR-CORR-001</code> &rarr; <code class="mono">FR-HOOK-006</code> (bare
+                        exception swallowing in controller/hook execution)</li>
+                    <li><code class="mono">FR-CORR-002</code> &rarr; <code class="mono">FR-HOOK-007</code> (mutable
+                        default argument in function signatures)</li>
+                    <li><code class="mono">FR-XSS-001</code> &rarr; <code class="mono">FR-INJ-005</code> (unsanitized
+                        HTML/template rendering in whitelisted endpoints)</li>
+                </ul>
+
+                <h4>Developer Experience</h4>
+                <ul>
+                    <li>Frappe Bench native CLI command integration (<code class="mono">bench frapast</code>).</li>
+                    <li>OASIS SARIF 2.1.0 output generation for GitHub Code Scanning integration.</li>
+                    <li>Reusable GitHub Composite Action (<code class="mono">action.yml</code>).</li>
+                    <li>Interactive local web dashboard with real-time SSE streaming and proof inspection.</li>
+                </ul>
+
+                <h4>Suppression &amp; Baseline System</h4>
+                <ul>
+                    <li>Line-shift resilient cryptographic finding fingerprints (<code
+                            class="mono">sha256(rule_id|file|function|code_location_hash)</code>).</li>
+                    <li>Inline comment directives (<code class="mono"># nosemgrep: RULE_ID</code>, <code
+                            class="mono"># noqa: RULE_ID</code>, <code class="mono"># frapast: ignore RULE_ID</code>).
+                    </li>
+                    <li>Configuration support via <code class="mono">.frapastignore</code> and <code
+                            class="mono">frapast.toml</code>.</li>
+                </ul>
+
+            </div>
+        </div>
+    </main>
+
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/layout.js"></script>
+</body>
+
+</html>

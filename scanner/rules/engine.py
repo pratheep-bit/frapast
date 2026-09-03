@@ -44,6 +44,62 @@ _PUBLIC_METADATA_FUNCTIONS: frozenset[str] = frozenset({
 	"get_attachments",
 })
 
+# ---------------------------------------------------------------------------
+# FR-PERM-001: Authentication & session lifecycle safe patterns
+# ---------------------------------------------------------------------------
+# These Frappe core function names are intentionally exempt from the FR-PERM-001
+# "mutating endpoint lacks permission check" rule.
+# Rationale:
+#   1. Session termination (logout, web_logout, user_logout): Acts exclusively on
+#      frappe.local.login_manager (the caller's own active session). Logging out
+#      of one's own session does not require System Manager or DocType-level
+#      privilege.
+#   2. Token/Guest-gated Password Recovery (reset_password, update_password):
+#      Initiating password reset sends an email token; finalizing update_password
+#      validates the one-time `reset_password_key` rather than a session cookie.
+#   3. Public Onboarding / Auth Challenge (sign_up, verify_otp, send_token):
+#      Self-service account registration and two-factor challenge verification are
+#      intentionally guest-accessible entry points protected by rate limits and
+#      cryptographic verification rather than DocType permission rules.
+_PERM_001_AUTH_SAFE: frozenset[str] = frozenset({
+	# Session termination
+	"logout",
+	"web_logout",
+	"user_logout",
+	# Password recovery & reset
+	"reset_password",
+	"update_password",
+	"update_password_page",
+	# Public onboarding & 2FA verification
+	"sign_up",
+	"verify_otp",
+	"send_token",
+})
+
+# ---------------------------------------------------------------------------
+# FR-CSRF-001: Token-based authentication safe patterns
+# ---------------------------------------------------------------------------
+# These Frappe core function names are intentionally exempt from the FR-CSRF-001
+# "guest-accessible state-changing endpoint" rule.  The password reset/update
+# flow uses short-lived single-use cryptographic tokens instead of session
+# cookies, so the standard CSRF threat model does not apply:
+#   1. The endpoint validates a `reset_password_key` (or equivalent) token that
+#      was delivered out-of-band (email), not via a session cookie.
+#   2. A cross-origin attacker cannot read the token from a victim's mailbox, so
+#      the auto-submitting-form attack vector that CSRF protects against is not
+#      applicable here.
+#   3. The Frappe framework clears the token after first use, preventing replay.
+# Source: frappe/core/doctype/user/user.py — update_password()
+#         frappe/www/update-password.py — update_password() web page handler
+_CSRF_001_TOKEN_AUTH_SAFE: frozenset[str] = frozenset({
+	# frappe/core/doctype/user/user.py — token-gated password reset
+	"update_password",
+	# frappe/www/update-password.py — same flow via the web page handler
+	"update_password_page",
+	# frappe/core/doctype/user/user.py — old/compat name used in some versions
+	"reset_password",
+})
+
 
 HOOK_LIFECYCLE_METHODS = frozenset(
 	{
@@ -203,11 +259,21 @@ def fr_perm_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 	Flags @frappe.whitelist() endpoints with no has_permission/only_for check
 	in their body or within one hop of their call graph.
 	Differentiates mutating endpoints (high fix_confidence) from read-only endpoints (low fix_confidence).
+
+	Exemptions:
+	  - Authentication & session lifecycle functions (see _PERM_001_AUTH_SAFE): these
+	    operate exclusively on session/login managers or token-based challenge flows
+	    and therefore do not require a DocType-level permission guard.
 	"""
 	permission_checks = {record.symbol_id for record in python.permission_checks}
 	mutations = {record.symbol_id for record in python.mutations}
 	out = []
 	for endpoint in python.whitelisted_endpoints:
+		# Bare function name (strip module path, e.g. "frappe.handler.logout" -> "logout")
+		fn_name = endpoint.function.rsplit(".", 1)[-1]
+		# Skip authentication and session-lifecycle functions
+		if fn_name in _PERM_001_AUTH_SAFE:
+			continue
 		if not _path_has_permission_check(endpoint.symbol_id, graph, permission_checks):
 			has_mutation = _path_has_mutation(endpoint.symbol_id, graph, mutations)
 			if has_mutation:
@@ -222,7 +288,6 @@ def fr_perm_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 					fix_confidence="high",
 				))
 			else:
-				fn_name = endpoint.function.rsplit(".", 1)[-1]
 				if fn_name in _PUBLIC_METADATA_FUNCTIONS:
 					continue
 				out.append(_candidate(
@@ -735,12 +800,29 @@ def fr_xss_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex,
 
 
 def fr_csrf_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex, graph: CallGraph) -> list[Candidate]:
-	"""FR-CSRF-001: Guest-accessible state-changing endpoint lacks CSRF protection."""
+	"""FR-CSRF-001: Guest-accessible state-changing endpoint lacks CSRF protection.
+
+	Exemptions:
+	  - Token-based password-reset functions (see _CSRF_001_TOKEN_AUTH_SAFE): these
+	    validate a short-lived cryptographic reset_password_key token delivered
+	    out-of-band (email), not a browser session cookie.  The cross-origin
+	    form-submission attack vector that CSRF guards against is not applicable
+	    because an attacker cannot read the one-time token from the victim's inbox.
+	"""
 	write_symbol_ids = {record.symbol_id for record in python.set_value_calls} | {
 		record.symbol_id for record in python.direct_writes
 	}
-	return [
-		_candidate(
+	out = []
+	for endpoint in python.whitelisted_endpoints:
+		if not (endpoint.allow_guest and endpoint.symbol_id in write_symbol_ids):
+			continue
+		# Skip token-based password-reset flow: protected by a short-lived
+		# cryptographic token (reset_password_key), not by a session cookie,
+		# so the standard CSRF attack vector does not apply here.
+		fn_name = endpoint.function.rsplit(".", 1)[-1]
+		if fn_name in _CSRF_001_TOKEN_AUTH_SAFE:
+			continue
+		out.append(_candidate(
 			"FR-CSRF-001",
 			endpoint.span.file,
 			endpoint.span.line_start,
@@ -749,10 +831,8 @@ def fr_csrf_001(schema: SchemaIndex, hooks: HookIndex, python: PythonSymbolIndex
 			"Guest-accessible state-changing endpoint lacks CSRF protection.",
 			"Construct a cross-origin auto-submitting form targeting this "
 			"endpoint and verify the write succeeds without a valid CSRF token.",
-		)
-		for endpoint in python.whitelisted_endpoints
-		if endpoint.allow_guest and endpoint.symbol_id in write_symbol_ids
-	]
+		))
+	return out
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>frapAST — Runtime-Proven Security Scanner for Frappe & ERPNext</title>
+    <meta name="description"
+        content="Framework-aware static security and performance engine for Frappe and ERPNext applications. Indexes DocType schemas and proves findings against a live bench.">
+    <link rel="canonical" href="https://pratheep-bit.github.io/frapast/index.html">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pratheep-bit.github.io/frapast/index.html">
+    <meta property="og:title" content="frapAST — Runtime-Proven Security Scanner for Frappe & ERPNext">
+    <meta property="og:description"
+        content="Framework-aware static security and performance engine for Frappe and ERPNext applications. Indexes DocType schemas and proves findings against a live bench.">
+    <meta property="og:image" content="https://pratheep-bit.github.io/frapast/assets/og-image.png">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://pratheep-bit.github.io/frapast/index.html">
+    <meta name="twitter:title" content="frapAST — Runtime-Proven Security Scanner for Frappe & ERPNext">
+    <meta name="twitter:description"
+        content="Framework-aware static security and performance engine for Frappe and ERPNext applications. Indexes DocType schemas and proves findings against a live bench.">
+    <meta name="twitter:image" content="https://pratheep-bit.github.io/frapast/assets/og-image.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/logo.png">
+    <link rel="apple-touch-icon" href="assets/logo.png">
+
+    <!-- Fonts & CSS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "frapAST",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Linux, macOS, Windows",
+      "offers": {
+        "@type": "Offer",
+        "price": "0.00",
+        "priceCurrency": "USD"
+      },
+      "description": "Framework-aware static security scanner and active runtime proof engine for Frappe & ERPNext applications.",
+      "softwareVersion": "0.1.0",
+      "license": "https://github.com/pratheep-bit/frapast/blob/main/LICENSE",
+      "codeRepository": "https://github.com/pratheep-bit/frapast"
+    }
+    </script>
+</head>
+
+<body>
+    <main id="main-content">
+        <header class="hero">
+            <div class="wrap">
+                <h1>Most scanners guess.<br><span class="fade">frapAST proves it.</span></h1>
+                <p class="lede">A security and performance scanner built specifically for Frappe and ERPNext. It indexes
+                    DocType JSON schemas, understands whitelisted RPC decorators, and verifies candidate findings
+                    through a two-tier active proof engine before alerting your team.</p>
+
+                <div class="hero-actions">
+                    <div class="install-pill">
+                        <span class="prompt">$</span> pip install frapast
+                        <button class="copy-btn" data-copy="pip install frapast" type="button"
+                            aria-label="Copy install command">
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">copy</span>
+                        </button>
+                    </div>
+                    <a href="docs/getting-started.html" class="link-inline">Read the Docs <svg class="icon icon-sm"
+                            viewBox="0 0 24 24" aria-hidden="true">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg></a>
+                </div>
+
+                <div class="terminal" aria-label="Terminal demonstration">
+                    <div class="terminal-bar">
+                        <div class="dot red"></div>
+                        <div class="dot amber"></div>
+                        <div class="dot green"></div>
+                        <span class="label">india_payroll &mdash; frapast</span>
+                    </div>
+                    <div class="terminal-body">
+                        <div class="cmd">frapast scan ./india_payroll</div>
+                        <div class="out-dim">25 candidates across 73 files in 0.12s &mdash; 25 medium</div>
+                        <div class="blank"></div>
+                        <div class="cmd">frapast prove --all</div>
+                        <div class="out-dim">Proving findings &middot; <span class="rule">FR-PERM-001</span> in
+                            get_ecr_file</div>
+                        <div class="blank"></div>
+                        <div>Findings verified: 25</div>
+                        <div><span class="ok"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg> PROVEN</span> 1 (4%)</div>
+                        <div><span class="refute"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                                </svg> REFUTED</span> 24 (96%)</div>
+                        <div class="blank"></div>
+                        <div class="out-dim">Top proven finding:</div>
+                        <div>&nbsp;<span class="rule">FR-HOOK-003</span> tax_regime_selector.py:214 (Tier 1)</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- WHY FRAPAST / PROBLEM -->
+        <section class="bordered" id="why">
+            <div class="wrap">
+                <div class="section-head">
+                    <h2>Why not just use Bandit or SonarQube?</h2>
+                    <p>Generic Python SAST tools analyze Frappe apps as generic scripts. Frappe applications are
+                        metadata-driven: DocType JSON schemas, hooks.py event registrations, and whitelist decorators
+                        cannot be understood by plain AST linters without producing heavy false-positive noise.</p>
+                </div>
+                <div class="two-col">
+                    <div class="two-col-card">
+                        <h3>Generic SAST Scanners</h3>
+                        <div class="compare-row"><span class="tag">sees</span><span class="txt">a decorator named <code
+                                    class="mono">@frappe.whitelist()</code> without recognizing public HTTP endpoint
+                                exposure</span></div>
+                        <div class="compare-row"><span class="tag">sees</span><span class="txt">a function calling <code
+                                    class="mono">frappe.db.sql()</code> without checking parameter binding
+                                contexts</span></div>
+                        <div class="compare-row"><span class="tag">reports</span><span class="txt">hundreds of
+                                unverified alerts, with no way to distinguish true risk from framework noise</span>
+                        </div>
+                    </div>
+                    <div class="two-col-card accent">
+                        <h3>frapAST Engine</h3>
+                        <div class="compare-row"><span class="tag good">knows</span><span class="txt">that decorator
+                                exposes a live HTTP endpoint and traces parameter dispatch</span></div>
+                        <div class="compare-row"><span class="tag good">knows</span><span class="txt">which DocType
+                                fields and child tables actually exist directly from schema JSON files</span></div>
+                        <div class="compare-row"><span class="tag good">proves</span><span class="txt">each candidate
+                                finding by synthesizing standalone reproducers or executing live against a bench</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DOCUMENTATION HUB SECTION -->
+        <section class="bordered" id="docs">
+            <div class="wrap">
+                <div class="section-head">
+                    <h2>Documentation &amp; Guides</h2>
+                    <p>Everything you need to audit, verify, and remediate Frappe and ERPNext security candidates.</p>
+                </div>
+                <div class="docs-hub-grid">
+                    <a href="docs/getting-started.html" class="docs-hub-card">
+                        <div class="card-icon-wrap">
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                            </svg>
+                        </div>
+                        <h3>Getting Started <svg class="icon arrow-icon" viewBox="0 0 24 24">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg></h3>
+                        <p>Install frapAST, run your first static codebase scan, and verify candidate findings.</p>
+                    </a>
+                    <a href="docs/rules.html" class="docs-hub-card">
+                        <div class="card-icon-wrap">
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                        </div>
+                        <h3>Rule Taxonomy (28) <svg class="icon arrow-icon" viewBox="0 0 24 24">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg></h3>
+                        <p>Searchable reference of all active rule detectors with vulnerable vs. patched code patterns.
+                        </p>
+                    </a>
+                    <a href="docs/cli-reference.html" class="docs-hub-card">
+                        <div class="card-icon-wrap">
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <polyline points="4 17 10 11 4 5"></polyline>
+                                <line x1="12" y1="19" x2="20" y2="19"></line>
+                            </svg>
+                        </div>
+                        <h3>CLI Reference <svg class="icon arrow-icon" viewBox="0 0 24 24">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg></h3>
+                        <p>Full reference of all CLI commands, exit codes, filtering flags, and output formats.</p>
+                    </a>
+                    <a href="docs/github-action.html" class="docs-hub-card">
+                        <div class="card-icon-wrap">
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <line x1="6" y1="3" x2="6" y2="15"></line>
+                                <circle cx="18" cy="6" r="3"></circle>
+                                <circle cx="6" cy="18" r="3"></circle>
+                                <path d="M18 9a9 9 0 0 1-9 9"></path>
+                            </svg>
+                        </div>
+                        <h3>GitHub Action CI/CD <svg class="icon arrow-icon" viewBox="0 0 24 24">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg></h3>
+                        <p>Automate security scanning in GitHub Actions with native OASIS SARIF 2.1.0 code scanning.</p>
+                    </a>
+                    <a href="docs/faq.html" class="docs-hub-card">
+                        <div class="card-icon-wrap">
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                        </div>
+                        <h3>Documentation FAQ <svg class="icon arrow-icon" viewBox="0 0 24 24">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg></h3>
+                        <p>Answers to common questions regarding local privacy, bench setups, and rule authoring.</p>
+                    </a>
+                    <a href="community.html" class="docs-hub-card">
+                        <div class="card-icon-wrap">
+                            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                        </div>
+                        <h3>Community &amp; Source <svg class="icon arrow-icon" viewBox="0 0 24 24">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg></h3>
+                        <p>Contributing guidelines, roadmap, security vulnerability disclosure policy, and licenses.</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- TWO TIERS OF PROOF -->
+        <section class="bordered" id="how">
+            <div class="wrap">
+                <div class="section-head">
+                    <h2>Two Tiers of Proof, Not One Guess</h2>
+                    <p>A candidate vulnerability only escalates to a confirmed alert if frapAST can synthesize an
+                        executable reproducer that proves exploitability.</p>
+                </div>
+                <div class="tiers">
+                    <div class="tier-card">
+                        <div class="num">1</div>
+                        <div>
+                            <h3>Tier 1: Standalone AST Direct Reproductions</h3>
+                            <p>For logic-level defects &mdash; missing rollback reversal handlers (<code
+                                    class="mono">FR-HOOK-001</code>), bare exception swallowing (<code
+                                    class="mono">FR-HOOK-006</code>), mutable default arguments (<code
+                                    class="mono">FR-HOOK-007</code>), and N+1 query bottlenecks (<code
+                                    class="mono">FR-PERF-001</code>) &mdash; frapAST synthesizes a standalone program
+                                that exercises the code path and confirms the defect fires locally without needing a
+                                live server.</p>
+                        </div>
+                    </div>
+                    <div class="tier-card">
+                        <div class="num">2</div>
+                        <div>
+                            <h3>Tier 2: Live HTTP / RPC Verification</h3>
+                            <p>For network and authentication vulnerabilities &mdash; mutating whitelisted endpoints
+                                without permission checks (<code class="mono">FR-PERM-001</code>), SQL injection (<code
+                                    class="mono">FR-SQLI-001</code>), SSRF (<code class="mono">FR-SSRF-001</code>), and
+                                path traversal (<code class="mono">FR-PATH-001</code>) &mdash; frapAST dispatches
+                                authenticated HTTP requests to your local or staging Frappe bench to confirm live
+                                exploitability.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BENCHMARKS -->
+        <section class="bordered">
+            <div class="wrap">
+                <div class="section-head">
+                    <h2>Performance &amp; Scale</h2>
+                    <p>Audited against open-source Frappe and ERPNext enterprise codebases.</p>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-box">
+                        <span class="num">~0.95s</span>
+                        <span class="cap">Frappe HRMS (670 files, 155k LOC)</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="num">~5.82s</span>
+                        <span class="cap">ERPNext Core (3,842 files, 980k LOC)</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="num">100%</span>
+                        <span class="cap">Local &amp; Air-Gapped (Zero data egress)</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="num">MIT</span>
+                        <span class="cap">Open source, free, zero telemetry</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- WHY I BUILT THIS NOTE -->
+        <section class="bordered">
+            <div class="wrap">
+                <div class="note-card">
+                    <h3>Why frapAST was Built</h3>
+                    <p>Building production applications on Frappe and ERPNext revealed a persistent challenge: standard
+                        security scanners flooded development teams with false positives on framework idioms, while
+                        missing genuine framework vulnerabilities like mutating whitelisted RPC endpoints and broken
+                        submittable DocType state machines. frapAST was built from the ground up to understand the
+                        Frappe framework layer natively &mdash; indexing schemas, resolving hook dispatch trees, and
+                        actively proving exploitability before reporting findings.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ ACCORDION -->
+        <section class="bordered" id="faq">
+            <div class="wrap">
+                <div class="section-head">
+                    <h2>Frequently Asked Questions</h2>
+                    <p>Everything you need to know about scanning, verification, and privacy.</p>
+                </div>
+                <div class="faq-list">
+                    <div class="faq-item">
+                        <button class="faq-question" type="button" aria-expanded="false">
+                            <span>Does this need a live Frappe bench to run a basic scan?</span>
+                            <span class="icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg></span>
+                        </button>
+                        <div class="faq-answer">
+                            <p><strong>No.</strong> A standard static security audit (<code
+                                    class="mono">frapast scan /path/to/app</code>) runs 100% locally by parsing Python
+                                ASTs, DocType JSON schemas, and <code class="mono">hooks.py</code> files. A running
+                                Frappe bench is only required if you invoke Tier 2 HTTP proof verification (<code
+                                    class="mono">frapast scan --prove</code> or <code
+                                    class="mono">frapast prove</code>).</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <button class="faq-question" type="button" aria-expanded="false">
+                            <span>Is my source code or data ever sent anywhere?</span>
+                            <span class="icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg></span>
+                        </button>
+                        <div class="faq-answer">
+                            <p><strong>Never.</strong> frapAST is 100% local, air-gapped, and collects zero telemetry.
+                                The local web dashboard binds strictly to <code class="mono">127.0.0.1</code> and
+                                enforces cross-origin request protection. No code or metadata leaves your workstation or
+                                CI runner.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <button class="faq-question" type="button" aria-expanded="false">
+                            <span>How is frapAST different from Bandit or SonarQube?</span>
+                            <span class="icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg></span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>Generic scanners treat Python files as standalone scripts without understanding that
+                                <code class="mono">@frappe.whitelist()</code> exposes a public HTTP RPC endpoint, that
+                                DocType JSONs declare column schemas and permissions, or that <code
+                                    class="mono">hooks.py</code> registers lifecycle dispatches. frapAST models these
+                                framework-specific constructs to identify vulnerabilities that generic tools miss, while
+                                eliminating false-positive noise.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <button class="faq-question" type="button" aria-expanded="false">
+                            <span>Is frapAST actively maintained?</span>
+                            <span class="icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg></span>
+                        </button>
+                        <div class="faq-answer">
+                            <p><strong>Yes.</strong> Version 0.1.0 includes 28 active detectors, automated AST
+                                autofixes, OASIS SARIF 2.1.0 output, and an automated regression test suite covering all
+                                rules and parser subsystems.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <button class="faq-question" type="button" aria-expanded="false">
+                            <span>Can I write and add custom security rules?</span>
+                            <span class="icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg></span>
+                        </button>
+                        <div class="faq-answer">
+                            <p><strong>Yes.</strong> frapAST has a modular rule architecture. Detectors are pure Python
+                                functions that receive the indexed <code class="mono">SchemaIndex</code>, <code
+                                    class="mono">HookIndex</code>, <code class="mono">PythonSymbolIndex</code>, and
+                                static <code class="mono">CallGraph</code>. Review our <a
+                                    href="community.html#contributing">Contributing Guide</a> for step-by-step
+                                instructions on authoring new detectors.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- GET STARTED -->
+        <section class="bordered" id="start">
+            <div class="wrap">
+                <div class="section-head">
+                    <h2>Get Started in Seconds</h2>
+                    <p>Run audits locally or integrate automated SARIF code scanning into your GitHub Actions workflow.
+                    </p>
+                </div>
+                <div class="steps-grid">
+                    <div class="step-line">
+                        <span class="step-label">1. Install</span>
+                        <code>pip install frapast</code>
+                        <button class="copy-btn" data-copy="pip install frapast" type="button"
+                            aria-label="Copy install command"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">copy</span></button>
+                    </div>
+                    <div class="step-line">
+                        <span class="step-label">2. Static Scan</span>
+                        <code>frapast scan /path/to/frappe-app</code>
+                        <button class="copy-btn" data-copy="frapast scan ." type="button"
+                            aria-label="Copy scan command"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">copy</span></button>
+                    </div>
+                    <div class="step-line">
+                        <span class="step-label">3. Automated Fixes</span>
+                        <code>frapast fix /path/to/frappe-app --apply</code>
+                        <button class="copy-btn" data-copy="frapast fix . --apply" type="button"
+                            aria-label="Copy fix command"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">copy</span></button>
+                    </div>
+                    <div class="step-line">
+                        <span class="step-label">4. GitHub Action</span>
+                        <code>uses: pratheep-bit/frapast@v0.1.0</code>
+                        <button class="copy-btn" data-copy="uses: pratheep-bit/frapast@v0.1.0" type="button"
+                            aria-label="Copy GitHub Action reference"><svg class="icon" viewBox="0 0 24 24"
+                                aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">copy</span></button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/layout.js"></script>
+</body>
+
+</html>

@@ -298,13 +298,19 @@ def get_proof_result(finding_id: str) -> dict | None:
 # ---------------------------------------------------------------------------
 # Bench config persistence
 # ---------------------------------------------------------------------------
+# Bench configuration persistence
+# NOTE: `bench_password` is deliberately excluded from persistence to avoid
+# storing plaintext secrets in SQLite (~/.frapast/frapast_web.db). Passwords
+# are kept strictly in-memory during the active web session and must be
+# re-entered on server restart.
+# ---------------------------------------------------------------------------
 
-_BENCH_KEYS = ("bench_url", "bench_user", "bench_password", "bench_site")
+_BENCH_PERSISTED_KEYS = ("bench_url", "bench_user", "bench_site")
 
 
 def save_bench_config(cfg: dict) -> None:
     conn = _connect()
-    for k in _BENCH_KEYS:
+    for k in _BENCH_PERSISTED_KEYS:
         if k in cfg:
             conn.execute(
                 "INSERT OR REPLACE INTO bench_config (key, value) VALUES (?, ?)",
@@ -316,12 +322,13 @@ def save_bench_config(cfg: dict) -> None:
 def load_bench_config() -> dict:
     conn = _connect()
     rows = conn.execute(
-        "SELECT key, value FROM bench_config WHERE key IN (?, ?, ?, ?)",
-        _BENCH_KEYS,
+        "SELECT key, value FROM bench_config WHERE key IN (?, ?, ?)",
+        _BENCH_PERSISTED_KEYS,
     ).fetchall()
-    result = {k: "" for k in _BENCH_KEYS}
+    result = {k: "" for k in _BENCH_PERSISTED_KEYS}
     for row in rows:
         result[row["key"]] = row["value"]
+    result["bench_password"] = ""
     return result
 
 

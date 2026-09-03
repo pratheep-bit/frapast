@@ -1,0 +1,26 @@
+{
+  "cleanUrls": false,
+  "rewrites": [
+    { "source": "/rules", "destination": "/docs/rules.html" },
+    { "source": "/rules.html", "destination": "/docs/rules.html" },
+    { "source": "/getting-started", "destination": "/docs/getting-started.html" },
+    { "source": "/getting-started.html", "destination": "/docs/getting-started.html" },
+    { "source": "/cli", "destination": "/docs/cli-reference.html" },
+    { "source": "/cli.html", "destination": "/docs/cli-reference.html" },
+    { "source": "/cli-reference", "destination": "/docs/cli-reference.html" },
+    { "source": "/cli-reference.html", "destination": "/docs/cli-reference.html" },
+    { "source": "/github-action", "destination": "/docs/github-action.html" },
+    { "source": "/github-action.html", "destination": "/docs/github-action.html" },
+    { "source": "/faq", "destination": "/docs/faq.html" },
+    { "source": "/faq.html", "destination": "/docs/faq.html" },
+    { "source": "/docs", "destination": "/docs/getting-started.html" },
+    { "source": "/docs/", "destination": "/docs/getting-started.html" },
+    { "source": "/docs/rules", "destination": "/docs/rules.html" },
+    { "source": "/docs/cli-reference", "destination": "/docs/cli-reference.html" },
+    { "source": "/docs/github-action", "destination": "/docs/github-action.html" },
+    { "source": "/docs/faq", "destination": "/docs/faq.html" },
+    { "source": "/docs/getting-started", "destination": "/docs/getting-started.html" },
+    { "source": "/changelog", "destination": "/changelog.html" },
+    { "source": "/community", "destination": "/community.html" }
+  ]
+}

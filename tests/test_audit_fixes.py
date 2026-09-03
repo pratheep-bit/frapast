@@ -117,6 +117,23 @@ class TestCodebaseAuditFixes(unittest.TestCase):
         score = _score(malformed)
         self.assertEqual(score, 0.0)
 
+    def test_safe_api_method_derives_dotted_paths(self):
+        """Tier 2 proof synthesis derives full dotted RPC method paths from file & function."""
+        from scanner.proof.http_synthesis import _safe_api_method, SYNTHESIS_VERSION
+        self.assertEqual(SYNTHESIS_VERSION, "v3")
+
+        # Case 1: Simple function name with relative path
+        res = _safe_api_method("get_fees", "education/doctype/fees/fees.py")
+        self.assertEqual(res, "education.doctype.fees.fees.get_fees")
+
+        # Case 2: Class method with nested apps/ prefix
+        res = _safe_api_method("Fees.get_fees", "apps/education/education/doctype/fees/fees.py")
+        self.assertEqual(res, "education.education.doctype.fees.fees.get_fees")
+
+        # Case 3: Already dotted full route
+        res = _safe_api_method("frappe.client.get", "frappe/handler.py")
+        self.assertEqual(res, "frappe.client.get")
+
 
 if __name__ == "__main__":
     unittest.main()

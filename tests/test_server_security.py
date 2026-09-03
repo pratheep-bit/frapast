@@ -50,6 +50,77 @@ class TestServerSecurity(unittest.TestCase):
 		self.assertNotIn("etc", [p for p in Path(args.get("current_path", "")).parts if p == "etc"])
 		self.assertTrue(args.get("current_path", "").startswith(str(Path.home())))
 
+	def test_bench_password_not_persisted_in_db(self):
+		"""Verify save_bench_config does not store plaintext password in SQLite."""
+		import tempfile
+		from scanner.web import db
+
+		with tempfile.TemporaryDirectory() as td:
+			db.init(Path(td))
+			db.save_bench_config({
+				"bench_url": "http://localhost:8000",
+				"bench_user": "Administrator",
+				"bench_password": "supersecretpassword",
+				"bench_site": "dev.local",
+			})
+
+			loaded = db.load_bench_config()
+			self.assertEqual(loaded["bench_url"], "http://localhost:8000")
+			self.assertEqual(loaded["bench_user"], "Administrator")
+			self.assertEqual(loaded["bench_site"], "dev.local")
+			# Password must NOT be persisted in SQLite
+			self.assertEqual(loaded["bench_password"], "")
+
+			# Directly verify raw sqlite rows
+			conn = db._connect()
+			row = conn.execute("SELECT value FROM bench_config WHERE key = 'bench_password'").fetchone()
+			self.assertIsNone(row)
+
+	def test_serve_report_renders_from_sqlite_and_invalidates_cache(self):
+		"""Verify _serve_report generates markdown from SQLite findings and cache invalidation works."""
+		import tempfile
+		from scanner.web import db, server
+
+		with tempfile.TemporaryDirectory() as td:
+			db.init(Path(td))
+			scan_id = "test-scan-123"
+			db.create_scan(scan_id, "/tmp/demo_repo")
+			db.upsert_findings(scan_id, [
+				{
+					"id": "FR-PERM-001-demo",
+					"rule_id": "FR-PERM-001",
+					"file": "api.py",
+					"line": 10,
+					"function": "get_data",
+					"status": "proven",
+				},
+				{
+					"id": "FR-SQLI-001-demo",
+					"rule_id": "FR-SQLI-001",
+					"file": "query.py",
+					"line": 25,
+					"function": "run_sql",
+					"status": "candidate",
+				},
+			])
+			db.finish_scan(scan_id, "done")
+
+			handler = MagicMock(spec=server._Handler)
+			server._Handler.invalidate_report_cache()
+			server._Handler._serve_report(handler)
+
+			self.assertTrue(handler._serve_json.called)
+			args = handler._serve_json.call_args[0][0]
+			report_text = args.get("report", "")
+
+			self.assertIn("Security Track-Record Report for demo_repo", report_text)
+			self.assertIn("| proven | 1 |", report_text)
+			self.assertIn("| candidate | 1 |", report_text)
+			self.assertIn("FR-PERM-001", report_text)
+			self.assertIn("FR-SQLI-001", report_text)
+
 
 if __name__ == "__main__":
 	unittest.main()
+
+

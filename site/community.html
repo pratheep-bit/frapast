@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community, Contributing & Security Policy — frapAST</title>
+    <meta name="description"
+        content="Join the frapAST open source community, explore the public roadmap, read the full contributing guide, and review our security vulnerability policy.">
+    <link rel="canonical" href="https://pratheep-bit.github.io/frapast/community.html">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pratheep-bit.github.io/frapast/community.html">
+    <meta property="og:title" content="Community, Contributing & Security Policy — frapAST">
+    <meta property="og:description"
+        content="Join the frapAST open source community, explore the public roadmap, read the full contributing guide, and review our security vulnerability policy.">
+    <meta property="og:image" content="https://pratheep-bit.github.io/frapast/assets/og-image.png">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://pratheep-bit.github.io/frapast/community.html">
+    <meta name="twitter:title" content="Community, Contributing & Security Policy — frapAST">
+    <meta name="twitter:description"
+        content="Join the frapAST open source community, explore the public roadmap, read the full contributing guide, and review our security vulnerability policy.">
+    <meta name="twitter:image" content="https://pratheep-bit.github.io/frapast/assets/og-image.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/logo.png">
+    <link rel="apple-touch-icon" href="assets/logo.png">
+
+    <!-- Fonts & CSS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+
+</head>
+
+<body>
+    <main id="main-content">
+        <header class="page-head">
+            <div class="wrap">
+                <div class="breadcrumbs"><a href="index.html">Home</a> <svg class="icon icon-sm" viewBox="0 0 24 24"
+                        aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg> Community &amp; Contributing</div>
+                <h1>Community, Contributing &amp; Security</h1>
+                <p>frapAST is an open-source security engine licensed under MIT. Explore open issues, the project
+                    roadmap, the full development guide, and our security disclosure policy.</p>
+            </div>
+        </header>
+
+        <div class="wrap" style="padding: 48px 24px 80px;">
+            <div class="docs-content" style="max-width: 880px; margin: 0 auto;">
+
+                <h2 style="margin-top:0; margin-bottom: 10px;">Community &amp; Issue Tracker</h2>
+                <p style="margin-bottom: 24px; color: var(--ink-muted); font-size: 15.5px; line-height: 1.6;">
+                    We welcome rule contributions, false-positive reports, and performance improvements across the Frappe &amp; ERPNext ecosystem.
+                </p>
+
+                <div class="community-action-grid">
+                    <a href="https://github.com/pratheep-bit/frapast/issues" class="community-btn-card" target="_blank" rel="noopener noreferrer">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <div>
+                            <strong>All Open Issues</strong>
+                            <span>Browse active bugs &amp; feature requests</span>
+                        </div>
+                    </a>
+                    <a href="https://github.com/pratheep-bit/frapast/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22" class="community-btn-card" target="_blank" rel="noopener noreferrer">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        </svg>
+                        <div>
+                            <strong>Good First Issues</strong>
+                            <span>Great starting points for new contributors</span>
+                        </div>
+                    </a>
+                    <a href="https://github.com/pratheep-bit/frapast/discussions" class="community-btn-card" target="_blank" rel="noopener noreferrer">
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <div>
+                            <strong>Discussions Forum</strong>
+                            <span>Ask questions &amp; propose architecture</span>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="quick-jump-bar">
+                    <span class="quick-jump-label">Jump to Section:</span>
+                    <a href="#contributing" class="quick-jump-link">
+                        Contributing Guide
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </a>
+                    <a href="#security" class="quick-jump-link">
+                        Security Disclosure Policy
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </a>
+                </div>
+
+                <h2>Public Project Roadmap</h2>
+                <div class="note-card" style="margin-bottom: 48px;">
+                    <h3>Current Release &amp; Roadmap Milestones</h3>
+                    <ul>
+                        <li><strong>v0.1.0 (Current Release):</strong> 28 active detectors, 2-tier proof verification,
+                            SARIF 2.1.0 export, CLI autofix, and a reusable GitHub Action.</li>
+                        <li><strong>v0.2.0 (Planned):</strong> Interprocedural taint analysis for <code
+                                class="mono">FR-INJ-005</code> (XSS/HTML format string validation) and deeper DocType
+                            workflow transition graph modeling.</li>
+                        <li><strong>v0.3.0 (Planned):</strong> Bi-directional Frappe Bench integration for
+                            auto-generating reproducible synthetic bench test cases.</li>
+                    </ul>
+                </div>
+
+                <!-- FULL CONTRIBUTING GUIDE -->
+                <div id="contributing" class="docs-panel">
+                    <div class="docs-panel-header">
+                        <span class="eyebrow">Official Contributing Guide</span>
+                        <a href="https://github.com/pratheep-bit/frapast/blob/main/CONTRIBUTING.md" target="_blank"
+                            rel="noopener noreferrer" class="eyebrow-link">View raw CONTRIBUTING.md on GitHub <svg
+                                class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg></a>
+                    </div>
+
+                    <h2 style="margin-top:0;">Contributing to frapAST</h2>
+                    <p>This document covers how to set up a local development environment, run the test suite, add a new
+                        rule, and what a pull request must include before it can be merged.</p>
+                    <hr>
+
+                    <h2>Development Environment Setup</h2>
+                    <h3>Prerequisites</h3>
+                    <ul>
+                        <li>Python 3.10 or higher</li>
+                        <li>Git</li>
+                    </ul>
+
+                    <h3>Install for Development</h3>
+                    <div class="code-block"><button class="copy-code-btn" type="button" data-copy="git clone https://github.com/pratheep-bit/frapast.git
+cd frapast
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -e &quot;.[dev]&quot;"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>git clone https://github.com/pratheep-bit/frapast.git
+cd frapast
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -e &quot;.[dev]&quot;</code></pre>
+                    </div>
+                    <p>This installs frapAST in editable mode with all test and lint dependencies.</p>
+
+                    <h3>Run the Test Suite</h3>
+                    <div class="code-block"><button class="copy-code-btn" type="button" data-copy="pytest"><svg
+                                class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>pytest</code></pre>
+                    </div>
+                    <p>All 200+ tests should pass. This is the minimum bar for any contribution.</p>
+
+                    <h3>Run the Linter</h3>
+                    <div class="code-block"><button class="copy-code-btn" type="button" data-copy="ruff check ."><svg
+                                class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>ruff check .</code></pre>
+                    </div>
+                    <p>No lint errors are acceptable in a PR &mdash; fix all issues before opening one.</p>
+                    <hr>
+
+                    <h2>Project Layout</h2>
+                    <div class="code-block"><button class="copy-code-btn" type="button" data-copy="scanner/
+  cli.py             — CLI entrypoint
+  rules/engine.py    — All rule detectors (ALL_RULES tuple)
+  rules/*.yaml       — Per-rule metadata (severity, description, references)
+  taxonomy/          — Canonical taxonomy definitions
+  python/engine.py   — AST and symbol indexer
+  schema/engine.py   — DocType JSON schema indexer
+  hooks/engine.py    — hooks.py parser
+  callgraph/         — Call graph builder for endpoint reachability
+  proof/             — Tier 2 runtime HTTP proof synthesis
+  suppression.py     — Inline suppression, baseline, and config loader
+  web/               — Local web dashboard server
+tests/
+  test_all_rules.py                     — Core rule regression tests
+  test_precision_benchmark.py           — Precision bounds per rule
+  test_security_hardening_regression.py — Security regression tests
+  test_suppression.py                   — Suppression engine tests"><svg class="icon" viewBox="0 0 24 24"
+                                aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>scanner/
+  cli.py             — CLI entrypoint
+  rules/engine.py    — All rule detectors (ALL_RULES tuple)
+  rules/*.yaml       — Per-rule metadata (severity, description, references)
+  taxonomy/          — Canonical taxonomy definitions
+  python/engine.py   — AST and symbol indexer
+  schema/engine.py   — DocType JSON schema indexer
+  hooks/engine.py    — hooks.py parser
+  callgraph/         — Call graph builder for endpoint reachability
+  proof/             — Tier 2 runtime HTTP proof synthesis
+  suppression.py     — Inline suppression, baseline, and config loader
+  web/               — Local web dashboard server
+tests/
+  test_all_rules.py                     — Core rule regression tests
+  test_precision_benchmark.py           — Precision bounds per rule
+  test_security_hardening_regression.py — Security regression tests
+  test_suppression.py                   — Suppression engine tests</code></pre>
+                    </div>
+                    <hr>
+
+                    <h2>Adding a New Rule</h2>
+                    <p>frapAST enforces strict precision and root-cause engineering standards. A rule is not "done"
+                        because a basic AST check passes; it must be proven safe against false positives and validated
+                        across real Frappe/ERPNext application trees. A complete rule addition follows the eight steps
+                        below.</p>
+
+                    <h3>1. Root-Cause Diagnosis and AST Visitor Mechanics</h3>
+                    <p>When designing a detector function in <code class="mono">scanner/rules/engine.py</code>:</p>
+                    <ul>
+                        <li><strong>Distinguish method invocations from attribute reads:</strong> if detecting an
+                            unvalidated field access or method call, ensure your AST visitor distinguishes <code
+                                class="mono">visit_Call</code> from <code class="mono">visit_Attribute</code>. Never
+                            confuse <code class="mono">doc.fieldname</code> with <code
+                                class="mono">doc.method_name()</code>.</li>
+                        <li><strong>Fail-closed schema resolution:</strong> when querying DocType schemas via <code
+                                class="mono">SchemaIndex</code>, only assert missing fields if the DocType definition
+                            was resolved with 100% confidence. If schema resolution is ambiguous, do not emit spurious
+                            findings.</li>
+                        <li><strong>Respect reserved framework attributes:</strong> always check against <code
+                                class="mono">_RESERVED_DOC_ATTRS</code> and standard <code
+                                class="mono">BaseDocument</code>/<code class="mono">Document</code> methods before
+                            flagging attribute accesses.</li>
+                        <li><strong>Follow the standard detector signature:</strong></li>
+                    </ul>
+                    <div class="code-block"><button class="copy-code-btn" type="button" data-copy="def fr_perm_007(
+    schema: SchemaIndex,
+    hooks: HookIndex,
+    python: PythonSymbolIndex,
+    graph: CallGraph,
+) -&gt; list[Candidate]:
+    &quot;&quot;&quot;FR-PERM-007: Short descriptive title.
+
+    Detailed root-cause explanation:
+    - Vulnerability class and mechanism.
+    - Conditions under which this triggers.
+    - Known false-positive edge cases and how they are handled.
+    &quot;&quot;&quot;
+    ..."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>def fr_perm_007(
+    schema: SchemaIndex,
+    hooks: HookIndex,
+    python: PythonSymbolIndex,
+    graph: CallGraph,
+) -&gt; list[Candidate]:
+    &quot;&quot;&quot;FR-PERM-007: Short descriptive title.
+
+    Detailed root-cause explanation:
+    - Vulnerability class and mechanism.
+    - Conditions under which this triggers.
+    - Known false-positive edge cases and how they are handled.
+    &quot;&quot;&quot;
+    ...</code></pre>
+                    </div>
+
+                    <h3>2. Register the Rule in <code class="mono">ALL_RULES</code></h3>
+                    <p>Add your detector function to the <code class="mono">ALL_RULES</code> tuple at the bottom of
+                        <code class="mono">scanner/rules/engine.py</code>.</p>
+
+                    <h3>3. Add Rule and Taxonomy YAML Metadata</h3>
+                    <ol>
+                        <li>
+                            <strong>Rule descriptor</strong> (<code class="mono">scanner/rules/FR-PERM-007.yaml</code>):
+                            <div class="code-block"><button class="copy-code-btn" type="button" data-copy="taxonomy_id: FR-PERM-007
+rule_version: &quot;1.0.0&quot;
+severity: high
+title: &quot;Missing Permission Check on Sensitive DocType Method&quot;
+description: |
+  Detailed explanation of what the detector checks and the remediation guidance.
+references:
+  - https://frappeframework.com/docs/user/en/api/document"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg><span class="copy-label">Copy</span></button>
+                                <pre><code>taxonomy_id: FR-PERM-007
+rule_version: &quot;1.0.0&quot;
+severity: high
+title: &quot;Missing Permission Check on Sensitive DocType Method&quot;
+description: |
+  Detailed explanation of what the detector checks and the remediation guidance.
+references:
+  - https://frappeframework.com/docs/user/en/api/document</code></pre>
+                            </div>
+                        </li>
+                        <li>
+                            <strong>Taxonomy descriptor</strong> (<code
+                                class="mono">scanner/taxonomy/FR-PERM-007.yaml</code>):
+                            <div class="code-block"><button class="copy-code-btn" type="button" data-copy="id: FR-PERM-007
+runtime_required: true
+detector_status: implemented
+category: permission
+title: &quot;Missing Permission Check&quot;
+description: |
+  Canonical taxonomy entry for this rule class.
+references: []"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg><span class="copy-label">Copy</span></button>
+                                <pre><code>id: FR-PERM-007
+runtime_required: true
+detector_status: implemented
+category: permission
+title: &quot;Missing Permission Check&quot;
+description: |
+  Canonical taxonomy entry for this rule class.
+references: []</code></pre>
+                            </div>
+                        </li>
+                        <li><strong>Registry registration:</strong> add the rule ID under the <code
+                                class="mono">implemented</code> list in <code
+                                class="mono">scanner/taxonomy/taxonomy_registry.yaml</code>.</li>
+                    </ol>
+
+                    <h3>4. Mandatory Dual Unit Test Suite (TP &amp; TN Fixtures)</h3>
+                    <p>Every rule <strong>must</strong> have both positive and negative unit tests in <code
+                            class="mono">tests/test_ast_rule_coverage.py</code> or a dedicated test module:</p>
+                    <ul>
+                        <li><strong>True-positive (TP) test:</strong> asserts that vulnerable code patterns produce
+                            exact candidates with accurate line numbers, rule IDs, and evidence strings.</li>
+                        <li><strong>True-negative (TN) test:</strong> asserts that safe, idiomatic Frappe patterns
+                            (proper permission checks, whitelisted endpoints with guards, <code
+                                class="mono">doc.save()</code> with validation) produce <strong>zero</strong> findings.
+                        </li>
+                    </ul>
+
+                    <h3>5. Real-World Application Revalidation</h3>
+                    <p>Before submitting a PR, test your new rule against real open-source Frappe applications (e.g.
+                        <code class="mono">frappe/erpnext</code>, <code class="mono">frappe/hrms</code>):</p>
+                    <div class="code-block"><button class="copy-code-btn" type="button" data-copy="# Run the scanner against a real Frappe app clone
+frapast scan /path/to/cloned/erpnext --rule FR-PERM-007 --format json"><svg class="icon" viewBox="0 0 24 24"
+                                aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code># Run the scanner against a real Frappe app clone
+frapast scan /path/to/cloned/erpnext --rule FR-PERM-007 --format json</code></pre>
+                    </div>
+                    <p>Verify that all reported findings are legitimate true positives and that valid business logic is
+                        not falsely flagged.</p>
+
+                    <h3>6. Register Precision Benchmark Bounds</h3>
+                    <p>Add or update the expected finding count range in <code class="mono">RULE_BOUNDS</code> in <code
+                            class="mono">tests/test_precision_benchmark.py</code>. This ensures automated CI regression
+                        gates prevent precision drift across releases:</p>
+                    <div class="code-block"><button class="copy-code-btn" type="button" data-copy="RULE_BOUNDS = {
+    ...
+    &quot;FR-PERM-007&quot;: (1, 3),  # (min_expected, max_expected) on standard benchmark corpus
+}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>RULE_BOUNDS = {
+    ...
+    &quot;FR-PERM-007&quot;: (1, 3),  # (min_expected, max_expected) on standard benchmark corpus
+}</code></pre>
+                    </div>
+
+                    <h3>7. Tier 1 / Tier 2 Runtime Proof Integration (If Applicable)</h3>
+                    <p>If the vulnerability class can be proven at runtime:</p>
+                    <ul>
+                        <li><strong>Tier 1:</strong> implement shell/bash reproducer generation in <code
+                                class="mono">scanner/proof/orchestrator.py</code>.</li>
+                        <li><strong>Tier 2:</strong> implement HTTP RPC proof synthesis in <code
+                                class="mono">scanner/proof/http_synthesis.py</code> and <code
+                                class="mono">scanner/proof/bench_runner.py</code>.</li>
+                        <li><strong>Security invariant:</strong> always sanitize synthesized strings with <code
+                                class="mono">_reject_if_newline()</code> to eliminate reproducer script injection risks.
+                        </li>
+                    </ul>
+
+                    <h3>8. Full Local Verification</h3>
+                    <p>Run the entire verification suite locally:</p>
+                    <div class="code-block"><button class="copy-code-btn" type="button" data-copy="pytest
+ruff check .
+python scanner/validate_taxonomy.py"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>pytest
+ruff check .
+python scanner/validate_taxonomy.py</code></pre>
+                    </div>
+                    <hr>
+
+                    <h2>Suppression and Baseline</h2>
+                    <p>To suppress a specific finding inline:</p>
+                    <div class="code-block"><button class="copy-code-btn" type="button"
+                            data-copy="frappe.db.sql(query)  # frapast: ignore FR-SQLI-001"><svg class="icon"
+                                viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>frappe.db.sql(query)  # frapast: ignore FR-SQLI-001</code></pre>
+                    </div>
+                    <p>To suppress all rules on a line:</p>
+                    <div class="code-block"><button class="copy-code-btn" type="button"
+                            data-copy="frappe.db.sql(query)  # frapast: ignore"><svg class="icon" viewBox="0 0 24 24"
+                                aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>frappe.db.sql(query)  # frapast: ignore</code></pre>
+                    </div>
+                    <p>To generate a baseline of existing findings (for legacy codebases):</p>
+                    <div class="code-block"><button class="copy-code-btn" type="button"
+                            data-copy="frapast scan ./myapp --generate-baseline .frapast-baseline.json"><svg
+                                class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>frapast scan ./myapp --generate-baseline .frapast-baseline.json</code></pre>
+                    </div>
+                    <p>To run future scans reporting only new findings:</p>
+                    <div class="code-block"><button class="copy-code-btn" type="button"
+                            data-copy="frapast scan ./myapp --baseline .frapast-baseline.json"><svg class="icon"
+                                viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg><span class="copy-label">Copy</span></button>
+                        <pre><code>frapast scan ./myapp --baseline .frapast-baseline.json</code></pre>
+                    </div>
+                    <hr>
+
+                    <h2>Integration &amp; GitHub Action Testing</h2>
+                    <p>The repository <a href="https://github.com/pratheep-bit/frapast-action-test" target="_blank"
+                            rel="noopener noreferrer"><code class="mono">pratheep-bit/frapast-action-test</code></a> is
+                        maintained as a permanent, public smoke-test fixture to verify end-to-end composite action
+                        workflows (<code class="mono">action.yml</code>), SARIF generation, and Code Scanning alert
+                        ingestion against live GitHub infrastructure.</p>
+                    <hr>
+
+                    <h2>Privacy and Confidentiality</h2>
+                    <p>All contributions must comply with <a
+                            href="https://github.com/pratheep-bit/frapast/blob/main/AGENTS.md" target="_blank"
+                            rel="noopener noreferrer">AGENTS.md</a>:</p>
+                    <ul>
+                        <li>Do not reference private company names, client identities, or proprietary infrastructure in
+                            code, comments, or commit messages.</li>
+                        <li>Use only open-source repositories (<code class="mono">frappe/erpnext</code>, <code
+                                class="mono">frappe/hrms</code>) as corpus references.</li>
+                        <li>Do not mention proprietary commercial products by name in documentation.</li>
+                    </ul>
+                    <hr>
+
+                    <h2>Pull Request Requirements</h2>
+                    <p>See <a href="https://github.com/pratheep-bit/frapast/blob/main/.github/PULL_REQUEST_TEMPLATE.md"
+                            target="_blank" rel="noopener noreferrer">.github/PULL_REQUEST_TEMPLATE.md</a> for the full
+                        checklist. The short version:</p>
+                    <ol>
+                        <li><code class="mono">pytest</code> passes with zero failures.</li>
+                        <li><code class="mono">ruff check .</code> reports no errors.</li>
+                        <li>New rules have both positive and negative unit tests.</li>
+                        <li>No private corporate identities are referenced.</li>
+                    </ol>
+                    <hr>
+
+                    <h2>Reporting Security Issues</h2>
+                    <p>Do not open a public GitHub issue for security vulnerabilities in frapAST itself &mdash; see the
+                        <a href="#security">Security Policy</a> below for the responsible disclosure process.</p>
+                </div>
+
+                <!-- FULL SECURITY POLICY -->
+                <div id="security" class="docs-panel">
+                    <div class="docs-panel-header">
+                        <span class="eyebrow">Security Vulnerability Disclosure Policy</span>
+                        <a href="https://github.com/pratheep-bit/frapast/blob/main/SECURITY.md" target="_blank"
+                            rel="noopener noreferrer" class="eyebrow-link">View raw SECURITY.md on GitHub <svg
+                                class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg></a>
+                    </div>
+
+                    <h2 style="margin-top:0;">Security Policy</h2>
+
+                    <h2>Supported Versions</h2>
+                    <div style="overflow-x:auto; margin: 16px 0 24px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Version</th>
+                                    <th>Supported</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>0.1.x</td>
+                                    <td>Yes</td>
+                                </tr>
+                                <tr>
+                                    <td>&lt; 0.1</td>
+                                    <td>No</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h2>Scope</h2>
+                    <p>This security policy applies strictly to vulnerabilities in the <strong>frapAST engine
+                            itself</strong>, including:</p>
+                    <ul>
+                        <li>The local web dashboard server (<code class="mono">scanner/web/server.py</code>) &mdash;
+                            e.g. path traversal, origin validation bypass, command execution.</li>
+                        <li>The runtime proof orchestrator and reproducer synthesis pipeline (<code
+                                class="mono">scanner/proof/</code>) &mdash; e.g. shell argument injection or unescaped
+                            parameter execution.</li>
+                        <li>The AST symbol indexer and rule execution pipeline (<code
+                                class="mono">scanner/python/</code>, <code class="mono">scanner/rules/</code>).</li>
+                        <li>The CLI entrypoint and output formatters (<code class="mono">scanner/cli.py</code>, <code
+                                class="mono">scanner/reporting/</code>).</li>
+                    </ul>
+
+                    <h3>Out of Scope</h3>
+                    <ul>
+                        <li>Security vulnerabilities detected by frapAST in third-party Frappe/ERPNext applications or
+                            custom apps (report these to the respective application maintainers).</li>
+                        <li>Denial of service via pathological or malformed local files provided as scan targets.</li>
+                        <li>Issues in optional dependencies not used by the core scan path.</li>
+                    </ul>
+
+                    <h2>Reporting a Vulnerability</h2>
+                    <p>If you discover a security vulnerability in frapAST, please report it privately:</p>
+                    <ol>
+                        <li><strong>GitHub Security Advisory (preferred):</strong> open a private advisory at <a
+                                href="https://github.com/pratheep-bit/frapast/security/advisories/new" target="_blank"
+                                rel="noopener noreferrer">github.com/pratheep-bit/frapast/security/advisories/new</a>.
+                        </li>
+                        <li><strong>Direct email:</strong> if GitHub Security Advisories can't be used, email the
+                            maintainer at <code class="mono">pratheeps2024@gmail.com</code> with the subject <code
+                                class="mono">[frapAST Security Vulnerability Report]</code>.</li>
+                    </ol>
+
+                    <h2>What to Include</h2>
+                    <p>Please provide:</p>
+                    <ol>
+                        <li>A description of the vulnerability and its potential impact.</li>
+                        <li>Step-by-step reproduction instructions or a minimal proof-of-concept.</li>
+                        <li>The specific version or commit hash where the issue was observed.</li>
+                        <li>Any potential mitigations or suggested fixes.</li>
+                    </ol>
+
+                    <h2>Response &amp; Maintenance Expectations</h2>
+                    <p>As an open-source project maintained by a lean team:</p>
+                    <ul>
+                        <li><strong>Initial acknowledgment:</strong> best-effort within 3 business days.</li>
+                        <li><strong>Triage &amp; assessment:</strong> within 7 to 10 business days.</li>
+                        <li><strong>Fix &amp; disclosure:</strong> critical vulnerabilities are prioritized for a patch
+                            release as soon as practical, followed by a coordinated public release notice crediting the
+                            reporter.</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/layout.js"></script>
+</body>
+
+</html>

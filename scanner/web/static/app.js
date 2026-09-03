@@ -80,12 +80,15 @@ function normalizeStatus(raw) {
  *  a progress event for one could silently update the other. */
 function computeKey(f) {
   if (f && f.id !== undefined && f.id !== null && f.id !== '') return `id:${f.id}`;
-  return `loc:${(f && f.file) || ''}::${(f && f.line) || ''}::${(f && f.rule_id) || ''}::${(f && f.function) || ''}`;
+  const line = f && f.line !== undefined && f.line !== null ? f.line : '';
+  return `loc:${(f && f.file) || ''}::${line}::${(f && f.rule_id) || ''}::${(f && f.function) || ''}`;
 }
 
 function normalizeFinding(raw) {
   raw = raw || {};
-  const scoreRaw = raw.severity && typeof raw.severity === 'object' ? raw.severity.score : undefined;
+  const scoreRaw = raw.severity && typeof raw.severity === 'object'
+    ? raw.severity.score
+    : (typeof raw.severity === 'number' ? raw.severity : undefined);
   return {
     key: computeKey(raw),
     id: raw.id ?? null,
@@ -155,7 +158,78 @@ function downloadTextFile(content, filename, mime) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+function getStorage(key, fallback = null) {
+  try {
+    const val = localStorage.getItem(key);
+    return val !== null ? val : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveStorage(key, value) {
+  try {
+    if (value === null || value === undefined || value === '') {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+    }
+  } catch {}
+}
+
+function restorePreferences() {
+  // Target repository path
+  const savedPath = getStorage('frapast_target_path');
+  if (savedPath && els.scanPathInput && !els.scanPathInput.value) {
+    els.scanPathInput.value = savedPath;
+  }
+
+  // Diff scan mode & git ref
+  const savedDiffRef = getStorage('frapast_diff_ref');
+  const savedDiffActive = getStorage('frapast_diff_active') === 'true';
+  if (els.diffRefInput && savedDiffRef) {
+    els.diffRefInput.value = savedDiffRef;
+  }
+  if (els.diffModeToggle && savedDiffActive) {
+    els.diffModeToggle.classList.add('active');
+    els.diffModeToggle.setAttribute('aria-pressed', 'true');
+    if (els.diffRefWrap) els.diffRefWrap.style.display = 'flex';
+  }
+
+  // Page size
+  const savedPageSize = parseInt(getStorage('frapast_page_size'), 10);
+  if (savedPageSize && [10, 25, 50, 100].includes(savedPageSize)) {
+    state.pageSize = savedPageSize;
+    if (els.pageSizeSelect) els.pageSizeSelect.value = String(savedPageSize);
+  }
+
+  // Severity filter
+  const savedSev = getStorage('frapast_filter_sev');
+  if (savedSev && ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].includes(savedSev)) {
+    state.filters.severity = savedSev;
+    if (els.filterSev) els.filterSev.value = savedSev;
+  }
+
+  // Proof status filter
+  const savedStatus = getStorage('frapast_filter_status');
+  if (savedStatus && ['candidate', 'proven', 'refuted', 'skipped'].includes(savedStatus)) {
+    state.filters.status = savedStatus;
+    if (els.filterStatus) els.filterStatus.value = savedStatus;
+  }
+
+  // Active sort
+  try {
+    const rawSort = getStorage('frapast_sort');
+    if (rawSort) {
+      const savedSort = JSON.parse(rawSort);
+      if (savedSort && savedSort.key && savedSort.dir) {
+        state.sort = savedSort;
+      }
+    }
+  } catch {}
 }
 
 /* =========================================================================
@@ -201,24 +275,32 @@ const els = {}; // populated in init() once the DOM is ready
 /* =========================================================================
    DATA LOADING
    ========================================================================= */
+let findingsRequestId = 0;
+
 async function loadFindings() {
+  const requestId = ++findingsRequestId;
   renderTableSkeleton();
   try {
     const res = await fetch(CONFIG.ENDPOINTS.findings);
     if (!res.ok) throw new Error(`Server returned ${res.status} ${res.statusText}`);
     const data = await res.json();
+    if (requestId !== findingsRequestId) return; // Stale request superseded by newer fetch
     if (data && typeof data.repo === 'string' && data.repo) {
       state.repo = data.repo;
+      if (els.scanPathInput && !els.scanPathInput.value.trim()) {
+        els.scanPathInput.value = data.repo;
+      }
+      saveStorage('frapast_target_path', data.repo);
     }
     const list = Array.isArray(data && data.candidates) ? data.candidates : [];
     state.findings.clear();
     for (const raw of list) {
       const f = normalizeFinding(raw);
-      if (state.findings.has(f.key)) {
-        console.warn('[frapast] duplicate finding key, later entry wins:', f.key);
-      }
       state.findings.set(f.key, f);
     }
+    state.selected.clear();
+    state.expandedKeys.clear();
+    if (els.selectionBar) els.selectionBar.classList.remove('visible');
     state.loadError = null;
     state.page = 1;
     refresh();
@@ -226,6 +308,7 @@ async function loadFindings() {
     updateCandidateRemaining();
     updateQuickButtonAvailability();
   } catch (err) {
+    if (requestId !== findingsRequestId) return;
     state.loadError = err;
     renderTableError(err);
     showToast(`Couldn't load findings: ${err.message}`, 'error');
@@ -239,6 +322,23 @@ async function loadStats() {
     const s = await res.json();
     if (s && typeof s.repo === 'string' && s.repo) {
       state.repo = s.repo;
+      if (els.scanPathInput && !els.scanPathInput.value.trim()) {
+        els.scanPathInput.value = s.repo;
+      }
+      saveStorage('frapast_target_path', s.repo);
+    }
+    if (s && typeof s.total === 'number') {
+      const proven = Number(s.proven) || 0;
+      const refuted = Number(s.refuted) || 0;
+      const skipped = Number(s.skipped) || 0;
+      const total = Number(s.total) || 0;
+      if (total > 0 && (proven > 0 || refuted > 0 || skipped > 0)) {
+        if (els.statsCard) els.statsCard.style.display = 'block';
+      }
+      if (els.statProven) els.statProven.textContent = proven;
+      if (els.statRefuted) els.statRefuted.textContent = refuted;
+      if (els.statSkipped) els.statSkipped.textContent = skipped;
+      if (els.statTotal) els.statTotal.textContent = total;
     }
   } catch (err) {
     console.warn('[frapast] failed to load stats:', err.message);
@@ -251,6 +351,14 @@ async function loadStats() {
 function countByStatus(status) {
   let n = 0;
   for (const f of state.findings.values()) if (f.status === status) n++;
+  return n;
+}
+
+function countProvable() {
+  let n = 0;
+  for (const f of state.findings.values()) {
+    if (f.status === 'candidate' || f.status === 'skipped') n++;
+  }
   return n;
 }
 
@@ -290,9 +398,13 @@ function getFilteredSorted() {
   return list;
 }
 
+function clampCurrentPage(totalPages) {
+  state.page = clamp(state.page, 1, totalPages);
+}
+
 function getPageSlice(list) {
   const totalPages = Math.max(1, Math.ceil(list.length / state.pageSize));
-  state.page = clamp(state.page, 1, totalPages);
+  clampCurrentPage(totalPages);
   const start = (state.page - 1) * state.pageSize;
   return { slice: list.slice(start, start + state.pageSize), totalPages, start };
 }
@@ -305,6 +417,7 @@ function renderTableSkeleton() {
     <tr class="skeleton-row">
       <td></td>
       <td class="skeleton-block" style="width:20px;"></td>
+      <td><div class="skeleton-block" style="width:40px;"></div></td>
       <td><div class="skeleton-block" style="width:120px;"></div></td>
       <td><div class="skeleton-block" style="width:70px;"></div></td>
       <td><div class="skeleton-block" style="width:160px;"></div></td>
@@ -318,7 +431,7 @@ function renderTableSkeleton() {
 
 function renderTableError(err) {
   els.findingsTbody.innerHTML = `
-    <tr><td colspan="8">
+    <tr><td colspan="9">
       <div class="error-state">
         <div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--red-text);"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
         <p>Couldn't load security candidates. ${escapeHtml(err.message)}</p>
@@ -328,6 +441,12 @@ function renderTableError(err) {
   const btn = $('tableRetryBtn');
   if (btn) btn.addEventListener('click', loadFindings);
   els.resultsSummary.textContent = 'Failed to load findings.';
+}
+
+function patchSnippetRow(key) {
+  const dropdown = els.findingsTbody.querySelector(`tr.code-dropdown-row[data-parent-key="${cssEscapeAttr(key)}"]`);
+  const f = state.findings.get(key);
+  if (dropdown && f) dropdown.firstElementChild.innerHTML = renderInlineCodeSnippetHtml(f);
 }
 
 async function fetchSnippetLines(f) {
@@ -349,7 +468,7 @@ async function fetchSnippetLines(f) {
   } finally {
     f.snippetLoading = false;
     f.snippetLoaded = true;
-    renderTable();
+    patchSnippetRow(f.key);
   }
 }
 
@@ -414,7 +533,7 @@ function renderRow(f, rowNumber, isExpanded) {
       <td><span class="badge ${sevClass(label)}">${label}${scoreText !== '—' ? ' ' + escapeHtml(scoreText) : ''}</span></td>
       <td class="col-file" title="${titleLoc}">${escapeHtml(file)}:${escapeHtml(f.line ?? '')}</td>
       <td class="col-fn" title="${escapeHtml(f.function)}">${escapeHtml(fn)}</td>
-      <td>${statusBadgeHtml(f.status)}</td>
+      <td class="col-status">${statusBadgeHtml(f.status)}</td>
       <td class="col-actions">
         <button class="icon-btn" data-view-key="${escapeHtml(f.key)}" aria-label="View details for ${escapeHtml(f.rule_id)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </td>
@@ -431,9 +550,9 @@ function renderInlineCodeSnippetHtml(f) {
     lineRowsHtml = f.snippetLines.map((l) => {
       const isErr = l.is_error;
       const rowCls = isErr ? 'code-line-row error-line' : 'code-line-row context-line';
-      const tag = isErr ? `<span class="error-marker-tag">VULNERABILITY LINE ${l.num}</span>` : '';
+      const tag = isErr ? `<span class="error-marker-tag">VULNERABILITY LINE ${escapeHtml(l.num)}</span>` : '';
       return `<div class="${rowCls}">
-            <span class="line-num">${l.num}</span>
+            <span class="line-num">${escapeHtml(l.num)}</span>
             <span class="line-code">${escapeHtml(l.code)}</span>
             ${tag}
           </div>`;
@@ -484,7 +603,10 @@ function updateSortHeaders() {
     const active = key === state.sort.key;
     th.dataset.active = active ? 'true' : 'false';
     const arrow = th.querySelector('.sort-arrow');
-    if (arrow) arrow.textContent = state.sort.dir === 'asc' ? '▲' : '▼';
+    if (arrow) {
+      arrow.textContent = active ? (state.sort.dir === 'asc' ? '▲' : '▼') : '▲';
+      arrow.style.opacity = active ? '1' : '0.35';
+    }
   });
 }
 
@@ -502,8 +624,15 @@ function updateHeaderBadges() {
 }
 
 function updateCandidateRemaining() {
-  const n = countByStatus('candidate');
-  els.candidateRemaining.textContent = `${n} remaining`;
+  const c = countByStatus('candidate');
+  const s = countByStatus('skipped');
+  if (s > 0 && c === 0) {
+    els.candidateRemaining.textContent = `${s} skipped ready to re-prove`;
+  } else if (s > 0) {
+    els.candidateRemaining.textContent = `${c} remaining (${s} skipped)`;
+  } else {
+    els.candidateRemaining.textContent = `${c} remaining`;
+  }
 }
 
 /* =========================================================================
@@ -517,12 +646,14 @@ const onFilterInput = debounce(() => {
 
 function onFilterStatusChange() {
   state.filters.status = els.filterStatus.value;
+  saveStorage('frapast_filter_status', state.filters.status);
   state.page = 1;
   renderTable();
 }
 
 function onFilterSevChange() {
   state.filters.severity = els.filterSev.value;
+  saveStorage('frapast_filter_sev', state.filters.severity);
   state.page = 1;
   renderTable();
 }
@@ -537,6 +668,7 @@ function onSortHeaderClick(e) {
     state.sort.key = key;
     state.sort.dir = key === 'severity' ? 'desc' : 'asc';
   }
+  saveStorage('frapast_sort', state.sort);
   updateSortHeaders();
   renderTable();
 }
@@ -553,6 +685,7 @@ function goToLastPage() { state.page = Number.MAX_SAFE_INTEGER; renderTable(); }
 
 function onPageSizeChange() {
   state.pageSize = parseInt(els.pageSizeSelect.value, 10) || CONFIG.PAGE_SIZE_DEFAULT;
+  saveStorage('frapast_page_size', state.pageSize);
   state.page = 1;
   renderTable();
 }
@@ -573,8 +706,9 @@ function toggleSelection(key, checked) {
 }
 
 function cssEscapeAttr(value) {
-  // Minimal escaping for use inside a CSS attribute selector string.
-  return String(value).replace(/["\\]/g, '\\$&');
+  return typeof CSS !== 'undefined' && CSS.escape
+    ? CSS.escape(String(value))
+    : String(value).replace(/["\\]/g, '\\$&');
 }
 
 function clearSelection() {
@@ -587,6 +721,7 @@ function renderSelectionBar() {
   const n = state.selected.size;
   els.selectionBar.classList.toggle('visible', n > 0);
   els.selectionCount.textContent = `${n} selected`;
+  updateQuickButtonAvailability();
   updateProveButtonLabel();
 }
 
@@ -603,7 +738,10 @@ function updateSelectAllCheckboxState(visibleSlice) {
 
 function onSelectAllToggle() {
   const visible = getPageSlice(getFilteredSorted()).slice;
-  const shouldSelect = !els.selectAllCheckbox.checked ? false : true;
+  const selectedOnPage = visible.filter((f) => state.selected.has(f.key)).length;
+  // If some or none are selected on this page, select all visible.
+  // Only if ALL visible rows are already selected should we deselect them.
+  const shouldSelect = selectedOnPage < visible.length;
   visible.forEach((f) => {
     if (shouldSelect) state.selected.add(f.key); else state.selected.delete(f.key);
   });
@@ -639,38 +777,37 @@ function setCount(rawCount, btnEl) {
   document.querySelectorAll('.quick-btn').forEach((b) => b.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
 
-  const candidateCount = countByStatus('candidate');
-  const value = rawCount === 'all' ? Math.max(candidateCount, 1) : rawCount;
+  const provableCount = countProvable();
+  const value = rawCount === 'all' ? Math.max(provableCount, 1) : rawCount;
   els.countInput.value = value;
   clearCountError();
 }
 
 function updateQuickButtonAvailability() {
-  const hasCandidates = countByStatus('candidate') > 0;
-  document.querySelectorAll('.quick-btn').forEach((b) => { b.disabled = !hasCandidates; });
-  els.proveBtn.disabled = !hasCandidates || state.run.active;
+  const provableCount = countProvable();
+  const hasProvable = provableCount > 0 || state.selected.size > 0;
+  document.querySelectorAll('.quick-btn').forEach((b) => { b.disabled = provableCount === 0; });
+  els.proveBtn.disabled = !hasProvable || state.run.active;
+  updateProveButtonLabel();
 }
 
-/** Validate the manual count field. Fixes several bugs in the original:
- *  `parseInt(input) || 10` silently replaced an intentional 0 with 10,
- *  negative numbers were accepted outright, and there was no upper
- *  bound check against how many candidates actually remain. */
+/** Validate the manual count field. Supports candidates and skipped findings alike. */
 function validateCount(raw) {
-  const n = Math.floor(Number(raw));
-  const candidateCount = countByStatus('candidate');
+  const n = Number(raw);
+  const provableCount = countProvable();
   if (raw === '' || raw === null || Number.isNaN(n)) {
     return { valid: false, message: 'Enter a number.' };
   }
-  if (!Number.isFinite(n) || n < 1) {
+  if (!Number.isInteger(n) || n < 1) {
     return { valid: false, message: 'Enter a whole number of at least 1.' };
   }
-  if (candidateCount === 0) {
-    return { valid: false, message: 'No unproven candidates remain.' };
+  if (provableCount === 0) {
+    return { valid: false, message: 'No unproven or skipped candidates remain.' };
   }
-  if (n > candidateCount) {
+  if (n > provableCount) {
     return {
       valid: false,
-      message: `Only ${candidateCount} candidate${candidateCount === 1 ? '' : 's'} remain — lower the count.`,
+      message: `Only ${provableCount} provable finding${provableCount === 1 ? '' : 's'} remain — lower the count.`,
     };
   }
   return { valid: true, value: n };
@@ -687,9 +824,17 @@ function clearCountError() {
 
 function updateProveButtonLabel() {
   if (state.run.active) return;
-  els.proveBtn.textContent = state.selected.size > 0
-    ? `Prove ${state.selected.size} Selected`
-    : 'Start Proof Engine';
+  if (state.selected.size > 0) {
+    els.proveBtn.textContent = `Prove ${state.selected.size} Selected`;
+    return;
+  }
+  const c = countByStatus('candidate');
+  const s = countByStatus('skipped');
+  if (c === 0 && s > 0) {
+    els.proveBtn.textContent = `Re-prove ${s} Skipped`;
+  } else {
+    els.proveBtn.textContent = 'Start Proof Engine';
+  }
 }
 
 /* =========================================================================
@@ -716,11 +861,7 @@ async function startProving() {
     }
     // Every selected key resolved to nothing (e.g. a rescan replaced the
     // findings out from under a stale selection). Fail fast here rather
-    // than sending an empty selection payload — the earlier version of
-    // the code had no check like this, and combined with a backend bug
-    // that ignored empty finding_ids arrays, this silently proved an
-    // unrelated default set of candidates instead of telling the user
-    // their selection was gone.
+    // than sending an empty selection payload.
     if (ids.length === 0 && locators.length === 0) {
       showToast('Your selection is no longer valid — clear it and reselect.', 'warning');
       return;
@@ -746,16 +887,16 @@ async function startProving() {
     });
     if (!res.ok) throw new Error(`Server returned ${res.status} ${res.statusText}`);
   } catch (err) {
-    // The original code never checked this request's outcome at all, so
-    // a failed POST left the "Running…" button spinning forever because
-    // nothing but an SSE 'done' event could ever reset it.
     failRun(`Couldn't start the proof engine: ${err.message}`);
   }
 }
 
-function beginRunUI() {
+function beginRunUI(payload) {
   state.run.active = true;
   state.run.completed = 0;
+  state.run.total = payload && Number.isFinite(payload.count)
+    ? payload.count
+    : (payload && Array.isArray(payload.finding_ids) ? payload.finding_ids.length : (payload && Array.isArray(payload.finding_locators) ? payload.finding_locators.length : 0));
   state.run.logCount = 0;
   state.run.startedAt = Date.now();
   state.run.reconnectAttempts = 0;
@@ -826,13 +967,13 @@ function openStream() {
     try {
       msg = JSON.parse(ev.data);
     } catch (err) {
-      console.warn('[frapast] malformed SSE payload, ignoring:', ev.data);
+      console.warn('[frapast] malformed SSE payload received, ignoring');
       return;
     }
     if (msg.type === 'progress') handleProgress(msg);
     else if (msg.type === 'done') handleDone(msg);
     else if (msg.type === 'error') handleStreamAppError(msg);
-    else if (msg.type === 'scan_start' || msg.type === 'scan_progress' || msg.type === 'scan_done' || msg.type === 'scan_error') handleScanSseEvent(msg);
+    else if (msg.type === 'scan_start' || msg.type === 'scan_progress' || msg.type === 'scan_done' || msg.type === 'scan_error' || msg.type === 'scan_indexing') handleScanSseEvent(msg);
   };
 
   // The original handler just closed the stream on any error and left
@@ -853,16 +994,18 @@ function openStream() {
 }
 
 function attemptReconnect() {
-  if (state.run.reconnectAttempts >= CONFIG.RECONNECT_MAX_ATTEMPTS) {
+  if (state.run.active && state.run.reconnectAttempts >= CONFIG.RECONNECT_MAX_ATTEMPTS) {
     failRun('Lost connection to the proof engine and could not reconnect.');
     return;
   }
   state.run.reconnectAttempts += 1;
-  const delay = CONFIG.RECONNECT_BASE_DELAY_MS * Math.pow(2, state.run.reconnectAttempts - 1);
-  showToast(`Connection interrupted — retrying (${state.run.reconnectAttempts}/${CONFIG.RECONNECT_MAX_ATTEMPTS})…`, 'warning');
+  const delay = CONFIG.RECONNECT_BASE_DELAY_MS * Math.min(16, Math.pow(2, state.run.reconnectAttempts - 1));
+  if (state.run.active) {
+    showToast(`Connection interrupted — retrying (${state.run.reconnectAttempts}/${CONFIG.RECONNECT_MAX_ATTEMPTS})…`, 'warning');
+  }
   clearTimeout(state.run.reconnectTimer);
   state.run.reconnectTimer = setTimeout(() => {
-    if (state.run.active) openStream();
+    openStream();
   }, delay);
 }
 
@@ -876,12 +1019,12 @@ function closeStream() {
 
 function failRun(message) {
   clearWatchdog();
-  closeStream();
   setConnectionStatus('offline');
   endRunUI();
   els.progressText.textContent = message;
   els.progressWarning.classList.remove('visible');
   showToast(message, 'error');
+  attemptReconnect();
 }
 
 /** Locate the finding a progress event refers to. Tries the server id
@@ -901,22 +1044,26 @@ function resolveFindingKey(d) {
 }
 
 function handleProgress(d) {
-  state.run.total = Number(d.total) || state.run.total;
-  state.run.completed = Number(d.index) || state.run.completed;
+  if (d.total !== undefined && d.total !== null && Number.isFinite(Number(d.total))) {
+    state.run.total = Number(d.total);
+  }
+  if (d.index !== undefined && d.index !== null && Number.isFinite(Number(d.index))) {
+    state.run.completed = Number(d.index);
+  }
 
   const pct = state.run.total > 0 ? Math.round((state.run.completed / state.run.total) * 100) : 0;
   els.progressBar.style.width = `${pct}%`;
   els.progressText.textContent = `${state.run.completed} / ${state.run.total} — ${d.rule_id || ''} in ${d.function || ''}`;
 
-  const status = normalizeStatus(d.status === 'passed' ? 'proven' : d.status === 'failed' ? 'refuted' : d.status);
+  const status = normalizeStatus(d.status);
   const key = resolveFindingKey(d);
 
   if (key) {
     const f = state.findings.get(key);
-    f.status = status;
-    patchRowIfVisible(key);
-  } else {
-    console.warn('[frapast] progress event did not match any known finding:', d);
+    if (f) {
+      f.status = status;
+      patchRowIfVisible(key);
+    }
   }
 
   pushStreamLogItem(d, status, !key);
@@ -924,15 +1071,13 @@ function handleProgress(d) {
   updateCandidateRemaining();
 }
 
-/** Live-patch a single row's status badge in place, instead of the
- *  original behavior of silently mutating the data array and leaving
- *  the visible table stale until the run finished (or the user
- *  happened to re-filter). */
+/** Live-patch a single row's status badge in place. */
 function patchRowIfVisible(key) {
   const row = els.findingsTbody.querySelector(`tr[data-key="${cssEscapeAttr(key)}"]`);
   if (!row) return;
   const f = state.findings.get(key);
-  const statusCell = row.children[6];
+  if (!f) return;
+  const statusCell = row.querySelector('.col-status') || row.children[7];
   if (statusCell) statusCell.innerHTML = statusBadgeHtml(f.status);
 }
 
@@ -972,7 +1117,8 @@ function handleStreamAppError(d) {
 
 function handleDone(d) {
   clearWatchdog();
-  closeStream();
+  // Keep the SSE stream alive! Do NOT call closeStream() here because the
+  // user may choose another folder to scan or re-check without reloading.
   setConnectionStatus('idle');
   endRunUI();
 
@@ -982,16 +1128,9 @@ function handleDone(d) {
   els.progressWarning.classList.remove('visible');
 
   const s = d.summary || {};
-  const proven = Number(s.proven) || 0;
-  const refuted = Number(s.refuted) || 0;
-  const skipped = Number(s.skipped) || 0;
-  const total = Number(s.total) || proven + refuted + skipped;
-
-  els.statsCard.style.display = 'block';
-  els.statProven.textContent = proven;
-  els.statRefuted.textContent = refuted;
-  els.statSkipped.textContent = skipped;
-  els.statTotal.textContent = total;
+  const batchProven = Number(s.proven) || 0;
+  const batchRefuted = Number(s.refuted) || 0;
+  const batchSkipped = Number(s.skipped) || 0;
 
   clearSelectionSilently();
   renderTable();
@@ -999,7 +1138,10 @@ function handleDone(d) {
   updateCandidateRemaining();
   updateQuickButtonAvailability();
 
-  showToast(`Verification complete — ${proven} proven, ${refuted} refuted, ${skipped} skipped.`, 'success');
+  // Load cumulative stats from DB to ensure stats card shows cumulative repository totals
+  loadStats();
+
+  showToast(`Verification run complete — ${batchProven} proven, ${batchRefuted} refuted, ${batchSkipped} skipped in this run.`, 'success');
 }
 
 function clearSelectionSilently() {
@@ -1037,9 +1179,12 @@ function removeToast(el) {
 /* =========================================================================
    DETAIL DRAWER
    ========================================================================= */
+let openDrawerKey = null;
+
 function openDrawer(key) {
   const f = state.findings.get(key);
   if (!f) return;
+  openDrawerKey = key;
 
   const label = sevLabel(f.score);
   const scoreText = Number.isFinite(f.score) ? f.score.toFixed(0) : 'unscored';
@@ -1063,6 +1208,7 @@ function openDrawer(key) {
 }
 
 function loadDrawerProofDetails(f) {
+  const requestKey = f.key;
   if (!els.drawerProofSection) return;
 
   const findingId = f.id;
@@ -1084,6 +1230,7 @@ function loadDrawerProofDetails(f) {
       return r.json();
     })
     .then((proof) => {
+      if (openDrawerKey !== requestKey) return; // Drawer moved to another finding
       els.drawerProofLoading.style.display = 'none';
       els.drawerProofContent.style.display = 'flex';
 
@@ -1128,69 +1275,119 @@ function loadDrawerProofDetails(f) {
 
       // Stderr
       if (proof.stderr && proof.stderr.trim()) {
-      els.drawerProofStderrWrap.style.display = 'none';
+        els.drawerProofStderrWrap.style.display = 'block';
+        els.drawerProofStderr.textContent = proof.stderr;
+      } else {
+        els.drawerProofStderrWrap.style.display = 'none';
       }
     })
     .catch((err) => {
+      if (openDrawerKey !== requestKey) return;
       els.drawerProofLoading.style.display = 'block';
       els.drawerProofLoading.textContent = `Could not load proof details: ${err.message}`;
       els.drawerProofContent.style.display = 'none';
     });
 }
 
+function resetFixConfirm() {
+  const applyBtn = $('drawerApplyFixBtn');
+  if (!applyBtn) return;
+  applyBtn.textContent = 'Apply Fix';
+  applyBtn.disabled = false;
+  applyBtn.style.background = '#10b981';
+  delete applyBtn.dataset.confirm;
+}
+
 function loadDrawerFixDetails(f) {
+  const requestKey = f.key;
   const fixSection = $('drawerFixSection');
   if (!fixSection) return;
 
+  const fixContent = $('drawerFixContent');
+  const fixUnavailable = $('drawerFixUnavailable');
   const fixDesc = $('drawerFixDescription');
   const fixDiff = $('drawerFixDiff');
   const applyBtn = $('drawerApplyFixBtn');
 
-  fixSection.style.display = 'none';
-  if (applyBtn) {
-    applyBtn.textContent = 'Apply Fix';
-    applyBtn.disabled = false;
-    applyBtn.style.background = '#10b981';
+  if (fixContent) fixContent.style.display = 'none';
+  if (fixUnavailable) {
+    fixUnavailable.style.display = 'block';
+    fixUnavailable.textContent = `No automated 1-click patch available for ${f.rule_id || 'this rule'} (manual remediation required).`;
   }
+  if (applyBtn) applyBtn.style.display = 'none';
+  resetFixConfirm();
 
   fetch('/api/fix/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ finding_id: f.id, finding_data: f })
   })
-  .then(r => r.json())
+  .then(r => {
+    if (!r.ok) throw new Error(`Server returned ${r.status} ${r.statusText}`);
+    return r.json();
+  })
   .then(data => {
+    if (openDrawerKey !== requestKey) return; // Discard stale fix preview
     if (data.has_fix && data.diff) {
-      fixSection.style.display = 'block';
-      fixDesc.textContent = data.description || 'Automated code transformation available';
-      fixDiff.textContent = data.diff;
+      if (fixUnavailable) fixUnavailable.style.display = 'none';
+      if (fixContent) fixContent.style.display = 'block';
+      if (fixDesc) fixDesc.textContent = data.description || 'Automated code transformation available';
+      if (fixDiff) fixDiff.textContent = data.diff;
 
       if (applyBtn) {
+        applyBtn.style.display = 'inline-block';
+        // Two-click confirm guard: prevents accidental file overwrites.
+        // First click  -> button turns amber and asks for confirmation.
+        // Second click -> apply is executed.
         applyBtn.onclick = () => {
-          applyBtn.textContent = 'Applying…';
+          if (openDrawerKey !== requestKey) return; // Guard execution against race condition
+          if (applyBtn.dataset.confirm !== '1') {
+            // Step 1: arm the confirm state
+            applyBtn.dataset.confirm = '1';
+            applyBtn.textContent = 'Confirm Apply';
+            applyBtn.style.background = '#d97706';
+            // Auto-disarm after 5 s so a mis-click does not leave the button stuck
+            setTimeout(() => {
+              if (applyBtn.dataset.confirm === '1') resetFixConfirm();
+            }, 5000);
+            return;
+          }
+
+          // Step 2: confirmed — execute the apply
+          applyBtn.textContent = 'Applying\u2026';
           applyBtn.disabled = true;
+          delete applyBtn.dataset.confirm;
           fetch('/api/fix/apply', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ finding_id: f.id, finding_data: f })
           })
-          .then(r => r.json())
+          .then(r => {
+            if (!r.ok) throw new Error(`Server returned ${r.status} ${r.statusText}`);
+            return r.json();
+          })
           .then(res => {
+            if (openDrawerKey !== requestKey) return;
             if (res.success) {
-              applyBtn.textContent = '✅ Applied to File';
+              applyBtn.textContent = 'Applied';
               applyBtn.style.background = '#059669';
+              applyBtn.disabled = true;
               if (typeof showToast === 'function') {
-                showToast(res.message || 'Fix applied successfully!', 'success');
+                showToast(res.message || 'Fix applied successfully.', 'success');
               }
+              loadFindings();
+              loadStats();
             } else {
               applyBtn.textContent = 'Failed';
               applyBtn.style.background = '#ef4444';
+              applyBtn.disabled = false;
               if (typeof showToast === 'function') {
-                showToast(res.error || 'Failed to apply fix', 'error');
+                showToast(res.error || 'Failed to apply fix.', 'error');
               }
             }
           })
           .catch(err => {
+            if (openDrawerKey !== requestKey) return;
             applyBtn.textContent = 'Error';
             applyBtn.style.background = '#ef4444';
             if (typeof showToast === 'function') {
@@ -1199,9 +1396,26 @@ function loadDrawerFixDetails(f) {
           });
         };
       }
+    } else {
+      if (fixContent) fixContent.style.display = 'none';
+      if (fixUnavailable) {
+        fixUnavailable.style.display = 'block';
+        fixUnavailable.textContent = `No automated 1-click patch available for ${f.rule_id || 'this rule'} (manual remediation required).`;
+      }
+      if (applyBtn) applyBtn.style.display = 'none';
     }
   })
-  .catch(() => {});
+  .catch(err => {
+    if (fixContent) fixContent.style.display = 'none';
+    if (fixUnavailable) {
+      fixUnavailable.style.display = 'block';
+      fixUnavailable.textContent = `Could not check autofix availability: ${err.message}`;
+    }
+    if (applyBtn) applyBtn.style.display = 'none';
+    if (typeof showToast === 'function') {
+      showToast(`Autofix preview error: ${err.message}`, 'error');
+    }
+  });
 }
 
 function toggleDrawerField(wrapId, valueId, value, isCode) {
@@ -1220,6 +1434,7 @@ function closeDrawer() {
   els.drawer.classList.remove('open');
   els.drawer.setAttribute('aria-hidden', 'true');
   els.drawerBackdrop.classList.remove('open');
+  resetFixConfirm();
 }
 
 /* =========================================================================
@@ -1282,23 +1497,53 @@ function triggerScan() {
     els.scanPathInput.focus();
     return;
   }
+
+  saveStorage('frapast_target_path', repoPath);
+
+  // Read diff mode state
+  const diffModeActive = els.diffModeToggle && els.diffModeToggle.classList.contains('active');
+  const diffRef = diffModeActive && els.diffRefInput ? els.diffRefInput.value.trim() : '';
+
+  if (diffModeActive && !diffRef) {
+    showToast('Enter a git branch or commit ref to diff against (e.g. main).', 'warning');
+    if (els.diffRefInput) els.diffRefInput.focus();
+    return;
+  }
+
+  // Ensure the live event stream is active before starting scan
+  if (!state.run.sse || state.run.sse.readyState === EventSource.CLOSED) {
+    openStream();
+  }
+
   els.scanBtn.disabled = true;
-  setScanStatus('Scanning…');
+  setScanStatus(diffRef ? `Diff scan vs ${diffRef}\u2026` : 'Scanning\u2026');
+  clearSelectionSilently();
+  renderTableSkeleton();
+
+  const body = { repo_path: repoPath };
+  if (diffRef) body.diff_ref = diffRef;
+
   fetch('/api/scan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo_path: repoPath }),
+    body: JSON.stringify(body),
   })
-    .then((r) => r.json())
+    .then((r) => {
+      if (!r.ok) throw new Error(`Server returned ${r.status} ${r.statusText}`);
+      return r.json();
+    })
     .then((d) => {
       if (d.error) {
         showToast(`Scan error: ${d.error}`, 'error');
         setScanStatus('Error');
+        els.scanBtn.disabled = false;
       } else if (d.status === 'already_running') {
         showToast('A scan is already running.', 'warning');
-        setScanStatus('Running…');
+        setScanStatus('Running\u2026');
+        els.scanBtn.disabled = false;
       } else {
-        showToast(`Scanning ${repoPath}…`, 'info');
+        showToast(diffRef ? `Diff scan vs ${diffRef} started\u2026` : `Scanning ${repoPath}\u2026`, 'info');
+        els.scanBtn.disabled = false;
       }
     })
     .catch((err) => {
@@ -1308,22 +1553,37 @@ function triggerScan() {
     });
 }
 
-// React to SSE scan_done / scan_progress events
+// React to SSE scan_* events
 function handleScanSseEvent(evt) {
   if (evt.type === 'scan_start') {
-    setScanStatus('Indexing…');
+    const label = evt.diff_ref ? `Diff indexing vs ${evt.diff_ref}\u2026` : 'Discovering files\u2026';
+    setScanStatus(label);
+  } else if (evt.type === 'scan_indexing') {
+    // Live file-parse progress — shown while load_python() is running.
+    const done = evt.files_done || 0;
+    const total = evt.files_total || 0;
+    if (total > 0) {
+      const pct = Math.round((done / total) * 100);
+      setScanStatus(`Parsing files\u2026 ${done.toLocaleString()} / ${total.toLocaleString()} (${pct}%)`);
+    } else {
+      setScanStatus('Parsing files\u2026');
+    }
   } else if (evt.type === 'scan_progress') {
-    setScanStatus(`${evt.count} candidates found`);
+    const suffix = evt.diff_mode && evt.diff_ref ? ` (diff vs ${evt.diff_ref})` : '';
+    setScanStatus(`${evt.count} candidates found${suffix}`);
     els.scanBtn.disabled = false;
     loadFindings();
     loadStats();
   } else if (evt.type === 'scan_done') {
-    setScanStatus(`Scan complete`);
+    setScanStatus('Scan complete');
     els.scanBtn.disabled = false;
     loadFindings();
     loadStats();
   } else if (evt.type === 'scan_error') {
-    setScanStatus(evt.error);
+    const rawErr = evt.error || 'Scan error';
+    const firstLine = rawErr.split('\n')[0].slice(0, 80);
+    setScanStatus(firstLine);
+    showToast(`Scan error: ${firstLine}`, 'error');
     els.scanBtn.disabled = false;
   }
 }
@@ -1338,13 +1598,19 @@ function toggleBenchSettings() {
 
 function loadBenchConfig() {
   fetch('/api/bench/config')
-    .then((r) => r.json())
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
     .then((d) => {
       if (d.bench_url) els.benchUrlInput.value = d.bench_url;
       if (d.bench_user) els.benchUserInput.value = d.bench_user;
       if (d.bench_site) els.benchSiteInput.value = d.bench_site;
+      if (d.bench_port) els.benchPortInput.value = d.bench_port;
     })
-    .catch(() => { }); // silent — optional prefill
+    .catch((err) => {
+      console.warn('[frapast] Could not load bench config:', err.message);
+    });
 }
 
 function saveBenchConfig() {
@@ -1352,9 +1618,11 @@ function saveBenchConfig() {
     bench_url: els.benchUrlInput.value.trim(),
     bench_port: els.benchPortInput.value.trim(),
     bench_user: els.benchUserInput.value.trim(),
-    bench_password: els.benchPasswordInput.value,
     bench_site: els.benchSiteInput.value.trim(),
   };
+  const pw = els.benchPasswordInput.value;
+  if (pw) payload.bench_password = pw;
+
   els.benchSaveBtn.disabled = true;
   els.benchSaveBtn.textContent = 'Saving…';
   fetch('/api/bench/config', {
@@ -1400,7 +1668,7 @@ function renderBenchDiag(d) {
   // Overall badge in card header
   const overall = reach && auth && site;
   const badge = els.benchStatusBadge;
-  badge.className = 'bench-status-badge ' + (overall ? 'ready' : auth === null ? 'warn' : 'error');
+  badge.className = 'bench-status-badge ' + (overall ? 'ready' : !reach ? 'error' : auth === null ? 'warn' : 'error');
   badge.textContent = overall ? 'Ready' : 'Issue';
 
   // Issues list
@@ -1418,6 +1686,7 @@ function renderBenchDiag(d) {
 }
 
 function _setDiagBadge(el, ok, okLabel, failLabel) {
+  if (!el) return;
   if (ok === null || ok === undefined) {
     el.textContent = '—';
     el.className = 'bench-diag-badge neutral';
@@ -1433,19 +1702,37 @@ function _setDiagBadge(el, ok, okLabel, failLabel) {
 /* =========================================================================
    DOWNLOAD HELPER
    ========================================================================= */
-function downloadFile(url, filename) {
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+async function downloadFile(url, filename) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Server returned ${res.status} ${res.statusText}`);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  } catch (err) {
+    showToast(`Export failed: ${err.message}`, 'error');
+  }
 }
 
 /* =========================================================================
    REPORT MODAL
    ========================================================================= */
 let rawReportMarkdown = '';
+
+function formatInlineMarkdown(text) {
+  let s = escapeHtml(text);
+  // Inline code `code`
+  s = s.replace(/`([^`]+)`/g, '<code style="background:var(--gray-bg);padding:1px 4px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:11px;border:1px solid var(--border);">$1</code>');
+  // Bold **text**
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  return s;
+}
 
 function renderReportMarkdownToHtml(markdownText) {
   rawReportMarkdown = markdownText || '';
@@ -1454,6 +1741,7 @@ function renderReportMarkdownToHtml(markdownText) {
   const lines = markdownText.split('\n');
   let html = '<div class="report-styled-container">';
   let inTable = false;
+  let inList = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -1462,16 +1750,32 @@ function renderReportMarkdownToHtml(markdownText) {
         html += '</tbody></table>';
         inTable = false;
       }
+      if (inList) {
+        html += '</ul>';
+        inList = false;
+      }
       continue;
     }
 
     if (line.startsWith('# ')) {
+      if (inList) { html += '</ul>'; inList = false; }
       html += `<h1 class="report-h1">${escapeHtml(line.slice(2))}</h1>`;
     } else if (line.startsWith('## ')) {
+      if (inList) { html += '</ul>'; inList = false; }
       html += `<h2 class="report-h2">${escapeHtml(line.slice(3))}</h2>`;
+    } else if (line.startsWith('### ')) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<h3 class="report-h3" style="font-size:var(--fs-base);font-weight:700;color:var(--text-main);margin-top:12px;margin-bottom:4px;">${escapeHtml(line.slice(4))}</h3>`;
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      if (inTable) { html += '</tbody></table>'; inTable = false; }
+      if (!inList) { html += '<ul style="margin: 0 0 12px 20px; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.6;">'; inList = true; }
+      html += `<li>${formatInlineMarkdown(line.slice(2))}</li>`;
     } else if (line.startsWith('|')) {
-      const cells = line.split('|').map((c) => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
-      if (line.includes('---')) continue;
+      if (inList) { html += '</ul>'; inList = false; }
+      if (/^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/.test(line)) continue;
+      const rawCells = line.split('|').map((c) => c.trim());
+      const cells = rawCells[0] === '' ? rawCells.slice(1) : rawCells;
+      if (cells.length > 0 && cells[cells.length - 1] === '') cells.pop();
       if (!inTable) {
         html += '<table class="report-styled-table"><thead><tr>';
         cells.forEach((c) => { html += `<th>${escapeHtml(c)}</th>`; });
@@ -1480,10 +1784,10 @@ function renderReportMarkdownToHtml(markdownText) {
       } else {
         html += '<tr>';
         cells.forEach((c) => {
-          let content = escapeHtml(c);
+          let content = formatInlineMarkdown(c);
           const lower = c.toLowerCase();
           if (['candidate', 'proven', 'false_positive', 'patched', 'refuted'].includes(lower)) {
-            content = `<span class="report-badge status-${lower}">${content}</span>`;
+            content = `<span class="report-badge status-${lower}">${escapeHtml(c)}</span>`;
           }
           html += `<td>${content}</td>`;
         });
@@ -1494,31 +1798,47 @@ function renderReportMarkdownToHtml(markdownText) {
         html += '</tbody></table>';
         inTable = false;
       }
-      html += `<p class="report-p">${escapeHtml(line)}</p>`;
+      if (inList) {
+        html += '</ul>';
+        inList = false;
+      }
+      html += `<p class="report-p">${formatInlineMarkdown(line)}</p>`;
     }
   }
 
-  if (inTable) {
-    html += '</tbody></table>';
-  }
+  if (inTable) html += '</tbody></table>';
+  if (inList) html += '</ul>';
   html += '</div>';
   return html;
 }
 
 function openReportModal() {
-  els.reportModalOverlay.style.display = 'flex';
-  els.reportModalContent.innerHTML = '<div class="report-p">Loading report data…</div>';
-  fetch('/api/report')
-    .then((r) => r.json())
+  rawReportMarkdown = '';
+  if (els.reportModalOverlay) els.reportModalOverlay.style.display = 'flex';
+  if (els.reportModalContent) els.reportModalContent.innerHTML = '<div class="report-p">Loading report data…</div>';
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  fetch('/api/report', { signal: controller.signal })
+    .then((r) => {
+      clearTimeout(timeoutId);
+      if (!r.ok) throw new Error(`Server returned ${r.status}`);
+      return r.json();
+    })
     .then((d) => {
       if (d.error) {
-        els.reportModalContent.innerHTML = `<div class="report-p" style="color:var(--red-text);">Error: ${escapeHtml(d.error)}</div>`;
+        rawReportMarkdown = '';
+        if (els.reportModalContent) els.reportModalContent.innerHTML = `<div class="report-p" style="color:var(--red-text);">Error: ${escapeHtml(d.error)}</div>`;
       } else {
-        els.reportModalContent.innerHTML = renderReportMarkdownToHtml(d.report);
+        if (els.reportModalContent) els.reportModalContent.innerHTML = renderReportMarkdownToHtml(d.report);
       }
     })
     .catch((err) => {
-      els.reportModalContent.innerHTML = `<div class="report-p" style="color:var(--red-text);">Network error: ${escapeHtml(err.message)}</div>`;
+      clearTimeout(timeoutId);
+      rawReportMarkdown = '';
+      const msg = err.name === 'AbortError' ? 'Report generation timed out. Try running a scan first.' : err.message;
+      if (els.reportModalContent) els.reportModalContent.innerHTML = `<div class="report-p" style="color:var(--red-text);">Error: ${escapeHtml(msg)}</div>`;
     });
 }
 
@@ -1534,8 +1854,8 @@ let parentBrowsePath = '';
 let selectedBrowsePath = '';
 
 function openFolderModal(targetPath) {
-  els.folderModalOverlay.style.display = 'flex';
-  loadFolderBrowser(targetPath || '/Users');
+  if (els.folderModalOverlay) els.folderModalOverlay.style.display = 'flex';
+  loadFolderBrowser(targetPath || '');
 }
 
 function closeFolderModal() {
@@ -1543,18 +1863,18 @@ function closeFolderModal() {
 }
 
 function loadFolderBrowser(targetPath) {
-  els.folderCurrentPath.textContent = 'Loading…';
-  els.folderList.innerHTML = '<div class="empty"><p>Loading directories…</p></div>';
+  if (els.folderCurrentPath) els.folderCurrentPath.textContent = 'Loading…';
+  if (els.folderList) els.folderList.innerHTML = '<div class="empty"><p>Loading directories…</p></div>';
 
   fetch(`/api/browse?path=${encodeURIComponent(targetPath || '')}`)
     .then((r) => {
-      if (!r.ok) throw new Error(`Server endpoint /api/browse returned HTTP ${r.status}. Please restart frapast to pick up the backend changes.`);
+      if (!r.ok) throw new Error(`Couldn't browse this directory (HTTP ${r.status}).`);
       return r.json();
     })
     .then((d) => {
       if (d.error) {
-        els.folderCurrentPath.textContent = d.current_path || 'Error loading directory';
-        els.folderList.innerHTML = `<div class="empty"><p>Error: ${escapeHtml(d.error)}</p></div>`;
+        if (els.folderCurrentPath) els.folderCurrentPath.textContent = d.current_path || 'Error loading directory';
+        if (els.folderList) els.folderList.innerHTML = `<div class="empty"><p>Error: ${escapeHtml(d.error)}</p></div>`;
         return;
       }
 
@@ -1562,43 +1882,48 @@ function loadFolderBrowser(targetPath) {
       parentBrowsePath = d.parent_path || '';
       selectedBrowsePath = currentBrowsePath;
 
-      els.folderCurrentPath.textContent = currentBrowsePath;
-      els.folderSelectedLabel.textContent = `Selected: ${currentBrowsePath}`;
+      if (els.folderCurrentPath) els.folderCurrentPath.textContent = currentBrowsePath;
+      if (els.folderSelectedLabel) els.folderSelectedLabel.textContent = `Selected: ${currentBrowsePath}`;
 
       // Quick locations chips
       if (d.quick_locations && d.quick_locations.length) {
-        els.folderQuickLocations.innerHTML = d.quick_locations.map((loc) =>
-          `<span class="folder-chip" data-path="${escapeHtml(loc.path)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(loc.name)}</span>`
-        ).join('');
-      } else {
+        if (els.folderQuickLocations) {
+          els.folderQuickLocations.innerHTML = d.quick_locations.map((loc) =>
+            `<span class="folder-chip" data-path="${escapeHtml(loc.path)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>${escapeHtml(loc.name)}</span>`
+          ).join('');
+        }
+      } else if (els.folderQuickLocations) {
         els.folderQuickLocations.innerHTML = '';
       }
 
       // Subdirectories list
       if (d.subdirs && d.subdirs.length) {
-        els.folderList.innerHTML = d.subdirs.map((dir) => `
-              <div class="folder-item" data-path="${escapeHtml(dir.path)}">
-                <div class="folder-item-left">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary);flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                  <span class="folder-item-name">${escapeHtml(dir.name)}</span>
-                  ${dir.is_app ? '<span class="folder-app-badge">App</span>' : ''}
+        if (els.folderList) {
+          els.folderList.innerHTML = d.subdirs.map((dir) => `
+                <div class="folder-item" data-path="${escapeHtml(dir.path)}">
+                  <div class="folder-item-left">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary);flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    <span class="folder-item-name">${escapeHtml(dir.name)}</span>
+                    ${dir.is_app ? '<span class="folder-app-badge">App</span>' : ''}
+                  </div>
+                  <button class="folder-open-btn" data-open-path="${escapeHtml(dir.path)}" title="Open subdirectories">Open &rsaquo;</button>
                 </div>
-                <button class="folder-open-btn" data-open-path="${escapeHtml(dir.path)}" title="Open subdirectories">Open &rsaquo;</button>
-              </div>
-            `).join('');
-      } else {
+              `).join('');
+        }
+      } else if (els.folderList) {
         els.folderList.innerHTML = '<div class="empty"><p>No subdirectories here.</p></div>';
       }
     })
     .catch((err) => {
-      els.folderCurrentPath.textContent = 'Error loading directory';
-      els.folderList.innerHTML = `<div class="empty"><p>Error: ${escapeHtml(err.message)}</p></div>`;
+      if (els.folderCurrentPath) els.folderCurrentPath.textContent = 'Error loading directory';
+      if (els.folderList) els.folderList.innerHTML = `<div class="empty"><p>Error: ${escapeHtml(err.message)}</p></div>`;
     });
 }
 
 function confirmFolderSelection() {
   if (selectedBrowsePath) {
-    els.scanPathInput.value = selectedBrowsePath;
+    if (els.scanPathInput) els.scanPathInput.value = selectedBrowsePath;
+    saveStorage('frapast_target_path', selectedBrowsePath);
     closeFolderModal();
     triggerScan();
   }
@@ -1607,8 +1932,14 @@ function confirmFolderSelection() {
 /* =========================================================================
    INIT
    =========================================================================*/
+function safeOn(el, event, handler) {
+  if (el && typeof el.addEventListener === 'function') {
+    el.addEventListener(event, handler);
+  }
+}
+
 function cacheEls() {
-  [
+  const ids = [
     'connStatus', 'connStatusLabel',
     'badgeTotal', 'badgeCritical', 'badgeHigh', 'badgeMedium', 'badgeLow',
     'filterInput', 'filterStatus', 'filterSev',
@@ -1638,86 +1969,142 @@ function cacheEls() {
     'drawerProofSkipWrap', 'drawerProofSkipReason', 'drawerProofScriptWrap', 'drawerProofScriptPath',
     'drawerProofScript', 'drawerProofStdoutWrap', 'drawerProofStdout', 'drawerProofStderrWrap',
     'drawerProofStderr',
-  ].forEach((id) => { els[id] = $(id); });
+    // Diff scan mode
+    'diffModeToggle', 'diffRefWrap', 'diffRefInput',
+  ];
+  const missing = [];
+  ids.forEach((id) => {
+    els[id] = $(id);
+    if (!els[id]) missing.push(id);
+  });
+  if (missing.length) {
+    console.debug('[frapast] Optional or absent DOM elements in layout:', missing);
+  }
 }
 
 function wireEvents() {
-  els.filterInput.addEventListener('input', onFilterInput);
-  els.filterStatus.addEventListener('change', onFilterStatusChange);
-  els.filterSev.addEventListener('change', onFilterSevChange);
+  safeOn(els.filterInput, 'input', onFilterInput);
+  safeOn(els.filterStatus, 'change', onFilterStatusChange);
+  safeOn(els.filterSev, 'change', onFilterSevChange);
 
-  els.selectionClearBtn.addEventListener('click', clearSelection);
-  els.selectAllCheckbox.addEventListener('change', onSelectAllToggle);
-  els.findingsTbody.addEventListener('click', onTableBodyClick);
+  safeOn(els.selectionClearBtn, 'click', clearSelection);
+  safeOn(els.selectAllCheckbox, 'change', onSelectAllToggle);
+  safeOn(els.findingsTbody, 'click', onTableBodyClick);
 
-  document.querySelectorAll('th.sortable').forEach((th) => th.addEventListener('click', onSortHeaderClick));
+  document.querySelectorAll('th.sortable').forEach((th) => safeOn(th, 'click', onSortHeaderClick));
 
-  els.pageFirstBtn.addEventListener('click', goToFirstPage);
-  els.pagePrevBtn.addEventListener('click', () => goToPage(-1));
-  els.pageNextBtn.addEventListener('click', () => goToPage(1));
-  els.pageLastBtn.addEventListener('click', goToLastPage);
-  els.pageSizeSelect.addEventListener('change', onPageSizeChange);
+  safeOn(els.pageFirstBtn, 'click', goToFirstPage);
+  safeOn(els.pagePrevBtn, 'click', () => goToPage(-1));
+  safeOn(els.pageNextBtn, 'click', () => goToPage(1));
+  safeOn(els.pageLastBtn, 'click', goToLastPage);
+  safeOn(els.pageSizeSelect, 'change', onPageSizeChange);
 
-  els.quickBtns.addEventListener('click', (e) => {
+  safeOn(els.quickBtns, 'click', (e) => {
     const btn = e.target.closest('.quick-btn');
     if (!btn || btn.disabled) return;
     const raw = btn.dataset.count;
     setCount(raw === 'all' ? 'all' : parseInt(raw, 10), btn);
   });
-  els.countInput.addEventListener('input', () => {
+  safeOn(els.countInput, 'input', () => {
     document.querySelectorAll('.quick-btn').forEach((b) => b.classList.remove('active'));
     clearCountError();
   });
 
-  els.proveBtn.addEventListener('click', startProving);
+  safeOn(els.proveBtn, 'click', startProving);
 
-  els.drawerCloseBtn.addEventListener('click', closeDrawer);
-  els.drawerCloseBtn2.addEventListener('click', closeDrawer);
-  els.drawerBackdrop.addEventListener('click', closeDrawer);
+  safeOn(els.drawerCloseBtn, 'click', closeDrawer);
+  safeOn(els.drawerCloseBtn2, 'click', closeDrawer);
+  safeOn(els.drawerBackdrop, 'click', closeDrawer);
 
-  els.exportCsvBtn.addEventListener('click', exportVisibleAsCsv);
-  els.refreshBtn.addEventListener('click', () => { if (!state.run.active) loadFindings(); });
+  safeOn(els.exportCsvBtn, 'click', exportVisibleAsCsv);
+  safeOn(els.refreshBtn, 'click', () => { if (!state.run.active) loadFindings(); });
 
   // --- Scan bar & Folder Chooser ---
-  els.scanBtn.addEventListener('click', triggerScan);
-  els.scanPathInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') triggerScan(); });
-  els.browseBtn.addEventListener('click', () => openFolderModal());
+  safeOn(els.scanBtn, 'click', triggerScan);
+  safeOn(els.scanPathInput, 'input', () => {
+    saveStorage('frapast_target_path', els.scanPathInput.value.trim());
+  });
+  safeOn(els.scanPathInput, 'keydown', (e) => { if (e.key === 'Enter') triggerScan(); });
+  safeOn(els.browseBtn, 'click', () => openFolderModal());
 
-  els.folderModalClose.addEventListener('click', closeFolderModal);
-  els.folderModalCancel.addEventListener('click', closeFolderModal);
-  els.folderModalOverlay.addEventListener('click', (e) => { if (e.target === els.folderModalOverlay) closeFolderModal(); });
-  els.folderModalSelectBtn.addEventListener('click', confirmFolderSelection);
+  // --- Diff mode toggle ---
+  if (els.diffModeToggle) {
+    safeOn(els.diffModeToggle, 'click', () => {
+      const isActive = els.diffModeToggle.classList.toggle('active');
+      els.diffModeToggle.setAttribute('aria-pressed', String(isActive));
+      saveStorage('frapast_diff_active', isActive);
+      if (els.diffRefWrap) {
+        els.diffRefWrap.style.display = isActive ? 'flex' : 'none';
+        if (isActive && els.diffRefInput) {
+          els.diffRefInput.focus();
+          if (!els.diffRefInput.value) els.diffRefInput.value = 'main';
+          els.diffRefInput.select();
+        }
+      }
+    });
+    if (els.diffRefInput) {
+      safeOn(els.diffRefInput, 'input', () => {
+        saveStorage('frapast_diff_ref', els.diffRefInput.value.trim());
+      });
+      safeOn(els.diffRefInput, 'keydown', (e) => { if (e.key === 'Enter') triggerScan(); });
+    }
+  }
 
-  els.nativePickerBtn.addEventListener('click', () => {
+  safeOn(els.folderModalClose, 'click', closeFolderModal);
+  safeOn(els.folderModalCancel, 'click', closeFolderModal);
+  safeOn(els.folderModalOverlay, 'click', (e) => { if (e.target === els.folderModalOverlay) closeFolderModal(); });
+  safeOn(els.folderModalSelectBtn, 'click', confirmFolderSelection);
+
+  safeOn(els.nativePickerBtn, 'click', () => {
     if (els.nativeFolderInput) els.nativeFolderInput.click();
   });
 
-  els.nativeFolderInput.addEventListener('change', (e) => {
+  safeOn(els.nativeFolderInput, 'change', (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const relPath = files[0].webkitRelativePath || '';
+      const file0 = files[0];
+      if (file0.path) {
+        // Desktop / Electron wrapper provides file0.path
+        const fullFilePath = file0.path;
+        const relPath = file0.webkitRelativePath || '';
+        const topName = relPath ? relPath.split('/')[0] : '';
+        const folderPath = topName && fullFilePath.includes(topName)
+          ? fullFilePath.slice(0, fullFilePath.lastIndexOf(topName) + topName.length)
+          : fullFilePath;
+        selectedBrowsePath = folderPath;
+        if (els.scanPathInput) els.scanPathInput.value = folderPath;
+        saveStorage('frapast_target_path', folderPath);
+        closeFolderModal();
+        triggerScan();
+        return;
+      }
+      const relPath = file0.webkitRelativePath || '';
       const topFolder = relPath.split('/')[0];
       if (topFolder) {
-        // Check if user's current directory or parent directory matches topFolder name
-        if (currentBrowsePath && currentBrowsePath.endsWith(topFolder)) {
-          loadFolderBrowser(currentBrowsePath);
+        if (currentBrowsePath) {
+          const candidatePath = currentBrowsePath.endsWith('/')
+            ? `${currentBrowsePath}${topFolder}`
+            : `${currentBrowsePath}/${topFolder}`;
+          selectedBrowsePath = candidatePath;
+          if (els.folderSelectedLabel) els.folderSelectedLabel.textContent = `Selected: ${selectedBrowsePath}`;
+          loadFolderBrowser(candidatePath);
         } else {
-          showToast(`Selected "${topFolder}" via System Finder`, 'info');
+          showToast(`Selected "${topFolder}". Please confirm or select path in browser.`, 'info');
         }
       }
     }
   });
 
-  els.folderUpBtn.addEventListener('click', () => {
+  safeOn(els.folderUpBtn, 'click', () => {
     if (parentBrowsePath) loadFolderBrowser(parentBrowsePath);
   });
 
-  els.folderQuickLocations.addEventListener('click', (e) => {
+  safeOn(els.folderQuickLocations, 'click', (e) => {
     const chip = e.target.closest('.folder-chip');
     if (chip && chip.dataset.path) loadFolderBrowser(chip.dataset.path);
   });
 
-  els.folderList.addEventListener('click', (e) => {
+  safeOn(els.folderList, 'click', (e) => {
     const openBtn = e.target.closest('.folder-open-btn');
     if (openBtn && openBtn.dataset.openPath) {
       loadFolderBrowser(openBtn.dataset.openPath);
@@ -1728,63 +2115,76 @@ function wireEvents() {
       els.folderList.querySelectorAll('.folder-item').forEach((i) => i.classList.remove('selected'));
       item.classList.add('selected');
       selectedBrowsePath = item.dataset.path;
-      els.folderSelectedLabel.textContent = `Selected: ${selectedBrowsePath}`;
+      if (els.folderSelectedLabel) els.folderSelectedLabel.textContent = `Selected: ${selectedBrowsePath}`;
     }
   });
 
-  els.folderList.addEventListener('dblclick', (e) => {
+  safeOn(els.folderList, 'dblclick', (e) => {
     const item = e.target.closest('.folder-item');
     if (item && item.dataset.path) loadFolderBrowser(item.dataset.path);
   });
 
   // --- Bench settings toggle ---
-  els.benchSettingsToggle.addEventListener('click', toggleBenchSettings);
+  safeOn(els.benchSettingsToggle, 'click', toggleBenchSettings);
 
   // --- Bench save & test ---
-  els.benchSaveBtn.addEventListener('click', saveBenchConfig);
+  safeOn(els.benchSaveBtn, 'click', saveBenchConfig);
 
   // Port shortcut: fill benchUrlInput when port changes
-  els.benchPortInput.addEventListener('input', () => {
+  safeOn(els.benchPortInput, 'input', () => {
     const p = els.benchPortInput.value.trim();
-    if (p) els.benchUrlInput.value = `http://localhost:${p}`;
+    if (p && els.benchUrlInput) els.benchUrlInput.value = `http://localhost:${p}`;
   });
 
   // --- Report modal ---
-  els.reportBtn.addEventListener('click', openReportModal);
-  els.reportModalClose.addEventListener('click', closeReportModal);
+  safeOn(els.reportBtn, 'click', openReportModal);
+  safeOn(els.reportModalClose, 'click', closeReportModal);
   const reportModalClose2 = $('reportModalClose2');
-  if (reportModalClose2) reportModalClose2.addEventListener('click', closeReportModal);
+  safeOn(reportModalClose2, 'click', closeReportModal);
   const reportCopyBtn = $('reportCopyBtn');
   if (reportCopyBtn) {
-    reportCopyBtn.addEventListener('click', () => {
-      if (!rawReportMarkdown) return;
-      navigator.clipboard.writeText(rawReportMarkdown).then(() => {
-        showToast('Track-record markdown report copied to clipboard!', 'success');
-      });
+    safeOn(reportCopyBtn, 'click', () => {
+      if (!rawReportMarkdown) {
+        showToast('No report content to copy.', 'warning');
+        return;
+      }
+      navigator.clipboard.writeText(rawReportMarkdown)
+        .then(() => {
+          showToast('Track-record markdown report copied to clipboard!', 'success');
+        })
+        .catch((err) => {
+          showToast(`Could not copy to clipboard: ${err.message}`, 'error');
+        });
     });
   }
-  els.reportModalOverlay.addEventListener('click', (e) => { if (e.target === els.reportModalOverlay) closeReportModal(); });
+  safeOn(els.reportModalOverlay, 'click', (e) => { if (e.target === els.reportModalOverlay) closeReportModal(); });
 
   // --- Export JSON / SARIF ---
-  els.exportJsonBtn.addEventListener('click', () => downloadFile('/api/export/json', 'frapast-findings.json'));
-  els.exportSarifBtn.addEventListener('click', () => downloadFile('/api/export/sarif', 'frapast-findings.sarif'));
+  safeOn(els.exportJsonBtn, 'click', () => downloadFile('/api/export/json', 'frapast-findings.json'));
+  safeOn(els.exportSarifBtn, 'click', () => downloadFile('/api/export/sarif', 'frapast-findings.sarif'));
 
   document.addEventListener('keydown', onGlobalKeydown);
 }
 
-function boot() {
+async function boot() {
   cacheEls();
+  restorePreferences();
   wireEvents();
   updateSortHeaders();
-  loadFindings();
+  await loadFindings();
   loadStats();
   loadBenchConfig();
   // Open the persistent SSE stream so scan events arrive even outside proof runs
   openStream();
-  // Auto-open directory chooser modal on launch so user can choose folder by themselves
-  setTimeout(() => {
-    openFolderModal();
-  }, 300);
+
+  // Smart folder chooser: only auto-open if there are NO findings and NO saved repository path
+  const hasSavedPath = Boolean(els.scanPathInput && els.scanPathInput.value.trim());
+  const hasFindings = state.findings.size > 0;
+  if (!hasSavedPath && !hasFindings) {
+    setTimeout(() => {
+      openFolderModal();
+    }, 250);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', boot);

@@ -63,6 +63,20 @@ def test_hooks_engine_handles_missing_hooks_file():
 	assert index.handlers == ()
 
 
+def test_discover_python_files_tracks_skipped_files(tmp_path):
+	(tmp_path / "valid_pkg").mkdir()
+	(tmp_path / "valid_pkg" / "app.py").write_text("# app", encoding="utf-8")
+	(tmp_path / "tmp").mkdir()
+	(tmp_path / "tmp" / "skip1.py").write_text("# skip", encoding="utf-8")
+	(tmp_path / "fixtures").mkdir()
+	(tmp_path / "fixtures" / "skip2.py").write_text("# skip", encoding="utf-8")
+
+	files, skipped = discover_python_files(tmp_path, return_skipped=True)
+	assert len(files) == 1
+	assert skipped == 2
+	assert files[0].path.name == "app.py"
+
+
 def test_python_index_extracts_phase1_patterns():
 	files = discover_python_files(ROOT / "tests" / "python" / "fixtures")
 	index = build_python_index(files)

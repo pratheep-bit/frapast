@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tier 2: Live HTTP RPC verification client (`FrappeHTTPClient` / `BenchRunner`) executing authenticated tests against running Frappe bench instances.
 - **CLI Remediation Engine (`frapast fix`)**:
   - Unified diff preview and atomic in-place code modification for `FR-HOOK-001`, `FR-HOOK-004`, `FR-HOOK-006`, and `FR-PERM-001`.
+
+### Changed (Breaking Taxonomy Renames)
+- Standardized rule ID prefixing to align with the canonical 6-category taxonomy:
+  - `FR-CORR-001` → `FR-HOOK-006` (Bare exception swallowing in controller/hook execution)
+  - `FR-CORR-002` → `FR-HOOK-007` (Mutable default argument in function signatures)
+  - `FR-XSS-001` → `FR-INJ-005` (Unsanitized HTML/template rendering in whitelisted endpoints)
 - **Developer Experience**:
   - Frappe Bench native CLI command integration (`bench frapast`).
   - OASIS SARIF 2.1.0 output generation for GitHub Code Scanning integration.

@@ -40,6 +40,15 @@ SCANNER_MASTER_REFERENCE.md
 rm.md
 run_full_pipeline.sh
 
+# Internal development, audit & planning documents (not for public repo)
+FINAL_AUDIT.md
+PHASE1_AUDIT.md
+PHASE1_VERIFICATION.md
+USER_JOURNEY_MAP.md
+execution.md
+frapast.html
+docs/
+
 # Local credentials, bench configs, & secrets
 site_config.json
 **/site_config.json

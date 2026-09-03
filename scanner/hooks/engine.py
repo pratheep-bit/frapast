@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import os
 from pathlib import Path
 
 from scanner.hooks.models import HookHandlerRecord, HookIndex
@@ -14,14 +15,15 @@ def discover_hooks_files(app_roots: str | Path | list[str | Path] | tuple[str | 
 	roots = _normalize_roots(app_roots)
 	files: list[SourceFile] = []
 	for root in roots:
-		for path in sorted(root.rglob("hooks.py")):
-			try:
-				rel_parts = path.relative_to(root).parts[:-1]
-			except ValueError:
-				rel_parts = path.parts[:-1]
-			if any(part in SKIP_DIRS for part in rel_parts):
-				continue
-			files.append(SourceFile(path=path, root=root))
+		if not root.exists():
+			continue
+		for dirpath, dirs, filenames in os.walk(root):
+			dirs[:] = [
+				d for d in dirs
+				if d not in SKIP_DIRS and not (d.startswith(".") and d != ".")
+			]
+			if "hooks.py" in filenames:
+				files.append(SourceFile(path=Path(dirpath) / "hooks.py", root=root))
 	return files
 
 

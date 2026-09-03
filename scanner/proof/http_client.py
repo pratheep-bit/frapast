@@ -113,7 +113,15 @@ class FrappeHTTPClient:
         timeout: int = 15,
         site_name: str = "",
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        url = base_url.rstrip("/")
+        # On Windows 11, 'localhost' resolves to IPv6 '::1' first. If Werkzeug/Frappe
+        # listens only on IPv4 127.0.0.1, urllib hangs until the OS socket timeout (20s+).
+        # Normalizing localhost to 127.0.0.1 avoids this delay completely.
+        if url.startswith("http://localhost:"):
+            url = "http://127.0.0.1:" + url[len("http://localhost:"):]
+        elif url == "http://localhost":
+            url = "http://127.0.0.1"
+        self.base_url = url
         self.timeout = timeout
         self.site_name = site_name
         self._cookies: dict[str, str] = {}
@@ -152,7 +160,7 @@ class FrappeHTTPClient:
     def logout(self) -> FrappeResponse:
         """Invalidate the current session."""
         try:
-            status, body = self._raw_request("GET", "/api/method/logout", data=None, extra_headers={})
+            status, body = self._raw_request("POST", "/api/method/logout", data={}, extra_headers={})
         except (FrappeHTTPError, FrappeConnectionError):
             body = {}
             status = 200
