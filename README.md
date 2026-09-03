@@ -1,25 +1,23 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="scanner/web/static/logo.svg">
-  <img src="scanner/web/static/logo-light.svg" alt="frapAST Logo" width="96" height="96">
-</picture>
+<img src="scanner/web/static/logo.png" alt="frapAST Logo" width="96" height="96" style="border-radius: 12px;">
 
 # frapAST
 
 ### Runtime-Proven Static Security and Performance Engine for Frappe and ERPNext
 
-[![PyPI version](https://img.shields.io/badge/pypi-v0.1.0-blue.svg)](https://pypi.org/project/frapast/)
+[![PyPI version](https://img.shields.io/pypi/v/frapast.svg)](https://pypi.org/project/frapast/)
+[![Documentation](https://img.shields.io/badge/docs-frapast.vercel.app-blue.svg)](https://frapast.vercel.app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-293%20passed-green.svg)](#test-suite-and-quality-assurance)
-[![Rules](https://img.shields.io/badge/detectors-28%20active-blue.svg)](#rule-taxonomy)
+[![Tests](https://img.shields.io/badge/tests-306%20passed-green.svg)](#test-suite-and-quality-assurance)
+[![Rules](https://img.shields.io/badge/detectors-33%20active-blue.svg)](#rule-taxonomy)
 [![Benchmark Speed](https://img.shields.io/badge/speed-16%2C700%2B%20files%2Fsec-green.svg)](#industry-benchmarks-and-performance)
 [![Privacy](https://img.shields.io/badge/privacy-100%25%20Local%20and%20Airgapped-blue.svg)](#data-privacy-and-air-gapped-execution)
 
 Find the vulnerability. Synthesize the reproducer. Prove it live. Ship the autofix.
 
-[Quickstart](#quickstart) | [Industry Benchmarks](#industry-benchmarks-and-performance) | [Architecture Comparison](#architectural-comparison) | [Developer Experience](#developer-experience-dx) | [Rule Taxonomy](#rule-taxonomy) | [Engine Architecture](#how-it-works) | [Web Dashboard](#interactive-web-dashboard)
+[Documentation](https://frapast.vercel.app) | [Quickstart](#quickstart) | [Industry Benchmarks](#industry-benchmarks-and-performance) | [Architecture Comparison](#architectural-comparison) | [Developer Experience](#developer-experience-dx) | [Rule Taxonomy](#rule-taxonomy) | [Interactive Dashboard](#interactive-web-dashboard)
 
 </div>
 

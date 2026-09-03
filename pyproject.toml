@@ -39,10 +39,11 @@ frapast = "scanner.cli:main"
 frapast = "scanner.bench_commands:commands"
 
 [project.urls]
-Homepage    = "https://github.com/pratheep-bit/frapast"
-Repository  = "https://github.com/pratheep-bit/frapast"
-Issues      = "https://github.com/pratheep-bit/frapast/issues"
-Security    = "https://github.com/pratheep-bit/frapast/security/advisories"
+Homepage      = "https://github.com/pratheep-bit/frapast"
+Documentation = "https://frapast.vercel.app"
+Repository    = "https://github.com/pratheep-bit/frapast"
+Issues        = "https://github.com/pratheep-bit/frapast/issues"
+Security      = "https://github.com/pratheep-bit/frapast/security/advisories"
 Changelog   = "https://github.com/pratheep-bit/frapast/releases"
 
 [project.optional-dependencies]
