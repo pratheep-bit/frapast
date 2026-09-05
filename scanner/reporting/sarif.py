@@ -14,7 +14,7 @@ def _tool_version() -> str:
 			from scanner import __version__
 			return __version__
 		except Exception:
-			return "0.1.0"
+			return "1.0.0"
 
 
 def export_sarif(candidates: list[dict[str, object]], repo_path: Path) -> str:
