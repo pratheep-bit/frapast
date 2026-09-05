@@ -1,0 +1,3234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>frapAST — Product Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+/* ── Reset & Foundation ────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+:focus-visible {
+  outline: 2px solid #2490ef;
+  outline-offset: 2px;
+}
+
+/* ── Presentation Deck & Slide Transitions ────────── */
+.deck {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: 
+    linear-gradient(rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0.46)),
+    url('demo-bg.jpg') center center / cover no-repeat;
+}
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 24px 85px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(40px);
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  background: transparent;
+}
+#sl7 {
+  background: #ffffff !important;
+}
+.intro-cover {
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.slide.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+.slide.exit {
+  opacity: 0;
+  transform: translateX(-40px);
+}
+.spill {
+  display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════
+   CLEAN WINDOW CHROME WITH 3 DOTS
+═══════════════════════════════════════════════════ */
+.win {
+  width: 1120px;
+  max-width: 94vw;
+  height: 740px;
+  max-height: calc(100vh - 130px);
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  box-shadow:
+    0 25px 60px -15px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.win-term {
+  background: #18181b;
+  border-color: #3f3f46;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Window Titlebar */
+.win-titlebar {
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  user-select: none;
+  position: relative;
+}
+.win-term .win-titlebar {
+  background: #27272a;
+  border-bottom: 1px solid #3f3f46;
+}
+
+/* 3 Dots */
+.win-dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  z-index: 2;
+}
+.wdot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.2), 0 0.5px 1px rgba(0,0,0,0.15);
+}
+.wdot-r { background: #ff5f57; border: 0.5px solid #e0443e; }
+.wdot-y { background: #febc2e; border: 0.5px solid #d89e24; }
+.wdot-g { background: #28c840; border: 0.5px solid #1aab29; }
+
+.win-navbtns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
+  z-index: 2;
+}
+.win-navbtn {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.win-term-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #a1a1aa;
+  pointer-events: none;
+}
+
+.win-address-bar {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 380px;
+  max-width: calc(100% - 150px);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  color: #475569;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.win-address-bar svg {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   TERMINAL BODY (Slides 1 & 2)
+═══════════════════════════════════════════════════ */
+.term-body {
+  flex: 1;
+  background: #18181b;
+  padding: 20px 24px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #f4f4f5;
+  overflow-y: auto;
+}
+.term-body::-webkit-scrollbar { width: 5px; }
+.term-body::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+
+.t-prompt { color: #34d399; font-weight: 600; margin-right: 6px; }
+.t-cmd { color: #fafafa; font-weight: 600; }
+.t-cur {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background: #60a5fa;
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: tblink 0.85s infinite;
+}
+@keyframes tblink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+.t-dim { color: #71717a; }
+.t-ok { color: #34d399; }
+.t-info { color: #38bdf8; }
+.t-ascii {
+  color: #38bdf8;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: pre;
+  margin: 10px 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   WEB DASHBOARD (Slides 3, 4, 5, 6)
+═══════════════════════════════════════════════════ */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.app-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand img {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+}
+.brand-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+}
+.brand-chip {
+  background: #eff6ff;
+  color: #2490ef;
+  border: 1px solid #bfdbfe;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.conn-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #64748b;
+}
+.conn-dot { display: none !important; }
+
+.stat-pills {
+  display: flex;
+  gap: 6px;
+}
+.stat-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.sp-total { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.sp-crit { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+.sp-high { background: #fffbe6; color: #d97706; border-color: #fde68a; }
+
+/* Scan Bar */
+.scan-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.dir-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 10px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.dir-input-wrap.highlight {
+  border-color: #2490ef;
+  box-shadow: 0 0 0 2px rgba(36, 144, 239, 0.15);
+}
+.dir-input {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #0f172a;
+  outline: none;
+  width: 100%;
+}
+.btn-scan {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #2490ef;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(36, 144, 239, 0.2);
+  transition: background 0.15s;
+}
+.btn-scan.scanning {
+  background: #f59e0b;
+}
+
+.scan-progress-strip {
+  height: 3px;
+  width: 100%;
+  background: #f1f5f9;
+  position: relative;
+  overflow: hidden;
+}
+.scan-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background: #2490ef;
+  transition: width 0.25s ease-out;
+}
+
+/* Main Dashboard Split Grid */
+.dash-grid {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+.left-findings {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+.right-sidebar {
+  width: 350px;
+  flex-shrink: 0;
+  background: #f8fafc;
+  border-left: 1px solid #e2e8f0;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.right-sidebar::-webkit-scrollbar { width: 4px; }
+.right-sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+/* Filter Bar */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.filter-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 3px 8px;
+}
+.filter-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 11px;
+  width: 100%;
+}
+.filter-select {
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 11px;
+  padding: 3px 6px;
+  color: #475569;
+  cursor: pointer;
+}
+
+/* Findings Table */
+.table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.table-wrap::-webkit-scrollbar { width: 5px; }
+.table-wrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+.ftable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  table-layout: fixed;
+}
+.ftable th {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
+}
+.ftable td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ftable tbody tr:hover {
+  background: #eff6ff;
+}
+
+/* Clean Custom Checkbox */
+.col-chk { width: 34px; text-align: center; }
+.ftable input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 3px;
+  background-color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  cursor: pointer;
+  margin: 0;
+  transition: all 0.15s ease;
+}
+.ftable input[type="checkbox"]:checked {
+  background-color: #2490ef;
+  border-color: #2490ef;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+}
+
+.col-num { width: 30px; font-family: 'JetBrains Mono', monospace; color: #94a3b8; font-size: 10.5px; }
+.col-rule { width: 110px; }
+.col-sev { width: 84px; }
+.col-file { width: auto; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #475569; }
+.col-fn { width: 160px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #0f172a; font-weight: 500; }
+.col-st { width: 96px; text-align: left; }
+.col-act { width: 44px; text-align: center; }
+.ftable th.col-act,
+.ftable td.col-act {
+  width: 44px;
+  padding: 6px 2px !important;
+  text-overflow: clip !important;
+  overflow: visible !important;
+  text-align: center;
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.03em;
+  border: 1px solid;
+}
+.bc-crit { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+.bc-high { background: #fffbe6; color: #d97706; border-color: #fde68a; }
+.bc-cand { background: #f8fafc; color: #475569; border-color: #cbd5e1; }
+.bc-prov { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+.bc-refu { background: #eff6ff; color: #2563eb; border-color: #93c5fd; }
+
+.chip-rule {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #2490ef;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.btn-view {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-view:hover {
+  color: #2490ef;
+  border-color: #2490ef;
+}
+
+/* ── Sidebar Cards ─────────────────────────────────── */
+.scard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  overflow: hidden;
+}
+.scard-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.scard-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.scard-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid;
+}
+.scb-uncheck { background: #f8fafc; color: #64748b; border-color: #cbd5e1; }
+.scb-ok { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+
+.scard-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-lbl {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 3px;
+  display: block;
+}
+.field-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  font-family: 'JetBrains Mono', monospace;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field-input.hl {
+  border-color: #2490ef;
+  box-shadow: 0 0 0 2px rgba(36, 144, 239, 0.15);
+}
+.field-row {
+  display: flex;
+  gap: 6px;
+}
+.field-row > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-bench-save {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background: #2490ef;
+  border: none;
+  border-radius: 5px;
+  white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
+  box-shadow: 0 1px 2px rgba(36, 144, 239, 0.2);
+  transition: background 0.15s;
+}
+.btn-bench-save:hover {
+  background: #1d7cd8;
+}
+
+.diag-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.diag-row {
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 10.5px;
+  gap: 6px;
+  justify-content: space-between;
+}
+.diag-row:last-child { border-bottom: none; }
+.diag-lbl { color: #64748b; white-space: nowrap; font-size: 10.5px; min-width: 65px; }
+.diag-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #0f172a;
+  flex: 1;
+  white-space: nowrap;
+}
+
+.qbtns {
+  display: flex;
+  gap: 4px;
+}
+.qbtn {
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 4px;
+  padding: 4px 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #475569;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.qbtn.active {
+  background: #2490ef;
+  color: #fff;
+  border-color: #2490ef;
+}
+
+.stat-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.stat-box {
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 8px 6px;
+  text-align: center;
+  background: #fff;
+}
+.stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+.stat-sublbl {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-top: 2px;
+}
+.sb-prov .stat-num { color: #16a34a; }
+.sb-refu .stat-num { color: #2563eb; }
+
+.stream-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stream-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #f8fafc;
+  border-left: 2.5px solid #cbd5e1;
+  animation: stream-fade 0.3s ease;
+}
+.stream-item.pr { border-color: #16a34a; background: #f0fdf4; }
+.stream-item.re { border-color: #2563eb; background: #eff6ff; }
+@keyframes stream-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ═══════════════════════════════════════════════════
+   SLIDE 6: REMEDIATION & DIFF VIEWER STYLES (LIGHT/WHITE UI)
+═══════════════════════════════════════════════════ */
+.diff-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  color: #0f172a;
+  overflow: hidden;
+  border-right: 1px solid #e2e8f0;
+}
+.diff-tabs-strip {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 10px;
+  height: 38px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.diff-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  height: 100%;
+}
+.diff-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  height: 34px;
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.diff-tab:hover:not(.active) {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+.diff-tab.active {
+  color: #0f172a;
+  background: #ffffff;
+  border-color: #cbd5e1 #cbd5e1 #ffffff #cbd5e1;
+  border-top: 2px solid #2563eb;
+  font-weight: 600;
+  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.04);
+}
+.diff-tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.diff-action-tag {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+}
+.tab-badge {
+  font-size: 8.5px;
+  font-weight: 700;
+  padding: 1.5px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.tb-diff { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.tb-test { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.tb-sarif { background: #fefce8; color: #ca8a04; border: 1px solid #fef08a; }
+
+.diff-subbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 5px 14px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.diff-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #475569;
+}
+.diff-stats-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+}
+.d-pill-add { color: #15803d; background: #dcfce7; padding: 1px 6px; border-radius: 3px; font-weight: 600; border: 1px solid #bbf7d0; }
+.d-pill-del { color: #b91c1c; background: #fee2e2; padding: 1px 6px; border-radius: 3px; font-weight: 600; border: 1px solid #fecaca; }
+
+.diff-code-area {
+  flex: 1;
+  padding: 8px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-y: auto;
+  background: #ffffff;
+  color: #0f172a;
+}
+.diff-code-area::-webkit-scrollbar { width: 6px; }
+.diff-code-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+.code-line {
+  display: flex;
+  align-items: center;
+  padding: 1px 0;
+  min-height: 22px;
+  transition: background 0.1s;
+  color: #0f172a;
+}
+.code-line:hover {
+  background: #f8fafc;
+}
+.line-num {
+  width: 44px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-right: 12px;
+  color: #94a3b8;
+  background: #fafafa;
+  user-select: none;
+  font-size: 11px;
+  border-right: 1px solid #e2e8f0;
+}
+.line-num-diff {
+  width: 68px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  color: #94a3b8;
+  background: #fafafa;
+  user-select: none;
+  font-size: 10.5px;
+  border-right: 1px solid #e2e8f0;
+}
+.line-content {
+  flex: 1;
+  white-space: pre;
+  padding-left: 12px;
+  word-break: break-all;
+}
+
+.code-line.d-add {
+  background: rgba(34, 197, 94, 0.12);
+  border-left: 3px solid #22c55e;
+}
+.code-line.d-add {
+  background: #e6ffec;
+  border-left: 3px solid #16a34a;
+}
+.code-line.d-add .line-content { color: #15803d; font-weight: 500; }
+.code-line.d-add .line-num-diff { color: #15803d; background: #dcfce7; font-weight: 600; }
+
+.code-line.d-del {
+  background: #ffebe9;
+  border-left: 3px solid #dc2626;
+}
+.code-line.d-del .line-content { color: #b91c1c; font-weight: 500; }
+.code-line.d-del .line-num-diff { color: #b91c1c; background: #fee2e2; font-weight: 600; }
+
+.code-line.d-hdr {
+  background: #f0f9ff;
+  border-left: 3px solid #0284c7;
+}
+.code-line.d-hdr .line-content { color: #0369a1; font-style: italic; font-weight: 500; }
+.code-line.d-hdr .line-num-diff { color: #0284c7; background: #e0f2fe; }
+
+.code-line.d-ctx .line-content {
+  color: #334155;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   CODE DRILLDOWN MODAL
+═══════════════════════════════════════════════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal-card {
+  width: 640px;
+  max-width: 90vw;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);
+  border: 1px solid #cbd5e1;
+  overflow: hidden;
+  transform: translateY(12px);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-overlay.open .modal-card {
+  transform: translateY(0);
+}
+.modal-header {
+  padding: 10px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.modal-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.modal-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.modal-section-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+.modal-code {
+  background: #0f172a;
+  color: #f8fafc;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  overflow-x: auto;
+  white-space: pre;
+}
+.modal-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #334155;
+  background: #f8fafc;
+  border-left: 3px solid #2490ef;
+  padding: 8px 12px;
+  border-radius: 0 4px 4px 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   ANIMATED POINTER & FLOATING TOOLTIP
+═══════════════════════════════════════════════════ */
+#spt {
+  position: fixed;
+  left: -100px;
+  top: -100px;
+  z-index: 100000;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-3px, -3px);
+  transition:
+    left 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    top 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+    opacity 0.2s ease;
+}
+#spt.clicking {
+  transform: translate(-3px, -3px) scale(0.85);
+}
+/* ═══════════════════════════════════════════════════
+   VIDEO SUBTITLES / CAPTION (BOTTOM OVERLAY)
+═══════════════════════════════════════════════════ */
+.deck-bottom-wrap {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  max-width: min(860px, 92vw);
+  width: auto;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.deck-caption-box {
+  display: inline-block;
+  background: rgba(24, 24, 27, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0.1px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
+  max-width: 100%;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+@media (max-width: 640px) {
+  .deck-bottom-wrap {
+    bottom: 16px;
+  }
+  .deck-caption-box {
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    line-height: 1.4;
+  }
+}
+
+
+/* ── Scene 1: "Introducing" Minimalist Title ── */
+.intro-word {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -48%) scale(0.96);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 38px;
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: -0.8px;
+  z-index: 70;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.intro-word.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.intro-word.hide {
+  opacity: 0;
+  transform: translate(-50%, -54%) scale(0.98);
+}
+
+/* ── Scene 2: Logo First -> Morph + Name -> Staggered Description ── */
+.intro-splash {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -48%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  max-width: min(760px, 92vw);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.intro-splash.show {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+.intro-splash.hide {
+  opacity: 0;
+  transform: translate(-50%, -54%) scale(0.98);
+}
+.intro-brand-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.intro-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 10px;
+  transform: scale(1.4);
+  transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+}
+.intro-brand-name {
+  font-size: 38px;
+  font-weight: 800;
+  color: #000000;
+  letter-spacing: -1px;
+  line-height: 1;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  margin-left: 0;
+  transform: translateX(12px);
+  transition:
+    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    max-width 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    margin-left 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.intro-sub-desc {
+  font-size: 16.5px;
+  font-weight: 500;
+  color: #000000;
+  line-height: 1.5;
+  letter-spacing: -0.15px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  text-align: center;
+  max-width: 680px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Morph: Logo glides left & Brand name blooms out */
+.intro-splash.morph .intro-logo {
+  transform: scale(1) !important;
+}
+.intro-splash.morph .intro-brand-name {
+  opacity: 1 !important;
+  max-width: 320px !important;
+  margin-left: 14px !important;
+  transform: translateX(0) !important;
+}
+
+/* Staggered Description Fade-in */
+.intro-splash.show-desc .intro-sub-desc {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+#s1win {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+/* ── Slide 7: End Card Outro Screen ── */
+#sl7 {
+  background: #ffffff !important;
+}
+.end-card-splash {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  z-index: 60;
+  max-width: min(720px, 92vw);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  animation: endCardFade 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.end-card-splash .intro-logo {
+  transform: scale(1) !important;
+  width: 48px !important;
+  height: 48px !important;
+}
+
+@keyframes endCardFade {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+.end-brand-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.end-brand-name {
+  font-size: 38px;
+  font-weight: 800;
+  color: #000000;
+  letter-spacing: -1px;
+  line-height: 1;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.end-sub-desc {
+  font-size: 16.5px;
+  font-weight: 500;
+  color: #000000;
+  line-height: 1.5;
+  letter-spacing: -0.15px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  text-align: center;
+  max-width: 640px;
+  margin: 0 0 24px 0;
+}
+.end-install-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #000000;
+  color: #ffffff;
+  padding: 10px 24px;
+  border-radius: 9999px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  margin-bottom: 22px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.12);
+}
+.end-install-prompt {
+  color: #94a3b8;
+  font-weight: 600;
+  user-select: none;
+}
+.end-badges {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #334155;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin-bottom: 8px;
+}
+.end-dot {
+  color: #94a3b8;
+  font-weight: 700;
+}
+.end-footer-links {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+</style>
+</head>
+<body>
+
+<!-- Invisible Auto-Touch Button (Autonomous on reload, zero manual UI) -->
+<button id="autoTouchTrigger" aria-hidden="true" tabindex="-1" style="position:fixed;top:0;left:0;width:100vw;height:100vh;opacity:0;pointer-events:auto;border:none;background:transparent;cursor:default;z-index:999999;outline:none;" onclick="handleAutoTouch(event)"></button>
+
+
+<!-- Animated Cursor & Tooltip -->
+<div id="spt" aria-hidden="true">
+  <svg width="22" height="26" viewBox="0 0 22 26" fill="none">
+    <path d="M3 2L20 12L13.5 14.5L10 24L3 2Z" fill="#0f172a" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>
+  </svg>
+</div>
+
+<!-- Code Drilldown Modal -->
+<div id="drillModal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="chip-rule" id="modalRule">FR-PERM-001</span>
+        <span id="modalSev"></span>
+        <span id="modalFile" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;">api/orders.py:42</span>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-title">Vulnerable Source Code</div>
+      <pre class="modal-code" id="modalCode"></pre>
+      <div class="modal-section-title">Security Taint &amp; Framework Context</div>
+      <p class="modal-desc" id="modalDesc"></p>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="btn-scan" id="modalFixBtn" onclick="closeModal(); goTo(6);" style="font-size:11.5px;padding:6px 14px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>View Synthesized Fix &rarr;</span>
+        </button>
+        <button class="qbtn" onclick="closeModal()" style="width:75px;">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="deck" id="deck">
+
+  <!-- ═══════════════════ SLIDE 1 — pip install ═══════════════════ -->
+  <div class="slide active" id="sl1">
+    <div id="introCover" class="intro-cover"></div>
+    <div id="introWord" class="intro-word show">Introducing</div>
+    <div id="introSplash" class="intro-splash">
+      <div class="intro-brand-row">
+        <img id="introLogo" class="intro-logo" alt="frapAST Logo">
+        <span class="intro-brand-name">frapAST</span>
+      </div>
+      <p class="intro-sub-desc">the first purpose-built security and dynamic proof verification engine engineered specifically for the Frappe Framework.</p>
+    </div>
+    <div class="win win-term" id="s1win" style="opacity: 0; transform: scale(0.96);">
+      <div class="win-titlebar">
+        <div class="win-dots">
+          <span class="wdot wdot-r"></span>
+          <span class="wdot wdot-y"></span>
+          <span class="wdot wdot-g"></span>
+        </div>
+        <div class="win-term-title">zsh — Terminal</div>
+      </div>
+      <div class="term-body" id="s1b">
+        <div><span class="t-prompt">%</span> <span id="s1cmd" class="t-cmd"></span><span id="s1c" class="t-cur"></span></div>
+        <div id="s1out" style="margin-top: 6px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ SLIDE 2 — frapast launch ════════════════ -->
+  <div class="slide" id="sl2">
+    <div class="win win-term">
+      <div class="win-titlebar">
+        <div class="win-dots">
+          <span class="wdot wdot-r"></span>
+          <span class="wdot wdot-y"></span>
+          <span class="wdot wdot-g"></span>
+        </div>
+        <div class="win-term-title">zsh — Terminal</div>
+      </div>
+      <div class="term-body" id="s2b">
+        <div><span class="t-prompt">%</span> <span id="s2cmd" class="t-cmd"></span><span id="s2c" class="t-cur"></span></div>
+        <div id="s2out" style="margin-top: 6px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ SLIDE 3 — Directory + Scan ══════════════ -->
+  <div class="slide" id="sl3">
+    <div class="win">
+      <div class="win-titlebar">
+        <div class="win-dots">
+          <span class="wdot wdot-r"></span>
+          <span class="wdot wdot-y"></span>
+          <span class="wdot wdot-g"></span>
+        </div>
+        <div class="win-navbtns">
+          <button class="win-navbtn" aria-label="Go back">&lsaquo;</button>
+          <button class="win-navbtn" aria-label="Go forward">&rsaquo;</button>
+        </div>
+        <div class="win-address-bar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          http://127.0.0.1:7777
+        </div>
+      </div>
+      <div class="app-container">
+        <!-- Header -->
+        <div class="app-header">
+          <div class="brand">
+            <img class="app-logo" id="lg3" alt="frapAST Security Engine Logo">
+            <span class="brand-title">frapAST</span>
+            <span class="brand-chip">Tier 1 &amp; 2 Hybrid</span>
+          </div>
+          <div class="header-meta">
+            <div class="conn-status">
+              <span id="s3stxt">Engine Ready</span>
+            </div>
+            <div class="stat-pills">
+              <span class="stat-pill sp-total" id="s3cnt">0 Findings</span>
+            </div>
+          </div>
+        </div>
+        <!-- Scan Bar -->
+        <div class="scan-bar">
+          <div class="dir-input-wrap" id="s3inwrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <input class="dir-input" id="s3inp" type="text" placeholder="/path/to/frappe-app" aria-label="Frappe application directory">
+          </div>
+          <button class="btn-scan" id="s3btn" aria-label="Run AST Scan">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span id="s3btxt">Run AST Scan</span>
+          </button>
+        </div>
+        <div class="scan-progress-strip">
+          <div class="scan-progress-fill" id="s3pbar"></div>
+        </div>
+        <!-- Main Split -->
+        <div class="dash-grid">
+          <div class="left-findings">
+            <div class="filter-bar">
+              <div class="filter-search">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input class="filter-input" id="s3flt" placeholder="Filter rules, functions, files..." aria-label="Filter findings">
+              </div>
+              <select class="filter-select" id="s3sev" aria-label="Filter by severity"></select>
+            </div>
+            <div class="table-wrap">
+              <table class="ftable">
+                <thead>
+                  <tr>
+                    <th class="col-chk"><input type="checkbox" id="s3chkall" aria-label="Select all findings"></th>
+                    <th class="col-num">#</th>
+                    <th class="col-rule">Rule</th>
+                    <th class="col-sev">Severity</th>
+                    <th class="col-file">Location</th>
+                    <th class="col-fn">Function</th>
+                    <th class="col-st">Status</th>
+                    <th class="col-act"></th>
+                  </tr>
+                </thead>
+                <tbody id="s3tb"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="right-sidebar">
+            <div class="scard">
+              <div class="scard-header">
+                <span class="scard-title"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Bench Config</span>
+                <span class="scard-badge scb-uncheck">Idle</span>
+              </div>
+              <div class="scard-body">
+                <div><label class="field-lbl">Bench URL</label><input class="field-input" value="http://127.0.0.1:8000" readonly aria-label="Bench URL"></div>
+                <button class="btn-bench-save" aria-label="Save and test bench connection">Save &amp; Test Connection</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ SLIDE 4 — Bench Setting ═════════════════ -->
+  <div class="slide" id="sl4">
+    <div class="win">
+      <div class="win-titlebar">
+        <div class="win-dots">
+          <span class="wdot wdot-r"></span>
+          <span class="wdot wdot-y"></span>
+          <span class="wdot wdot-g"></span>
+        </div>
+        <div class="win-navbtns">
+          <button class="win-navbtn" aria-label="Go back">&lsaquo;</button>
+          <button class="win-navbtn" aria-label="Go forward">&rsaquo;</button>
+        </div>
+        <div class="win-address-bar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          http://127.0.0.1:7777
+        </div>
+      </div>
+      <div class="app-container">
+        <!-- Header -->
+        <div class="app-header">
+          <div class="brand">
+            <img class="app-logo" id="lg4" alt="frapAST Security Engine Logo">
+            <span class="brand-title">frapAST</span>
+            <span class="brand-chip">Tier 1 &amp; 2 Hybrid</span>
+          </div>
+          <div class="header-meta">
+            <div class="conn-status">
+              <span id="s4stat" style="color:#15803d;font-weight:600;">Tier-1 Complete</span>
+            </div>
+            <div class="stat-pills" id="s4pills"></div>
+          </div>
+        </div>
+        <!-- Scan Bar (Static) -->
+        <div class="scan-bar">
+          <div class="dir-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <input class="dir-input" value="/workspace/frappe-bench/apps/erpnext" readonly aria-label="Frappe application directory">
+          </div>
+          <button class="btn-scan" style="background:#16a34a;cursor:default;" aria-label="Scan Complete">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Scan Complete</span>
+          </button>
+        </div>
+        <!-- Main Split -->
+        <div class="dash-grid">
+          <div class="left-findings">
+            <div class="filter-bar">
+              <div class="filter-search">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input class="filter-input" id="s4flt" placeholder="Filter rules, functions, files..." aria-label="Filter findings">
+              </div>
+              <select class="filter-select" id="s4sev" aria-label="Filter by severity"></select>
+            </div>
+            <div class="table-wrap">
+              <table class="ftable">
+                <thead>
+                  <tr>
+                    <th class="col-chk"><input type="checkbox" id="s4chkall" aria-label="Select all findings"></th>
+                    <th class="col-num">#</th>
+                    <th class="col-rule">Rule</th>
+                    <th class="col-sev">Severity</th>
+                    <th class="col-file">Location</th>
+                    <th class="col-fn">Function</th>
+                    <th class="col-st">Status</th>
+                    <th class="col-act"></th>
+                  </tr>
+                </thead>
+                <tbody id="s4tb"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="right-sidebar">
+            <!-- Bench Card -->
+            <div class="scard">
+              <div class="scard-header">
+                <span class="scard-title"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Bench Configuration</span>
+                <span class="scard-badge scb-uncheck" id="s4bg">Not checked</span>
+              </div>
+              <div class="scard-body">
+                <div>
+                  <label class="field-lbl">Bench Path</label>
+                  <input class="field-input" id="s4path" type="text" placeholder="/workspace/frappe-bench" aria-label="Bench Path">
+                </div>
+                <div>
+                  <label class="field-lbl">Bench URL</label>
+                  <input class="field-input" id="s4url" type="text" placeholder="http://127.0.0.1:8000" aria-label="Bench URL">
+                </div>
+                <div class="field-row">
+                  <div><label class="field-lbl">Site Name</label><input class="field-input" id="s4site" placeholder="site1.local" aria-label="Site Name"></div>
+                  <div><label class="field-lbl">Password</label><input class="field-input" id="s4pwd" type="password" placeholder="••••••••" aria-label="Password"></div>
+                </div>
+                <button class="btn-bench-save" id="s4sv" aria-label="Save and test bench connection">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Save &amp; Test Connection</span>
+                </button>
+                <div class="diag-panel" id="s4dg" style="display:none;">
+                  <div class="diag-row"><span class="diag-lbl">Bench Path</span><span class="diag-val">/workspace/frappe-bench</span><span class="badge bc-prov">Found</span></div>
+                  <div class="diag-row"><span class="diag-lbl">Bench URL</span><span class="diag-val">http://127.0.0.1:8000</span><span class="badge bc-prov">Reachable</span></div>
+                  <div class="diag-row"><span class="diag-lbl">Site</span><span class="diag-val">site1.local</span><span class="badge bc-prov">Valid</span></div>
+                  <div class="diag-row"><span class="diag-lbl">Auth</span><span class="diag-val">Administrator</span><span class="badge bc-prov">OK</span></div>
+                </div>
+              </div>
+            </div>
+            <!-- Prove Card -->
+            <div class="scard">
+              <div class="scard-header">
+                <span class="scard-title"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Proof Verification</span>
+              </div>
+              <div class="scard-body">
+                <div>
+                  <label class="field-lbl">Quick Selection</label>
+                  <div class="qbtns">
+                    <button class="qbtn" type="button">10</button>
+                    <button class="qbtn" type="button">20</button>
+                    <button class="qbtn" type="button">50</button>
+                    <button class="qbtn active" type="button">All (6)</button>
+                  </div>
+                </div>
+                <button class="btn-scan" id="s4prv" style="width:100%;justify-content:center;margin-top:2px;" aria-label="Run Proof Verification">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span>Run Proof Verification</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ SLIDE 5 — Results ═══════════════════════ -->
+  <div class="slide" id="sl5">
+    <div class="win">
+      <div class="win-titlebar">
+        <div class="win-dots">
+          <span class="wdot wdot-r"></span>
+          <span class="wdot wdot-y"></span>
+          <span class="wdot wdot-g"></span>
+        </div>
+        <div class="win-navbtns">
+          <button class="win-navbtn" aria-label="Go back">&lsaquo;</button>
+          <button class="win-navbtn" aria-label="Go forward">&rsaquo;</button>
+        </div>
+        <div class="win-address-bar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          http://127.0.0.1:7777
+        </div>
+      </div>
+      <div class="app-container">
+        <!-- Header -->
+        <div class="app-header">
+          <div class="brand">
+            <img class="app-logo" id="lg5" alt="frapAST Security Engine Logo">
+            <span class="brand-title">frapAST</span>
+            <span class="brand-chip">Tier 1 &amp; 2 Hybrid</span>
+          </div>
+          <div class="header-meta">
+            <div class="conn-status">
+              <span style="color:#15803d;font-weight:600;">Verification Completed</span>
+            </div>
+            <div class="stat-pills" id="s5pills"></div>
+          </div>
+        </div>
+        <!-- Main Split -->
+        <div class="dash-grid">
+          <div class="left-findings">
+            <div class="filter-bar">
+              <div class="filter-search">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input class="filter-input" id="s5flt" placeholder="Filter rules, functions, files..." aria-label="Filter findings">
+              </div>
+              <select class="filter-select" id="s5sev" aria-label="Filter by severity"></select>
+            </div>
+            <div class="table-wrap">
+              <table class="ftable">
+                <thead>
+                  <tr>
+                    <th class="col-chk"><input type="checkbox" id="s5chkall" aria-label="Select all findings"></th>
+                    <th class="col-num">#</th>
+                    <th class="col-rule">Rule</th>
+                    <th class="col-sev">Severity</th>
+                    <th class="col-file">Location</th>
+                    <th class="col-fn">Function</th>
+                    <th class="col-st">Status</th>
+                    <th class="col-act"></th>
+                  </tr>
+                </thead>
+                <tbody id="s5tb"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="right-sidebar">
+            <!-- Stats -->
+            <div class="scard">
+              <div class="scard-header">
+                <span class="scard-title"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Verification Summary</span>
+              </div>
+              <div class="scard-body">
+                <div class="stat-summary-grid">
+                  <div class="stat-box sb-prov">
+                    <div class="stat-num" id="s5np">0</div>
+                    <div class="stat-sublbl">Proven True</div>
+                  </div>
+                  <div class="stat-box sb-refu">
+                    <div class="stat-num" id="s5nr">0</div>
+                    <div class="stat-sublbl">Refuted FP</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Live Stream with aria-live -->
+            <div class="scard" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+              <div class="scard-header">
+                <span class="scard-title"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Live Execution Stream</span>
+              </div>
+              <div class="scard-body" style="flex:1;overflow-y:auto;min-height:0;">
+                <div class="stream-list" id="s5sl" role="log" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ SLIDE 6 — Auto-Remediation & CI ══════════════ -->
+  <div class="slide" id="sl6">
+    <div class="win">
+      <div class="win-titlebar">
+        <div class="win-dots">
+          <span class="wdot wdot-r"></span>
+          <span class="wdot wdot-y"></span>
+          <span class="wdot wdot-g"></span>
+        </div>
+        <div class="win-navbtns">
+          <button class="win-navbtn" aria-label="Go back">&lsaquo;</button>
+          <button class="win-navbtn" aria-label="Go forward">&rsaquo;</button>
+        </div>
+        <div class="win-address-bar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          http://127.0.0.1:7777/remediation
+        </div>
+      </div>
+      <div class="app-container">
+        <!-- Header -->
+        <div class="app-header">
+          <div class="brand">
+            <img class="app-logo" id="lg6" alt="frapAST Security Engine Logo">
+            <span class="brand-title">frapAST</span>
+            <span class="brand-chip" style="background:#f0fdf4;color:#16a34a;border-color:#bbf7d0;">AST Patch Synthesizer</span>
+          </div>
+          <div class="header-meta">
+            <div class="conn-status">
+              <span id="s6patchStat" style="color:#16a34a;font-weight:600;">3 Patches Synthesized</span>
+            </div>
+            <div class="stat-pills">
+              <span class="stat-pill" style="background:#eff6ff;color:#2563eb;border-color:#bfdbfe;">SARIF 2.1.0 Ready</span>
+            </div>
+          </div>
+        </div>
+        <!-- Main Split -->
+        <div class="dash-grid">
+          <!-- Diff Area -->
+          <div class="left-findings diff-container">
+            <div class="diff-tabs-strip">
+              <div class="diff-tabs" role="tablist">
+                <button class="diff-tab active" id="tabDiff" onclick="setDiffTab('diff')" role="tab" aria-selected="true">
+                  <span class="tab-badge tb-diff">DIFF</span>
+                  <span class="tab-name">api/orders.py</span>
+                </button>
+                <button class="diff-tab" id="tabTest" onclick="setDiffTab('test')" role="tab" aria-selected="false">
+                  <span class="tab-badge tb-test">TEST</span>
+                  <span class="tab-name">test_orders_security.py</span>
+                </button>
+                <button class="diff-tab" id="tabSarif" onclick="setDiffTab('sarif')" role="tab" aria-selected="false">
+                  <span class="tab-badge tb-sarif">SARIF</span>
+                  <span class="tab-name">results.sarif</span>
+                </button>
+              </div>
+              <div class="diff-tab-actions">
+                <span class="diff-action-tag">Python 3.11</span>
+                <span class="diff-action-tag">AST Rewrite</span>
+              </div>
+            </div>
+            <div class="diff-subbar">
+              <div class="diff-breadcrumb">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span id="diffActivePath"><span style="color:#64748b;">apps / erpnext / </span><strong>api/orders.py</strong></span>
+              </div>
+              <div class="diff-stats-pill" id="diffActiveStat">
+                <span class="d-pill-add">+3 lines</span>
+                <span class="d-pill-del">-0 lines</span>
+                <span style="color:#64748b;font-size:10px;">(Permission Guard Injection)</span>
+              </div>
+            </div>
+            <div class="diff-code-area" id="diffContent"></div>
+          </div>
+          <!-- Sidebar -->
+          <div class="right-sidebar">
+            <div class="scard">
+              <div class="scard-header">
+                <span class="scard-title"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2490ef" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>1-Click Remediation</span>
+                <span class="scard-badge scb-ok" id="s6applyBadge">Verified</span>
+              </div>
+              <div class="scard-body">
+                <div style="font-size:11px;color:#475569;line-height:1.45;">
+                  Synthesized AST patch injects mandatory document permission validation into unauthenticated whitelisted function.
+                </div>
+                <button class="btn-bench-save" id="s6applyBtn" onclick="applyPatchAction()">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Apply Patch to Codebase</span>
+                </button>
+                <div id="s6applyMsg" style="display:none;font-size:11px;font-weight:600;color:#16a34a;background:#f0fdf4;padding:6px 10px;border-radius:5px;border:1px solid #bbf7d0;text-align:center;">
+                  Cleanly applied to codebase
+                </div>
+              </div>
+            </div>
+            <!-- CI/CD Integration Card -->
+            <div class="scard">
+              <div class="scard-header">
+                <span class="scard-title"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>GitHub CI / CD Pipeline</span>
+              </div>
+              <div class="scard-body" style="gap:6px;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
+                  <span style="color:#64748b;">PR Gating</span>
+                  <span style="font-weight:600;color:#16a34a;">Block on Proven</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
+                  <span style="color:#64748b;">Noise Filter</span>
+                  <span style="font-weight:600;color:#2563eb;">Skip Refuted FPs</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;">
+                  <span style="color:#64748b;">Format</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#0f172a;">SARIF 2.1.0</span>
+                </div>
+                <button class="qbtn" onclick="setDiffTab('sarif')" style="width:100%;margin-top:6px;padding:6px 0;">
+                  Inspect SARIF Report
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ SLIDE 7 — End Card (Outro) ═══════════════ -->
+  <div class="slide" id="sl7">
+    <div class="end-card-splash">
+      <div class="end-brand-row">
+        <img id="endLogo" class="intro-logo" alt="frapAST Logo">
+        <span class="end-brand-name">frapAST</span>
+      </div>
+      <p class="end-sub-desc">Open Source Security &amp; Dynamic Proof Verification for Frappe</p>
+      
+      <div class="end-install-box">
+        <span class="end-install-prompt">$</span>
+        <span class="end-install-cmd">pip install frapast</span>
+      </div>
+
+      <div class="end-badges">
+        <span>100% Open Source</span>
+        <span class="end-dot">&middot;</span>
+        <span>MIT Licensed</span>
+        <span class="end-dot">&middot;</span>
+        <span>Free for the Community</span>
+      </div>
+      
+      <div class="end-footer-links">
+        Available on GitHub and PyPI
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bottom Video Caption Subtitle Bar -->
+<div class="deck-bottom-wrap" id="deckBottomWrap" role="region" aria-label="Video Subtitles" style="opacity: 0; pointer-events: none;">
+  <div class="deck-caption-box" id="deckCaption"></div>
+</div>
+
+<script>
+const ASCII_LINES = ["  __                    _   ___ _____ ", " / _|_ _ __ _ _ __   /_\\  / __|_   _|", "|  _|| '_/ _` | '_ \\/ _ \\\\__ \\ | |  ", "|_|  |_| \\__,_| .__//_/ \\_\\___/ |_|  ", "               |_|                    "];
+const FINDINGS = [{"rule": "FR-PERM-001", "sev": "critical", "file": "api/orders.py:42", "fn": "update_order_status", "line": 42, "code": "@frappe.whitelist()\ndef update_order_status(order_id, new_status):\n    # MISSING PERMISSION CHECK\n    doc = frappe.get_doc(\"Sales Order\", order_id)\n    doc.status = new_status\n    doc.save()", "desc": "Whitelisted method allows any authenticated user to update order statuses without verifying write permissions on the Sales Order document."}, {"rule": "FR-SQLI-001", "sev": "critical", "file": "queries/reports.py:88", "fn": "get_item_report", "line": 88, "code": "@frappe.whitelist()\ndef get_item_report(item_code, sort_by):\n    # UNVALIDATED FORMAT STRING SQL\n    query = f\"SELECT name, qty FROM `tabBin` WHERE item_code='{item_code}' ORDER BY {sort_by}\"\n    return frappe.db.sql(query, as_dict=True)", "desc": "Direct SQL query interpolation allows SQL injection via user-supplied parameters."}, {"rule": "FR-PERM-002", "sev": "critical", "file": "api/stock.py:19", "fn": "adjust_stock_qty", "line": 19, "code": "@frappe.whitelist()\ndef adjust_stock_qty(item_code, qty_diff):\n    # DIRECT DB MODIFICATION WITHOUT ROLE CHECK\n    frappe.db.set_value(\"Bin\", {\"item_code\": item_code}, \"actual_qty\", qty_diff)", "desc": "Direct database modification bypassing document controller validations and role permission checks."}, {"rule": "FR-HOOK-001", "sev": "high", "file": "controllers/invoice.py:15", "fn": "on_submit", "line": 15, "code": "def on_submit(doc, method):\n    # System controller hook\n    sync_to_ledger(doc)", "desc": "Controller doc_event hook flagged as potential privilege escalation candidate. Refuted by active bench proof."}, {"rule": "FR-HOOK-004", "sev": "high", "file": "tasks/sync.py:31", "fn": "run_sync", "line": 31, "code": "def run_sync():\n    # Scheduled background job\n    frappe.enqueue(\"erpnext.sync.process_queue\")", "desc": "Scheduler background job candidate. Refuted by active bench proof."}, {"rule": "FR-INJ-001", "sev": "high", "file": "api/crm.py:67", "fn": "create_lead", "line": 67, "code": "@frappe.whitelist()\ndef create_lead(lead_name, email):\n    lead = frappe.new_doc(\"Lead\")\n    lead.lead_name = lead_name\n    lead.email_id = email\n    lead.insert(ignore_permissions=True)", "desc": "Document insertion with explicit ignore_permissions=True bypasses standard Lead doctype access controls."}];
+const PROOF = [{"rule": "FR-PERM-001", "fn": "update_order_status", "r": "proven"}, {"rule": "FR-SQLI-001", "fn": "get_item_report", "r": "proven"}, {"rule": "FR-PERM-002", "fn": "adjust_stock_qty", "r": "proven"}, {"rule": "FR-HOOK-001", "fn": "on_submit", "r": "refuted"}, {"rule": "FR-HOOK-004", "fn": "run_sync", "r": "refuted"}, {"rule": "FR-INJ-001", "fn": "create_lead", "r": "proven"}];
+const LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAYAAAB/HSuDAABdz0lEQVR4nO3dB7RU5dk+7gcOvStNkA7Sq12xAvaOFXuv2EWw9941lthiYtdYiSa2RBNb7L0LKE2xRZAO8l9z/vnyS7EBM7Nn5r2utb5l1vqS2fd6TgLnvefZe9eIiEUBAAAAVLSaWQcAAAAACk8BAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQAAAAAEACFAAAAACQAAUAAAAAJEABAAAAAAlQ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7br7HnHfAw+YFAAVzwYAABUn94o3h39+qTGjjzUsAJJgAwCAijNx/LhYdtlls45BGdlpl11i7B8eyjoGABSUDQAAKsqQ9ddz+GexnXzCCaYGQMWzAQBARZn8yYRo1qxZ1jEoM4sWLYrtR4yIP/7xT1lHAYCCsQEAQMVYcdDAaNq0adYxKNPXRp552mlZxwCAglIAAFAxB7ix99/vlW4ssR7du8cGw4aaIAAVSwEAQEXo1q2b1X+WukS68LzzTBGAiqUAAKDs1axZM/449sGsY1ABunTpEmuvtVbWMQCgIDwEEICy161r13j9lZezjkGFGDduXPQbtGLWMQAg72wAAFD23/7//q47s45BBenUqVOsusoqWccAgLyzAQBAWevatUu88corWcegwkycODF69u2XdQwAyCsbAACU9UPbbvj1tVnHoAK1a9cuBvTvn3UMAMgrGwAAlC33/lNIn33+eXTt3sOQAagYNgAAKN9Xtp1/ftYxqGCtW7WK7t27Zx0DAPLGBgAAZalL587x5muvZh2DCvfll19Gp24rxKJFi7KOAgBLzQYAAGXp1JNPyjoCCWjRokV07do16xgAkBc2AAAoO126dI43X/XtP8XxxZdfRpcVusf3339v5ACUNRsAAJSdo444IusIJKRlbgugS5esYwDAUrMBAEBZ6dSxY7z9xutZxyAx0774ovqNALYAAChnNgAAKCsH7r9/1hFIUKuWLatfOwkA5cwGAABlo22bNvHhe+9mHYNETZo8OXr26euNAACULRsAAJSNPffYI+sIJKzd8stHj+7ds44BAEvMBgAAZWGZZZrFxPHjo0aN3F9dkI1PPv00evfrb/wAlCUbAACUhf333dfhn8x17NAh+vfrl3UMAFgiNgAAKHmNGjWKiePHRZ06dbKOAvHBBx/GoFVWMQkAyo4NAABK3kEH7O/wT8no3n2FWGnFQVnHAIDFZgMAgJJWr169+OTjj6q3AKBUvPba6zF43XWzjgEAi8UGAAAl7cD993f4p+QMHDggVlt11axjAMBisQEAQMmqXatWfPDeu9GqZcuso8D/ePHFF2O9YRuYDABlwwYAACXrgAP2d/inZK2yyioxeM01so4BAL+YDQAAStZ7b70Z7du3zzoG/Khnn3suNth4ExMCoCzYAACgJO23zz4O/5S8NddYIwavuWbWMQDgF7EBAEBJ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s/1228ZNN9zgJ5CoefPmxV+efDJu+t3N8YeHHqp+lR9UsoYNG8ZBB+wf22y9dQwcMCDrOGRg/vz50art8tV//gFkQQEAZKJmzZrxzRfTopZvw5KSO+S/8eab8ft77olLL78iFi1alHUkyOyVgkcefnhsMGxoLL/88n4KCbn7nntiz733yToGkCgFAJCJYUOGxAP33Wv6iZg4aVI88cSf49zzz6/+18D/M2zY0Dh85MhYdZVVolGjRkaTQBHask1bzwIAMqEAAIou963/t199afIVbvr0GfHyKy/HuedfEE8/80zWcaAsHHzggbHXnnvECt26VT8/gMp02x13xH4HHJh1DCBBCgCg6FZbddX482OPmnwFyt3XOm78+Ljy6qvjxt/clHUcKFvLLrNMnHLyybHZJhvHcsstFzVq5H5lo5Is1659zJgxI+sYQGIUAEDRv/2fOmliNKhf3+QrRO4+/i+++DLuue/eOO2MM/1CC3nWt0+fOP/cc2LFQYOicePG5lshcm89GXn4EVnHABKjAACKakC/fvHs038z9Qowc9asePHFF+PQI46IcePGZx0HkpB7g8DZZ54RbZZbzi0CFaBdp87xzTffZB0DSIgCACjqk/8njh8XzZo1M/UytXDhwpg2bVocPPLQePTxx7OOA8nKPR/guNGj49BDDo769eu7RaBM/fra6+KoUaOyjgEkRAEAFE3uoVavvfySiZfpU6tPP/PMuPjSy6pLAKB01K1bN+649ZbYYNgwRUAZ6ti1W3z5pQfjAsVRs0jXAYixD9xvCmXm3vvvjxbLtYmmzVvEBRdd7PAPJWju3LmxzXbbR7MWLWPdIUNj0qTJWUdiMRxz1FHmBRSNDQCgKHr36hUvPv+caZeB997/IPbZb9/qf86ZMyfrOMASyD0scMftt69+XkDDhg3NsMQfpNq1R8/4/PPPs44CJMAGAFAUN153nUmXsNxDqA46ZGS079wlVlp11Xjt9Tcc/qGM5V4vd/2NN0bbDh1jhZ694robbrDBU6Jyr3g87JBDso4BJMIGAFBw/fr2jeefedqkS8z8+fOrH0B19bXXxqSJE2OBe/uhojVq2DB69+4Vp592Wqw9eHDWcfiv56x0790npk6dai5AQdkAAAou9/5qSsdjjz8eQzfaKJbv2ClGH398TJgwweEfEvDdzJnxwosvxcabbhZdu/eI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AAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACABCgAAAAAIAEKAAAAAEiAAgAAAAASoAAAAACAqHz/H5JHdTGckVhDAAAAAElFTkSuQmCC';
+
+['introLogo', 'endLogo', 'lg3', 'lg4', 'lg5', 'lg6'].forEach(id => {
+  const e = document.getElementById(id);
+  if (e) e.src = LOGO;
+});
+
+// ── Audio Manager (1x playback speed; 1.25x for last audio clip a8)
+// Voiceover clips: a1-a8 at unity volume (1.0) — primary narration
+const AUDIO_IDS = ['a1','a2','a3','a4','a5','a6','a7','a8'];
+const audioClips = {};
+AUDIO_IDS.forEach(id => {
+  const a = new Audio('audio/' + id + '.mp3');
+  a.preload = 'auto';
+  a.volume = 1.0;  // Voiceover at full unity
+  a.playbackRate = (id === 'a8' ? 1.25 : 1.0);
+  audioClips[id] = a;
+});
+
+// BGM: master-audio.mp3 at 0.12 volume (subtle background underscore)
+const bgmAudio = new Audio('audio/master-audio.mp3');
+bgmAudio.preload = 'auto';
+bgmAudio.volume = 0.12;   // Low: sits well below narration
+bgmAudio.loop = false;    // Exactly 2min = one demo cycle, restarts on loop
+
+function startBGM() {
+  bgmAudio.currentTime = 0;
+  bgmAudio.play().catch(() => { /* autoplay blocked: proceed silently */ });
+}
+
+function stopBGM() {
+  bgmAudio.pause();
+  bgmAudio.currentTime = 0;
+}
+
+function playAudio(id, onEnd) {
+  stopAllAudio();
+  const a = audioClips[id];
+  if (!a) { if (onEnd) setTimeout(onEnd, 0); return; }
+  a.playbackRate = (id === 'a8' ? 1.25 : 1.0);
+  a.currentTime = 0;
+  a.volume = 1.0;
+  a.onended = onEnd || null;
+  a.play().catch(() => { /* autoplay blocked: proceed silently */ });
+}
+
+function stopAllAudio() {
+  AUDIO_IDS.forEach(id => {
+    const a = audioClips[id];
+    if (a) { a.pause(); a.currentTime = 0; a.onended = null; }
+  });
+  // BGM continues through slide changes — only reset on demo loop
+}
+
+// ── Dynamic Header Stat Pills
+const critCount = FINDINGS.filter(f => f.sev === 'critical').length;
+const highCount = FINDINGS.filter(f => f.sev === 'high').length;
+const totalCount = FINDINGS.length;
+const statPillsHtml = `
+  <span class="stat-pill sp-total">${totalCount} Findings</span>
+  <span class="stat-pill sp-crit">${critCount} Critical</span>
+  <span class="stat-pill sp-high">${highCount} High</span>
+`;
+['s4pills', 's5pills'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = statPillsHtml;
+});
+
+// ── Dynamic Severity Filters
+const sevOptionsHtml = `
+  <option value="all">All Severities (${totalCount})</option>
+  <option value="critical">Critical (${critCount})</option>
+  <option value="high">High (${highCount})</option>
+`;
+['s3sev', 's4sev', 's5sev'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = sevOptionsHtml;
+});
+
+// ── Badges & Table Builder
+function sevBadge(s) {
+  return `<span class="badge ${s === 'critical' ? 'bc-crit' : 'bc-high'}">${s.toUpperCase()}</span>`;
+}
+function stBadge(s) {
+  const m = { candidate: 'bc-cand', proven: 'bc-prov', refuted: 'bc-refu' };
+  const l = { candidate: 'CANDIDATE', proven: 'PROVEN', refuted: 'REFUTED' };
+  return `<span class="badge ${m[s] || 'bc-cand'}">${l[s] || 'CANDIDATE'}</span>`;
+}
+
+function buildTable(tbodyId, rows) {
+  const el = document.getElementById(tbodyId);
+  if (!el) return;
+  el.innerHTML = rows.map((f, i) => `
+    <tr id="${tbodyId}-row-${f.rule}-${f.fn}">
+      <td class="col-chk"><input type="checkbox" class="row-chk" aria-label="Select ${f.rule}"></td>
+      <td class="col-num">${i + 1}</td>
+      <td class="col-rule"><span class="chip-rule">${f.rule}</span></td>
+      <td class="col-sev">${sevBadge(f.sev)}</td>
+      <td class="col-file" title="${f.file}">${f.file}</td>
+      <td class="col-fn" title="${f.fn}">${f.fn}</td>
+      <td class="col-st" id="${tbodyId}-st-${f.rule}-${f.fn}">${stBadge('candidate')}</td>
+      <td class="col-act"><button class="btn-view" onclick="openModal('${f.rule}')" aria-label="View details for ${f.rule}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button></td>
+    </tr>
+  `).join('');
+
+  el.querySelectorAll('.row-chk').forEach(chk => {
+    chk.addEventListener('change', () => {
+      const allChk = document.getElementById(tbodyId.replace('tb', 'chkall'));
+      if (allChk) {
+        const all = [...el.querySelectorAll('.row-chk')];
+        allChk.checked = all.length > 0 && all.every(c => c.checked);
+        allChk.indeterminate = all.some(c => c.checked) && !allChk.checked;
+      }
+    });
+  });
+}
+
+['s3', 's4', 's5'].forEach(prefix => {
+  const allChk = document.getElementById(prefix + 'chkall');
+  if (allChk) {
+    allChk.addEventListener('change', e => {
+      const tb = document.getElementById(prefix + 'tb');
+      if (tb) {
+        tb.querySelectorAll('.row-chk').forEach(c => c.checked = e.target.checked);
+      }
+    });
+  }
+});
+
+function attachFilterHandlers(prefix) {
+  const input = document.getElementById(prefix + 'flt');
+  const select = document.getElementById(prefix + 'sev');
+  const tbody = document.getElementById(prefix + 'tb');
+  if (!input || !select || !tbody) return;
+
+  function filter() {
+    const q = input.value.toLowerCase().trim();
+    const sev = select.value;
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach(r => {
+      const text = r.textContent.toLowerCase();
+      const matchesQ = !q || text.includes(q);
+      const isCrit = r.querySelector('.bc-crit');
+      const isHigh = r.querySelector('.bc-high');
+      let matchesSev = true;
+      if (sev === 'critical') matchesSev = !!isCrit;
+      else if (sev === 'high') matchesSev = !!isHigh;
+      r.style.display = (matchesQ && matchesSev) ? '' : 'none';
+    });
+  }
+  input.addEventListener('input', filter);
+  select.addEventListener('change', filter);
+}
+attachFilterHandlers('s3');
+attachFilterHandlers('s4');
+attachFilterHandlers('s5');
+
+buildTable('s3tb', []);
+buildTable('s4tb', FINDINGS);
+buildTable('s5tb', FINDINGS);
+
+// ── Modal Drilldown Logic
+const modal = document.getElementById('drillModal');
+function openModal(ruleId) {
+  const f = FINDINGS.find(item => item.rule === ruleId);
+  if (!f) return;
+  playClickSound();
+  document.getElementById('modalRule').textContent = f.rule;
+  document.getElementById('modalSev').innerHTML = sevBadge(f.sev);
+  document.getElementById('modalFile').textContent = f.file;
+  document.getElementById('modalCode').textContent = f.code;
+  document.getElementById('modalDesc').textContent = f.desc;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+}
+function closeModal() {
+  playClickSound();
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+});
+
+// ── Slide 6 Diff & Tab Content
+const DIFF_CONTENT = `--- a/api/orders.py
++++ b/api/orders.py
+@@ -40,6 +40,9 @@
+ @frappe.whitelist()
+ def update_order_status(order_id, new_status):
++    # AST Injected: Mandatory document write validation
++    if not frappe.has_permission("Sales Order", "write"):
++        frappe.throw("Permission Denied: Write access required", frappe.PermissionError)
+     doc = frappe.get_doc("Sales Order", order_id)
+     doc.status = new_status
+     doc.save()`;
+
+const TEST_CONTENT = `import frappe
+from frappe.tests.utils import FrappeTestCase
+
+class TestSecurityOrders(FrappeTestCase):
+    def test_unauthenticated_order_status_update_blocked(self):
+        """Prove regression shield: non-authorized users must be blocked."""
+        frappe.set_user("guest@example.com")
+        with self.assertRaises(frappe.PermissionError):
+            frappe.call("api.orders.update_order_status", 
+                        order_id="SO-2026-001", 
+                        new_status="Delivered")`;
+
+const SARIF_CONTENT = `{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "frapAST",
+          "version": "1.0.0",
+          "rules": [
+            {
+              "id": "FR-PERM-001",
+              "name": "MissingDocPermCheck",
+              "shortDescription": { "text": "Unprotected whitelisted document update" },
+              "defaultConfiguration": { "level": "error" }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "FR-PERM-001",
+          "message": { "text": "Function update_order_status updates Sales Order without write permission guard." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "api/orders.py" },
+                "region": { "startLine": 42 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}`;
+
+function renderDiffLines(raw) {
+  const lines = raw.split('\n');
+  let oldLn = 39;
+  let newLn = 39;
+  return lines.map(line => {
+    let cls = 'd-ctx';
+    let g1 = '';
+    let g2 = '';
+    if (line.startsWith('@@')) {
+      cls = 'd-hdr';
+      g1 = '...';
+      g2 = '...';
+    } else if (line.startsWith('---') || line.startsWith('+++')) {
+      cls = 'd-hdr';
+      g1 = '';
+      g2 = '';
+    } else if (line.startsWith('+')) {
+      cls = 'd-add';
+      newLn++;
+      g1 = '';
+      g2 = newLn;
+    } else if (line.startsWith('-')) {
+      cls = 'd-del';
+      oldLn++;
+      g1 = oldLn;
+      g2 = '';
+    } else {
+      cls = 'd-ctx';
+      oldLn++;
+      newLn++;
+      g1 = oldLn;
+      g2 = newLn;
+    }
+    return `<div class="code-line ${cls}"><span class="line-num-diff"><span>${g1}</span><span>${g2}</span></span><span class="line-content">${escapeHtml(line)}</span></div>`;
+  }).join('');
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderCodeLines(raw, lang) {
+  const lines = raw.split('\n');
+  return lines.map((line, idx) => {
+    let highlighted = escapeHtml(line);
+    if (lang === 'py') {
+      highlighted = highlighted
+        .replace(/\b(import|from|class|def|with|as|not|return)\b/g, '<span style="color:#7c3aed;font-weight:600;">$1</span>')
+        .replace(/(&quot;.*?&quot;)/g, '<span style="color:#0369a1;">$1</span>')
+        .replace(/(#.*$)/g, '<span style="color:#64748b;font-style:italic;">$1</span>')
+        .replace(/\b(frappe|FrappeTestCase|PermissionError)\b/g, '<span style="color:#1d4ed8;font-weight:600;">$1</span>');
+    } else if (lang === 'json') {
+      highlighted = highlighted
+        .replace(/(&quot;[\w$-]+&quot;)(?=\s*:)/g, '<span style="color:#0369a1;font-weight:600;">$1</span>')
+        .replace(/:\s*(&quot;.*?&quot;)/g, ': <span style="color:#15803d;">$1</span>')
+        .replace(/\b(\d+)\b/g, '<span style="color:#b45309;">$1</span>');
+    }
+    return `<div class="code-line"><span class="line-num">${idx + 1}</span><span class="line-content">${highlighted}</span></div>`;
+  }).join('');
+}
+
+function setDiffTab(tab) {
+  playClickSound();
+  const dTab = document.getElementById('tabDiff');
+  const tTab = document.getElementById('tabTest');
+  const sTab = document.getElementById('tabSarif');
+  const area = document.getElementById('diffContent');
+  const pathEl = document.getElementById('diffActivePath');
+  const statEl = document.getElementById('diffActiveStat');
+  if (!area) return;
+
+  dTab.classList.toggle('active', tab === 'diff');
+  tTab.classList.toggle('active', tab === 'test');
+  sTab.classList.toggle('active', tab === 'sarif');
+
+  dTab.setAttribute('aria-selected', tab === 'diff' ? 'true' : 'false');
+  tTab.setAttribute('aria-selected', tab === 'test' ? 'true' : 'false');
+  sTab.setAttribute('aria-selected', tab === 'sarif' ? 'true' : 'false');
+
+  if (tab === 'diff') {
+    if (pathEl) pathEl.innerHTML = '<span style="color:#64748b;">apps / erpnext / </span><strong>api/orders.py</strong>';
+    if (statEl) statEl.innerHTML = '<span class="d-pill-add">+3 lines</span> <span class="d-pill-del">-0 lines</span> <span style="color:#64748b;font-size:10px;">(Permission Guard Injection)</span>';
+    area.innerHTML = renderDiffLines(DIFF_CONTENT);
+  } else if (tab === 'test') {
+    if (pathEl) pathEl.innerHTML = '<span style="color:#64748b;">apps / erpnext / tests / </span><strong>test_orders_security.py</strong>';
+    if (statEl) statEl.innerHTML = '<span class="d-pill-add">+11 lines</span> <span style="color:#15803d;font-size:10px;font-weight:600;">(FrappeTestCase Shield)</span>';
+    area.innerHTML = renderCodeLines(TEST_CONTENT, 'py');
+  } else if (tab === 'sarif') {
+    if (pathEl) pathEl.innerHTML = '<span style="color:#64748b;">reports / </span><strong>results.sarif</strong>';
+    if (statEl) statEl.innerHTML = '<span style="color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;padding:1px 6px;border-radius:3px;font-weight:600;font-size:10.5px;">SARIF 2.1.0</span> <span style="color:#64748b;font-size:10px;">(OASIS GitHub Specification)</span>';
+    area.innerHTML = renderCodeLines(SARIF_CONTENT, 'json');
+  }
+}
+
+function applyPatchAction() {
+  const btn = document.getElementById('s6applyBtn');
+  const msg = document.getElementById('s6applyMsg');
+  const badge = document.getElementById('s6applyBadge');
+  btn.style.display = 'none';
+  msg.style.display = 'block';
+  badge.className = 'scard-badge scb-ok';
+  badge.textContent = 'Applied';
+  playSuccessSound();
+}
+
+// ── Audio Sound Effects Engine (Pure Web Audio API with Autoplay Unlock) ──
+let soundEnabled = true;
+let audioUnlocked = false;
+let nativeCtx = null;
+let masterGain = null;
+let lastKeyTime = 0;
+let lastClickTime = 0;
+
+function getNativeCtx() {
+  if (!nativeCtx) {
+    const CtxClass = window.AudioContext || window.webkitAudioContext;
+    if (CtxClass) {
+      try {
+        nativeCtx = new CtxClass();
+        masterGain = nativeCtx.createGain();
+        masterGain.gain.setValueAtTime(0.45, nativeCtx.currentTime); // Lowered bus: UI sounds sit under narration
+        masterGain.connect(nativeCtx.destination);
+      } catch (e) {
+        nativeCtx = null;
+      }
+    }
+  }
+  return nativeCtx;
+}
+
+function unlockAudio(playFeedback = false) {
+  const ctx = getNativeCtx();
+  if (ctx) {
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        audioUnlocked = true;
+        if (playFeedback) playClickSound();
+      }).catch(() => {});
+    } else if (ctx.state === 'running') {
+      audioUnlocked = true;
+      if (playFeedback) playClickSound();
+    }
+  }
+  if (window.Tone && Tone.start) {
+    Tone.start().catch(() => {});
+  }
+}
+
+// Autonomous touch trigger on every reload (no manual human required)
+function handleAutoTouch(e) {
+  if (e) e.stopPropagation();
+  unlockAudio();
+  const btn = document.getElementById('autoTouchTrigger');
+  if (btn) {
+    btn.style.pointerEvents = 'none';
+    btn.style.display = 'none';
+  }
+}
+
+function autoTouchOnReload() {
+  unlockAudio();
+  const btn = document.getElementById('autoTouchTrigger');
+  if (btn) {
+    try {
+      btn.focus();
+      btn.click();
+      btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+      btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, view: window }));
+    } catch (e) {}
+  }
+  const ctx = getNativeCtx();
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume().catch(() => {});
+  }
+}
+
+// Auto-touch on every reload lifecycle hook
+autoTouchOnReload();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', autoTouchOnReload);
+}
+window.addEventListener('load', autoTouchOnReload);
+setTimeout(autoTouchOnReload, 50);
+setTimeout(autoTouchOnReload, 180);
+setTimeout(autoTouchOnReload, 450);
+
+// Global user interaction hooks - any click, tap, or keypress unlocks audio immediately
+['click', 'pointerdown', 'mousedown', 'touchstart', 'keydown'].forEach(evt => {
+  window.addEventListener(evt, () => {
+    unlockAudio(false);
+    const btn = document.getElementById('autoTouchTrigger');
+    if (btn) {
+      btn.style.pointerEvents = 'none';
+      btn.style.display = 'none';
+    }
+  }, { capture: true, passive: true });
+});
+
+// ── Keystroke / Typing Sound (Subtle Mechanical Switch Clatter) ──
+function playKeySound() {
+  if (!soundEnabled) return;
+  const now = Date.now();
+  if (now - lastKeyTime < 34) return;
+  lastKeyTime = now;
+
+  try {
+    const ctx = getNativeCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const t = ctx.currentTime;
+
+    // Component 1: Gentle tactile switch click (randomized 950-1350Hz)
+    const baseFreq = 1100 + (Math.random() * 350 - 175);
+    const osc1 = ctx.createOscillator();
+    const g1 = ctx.createGain();
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(baseFreq, t);
+    osc1.frequency.exponentialRampToValueAtTime(320, t + 0.042);
+    g1.gain.setValueAtTime(0.08, t);
+    g1.gain.exponentialRampToValueAtTime(0.001, t + 0.042);
+    osc1.connect(g1);
+    if (masterGain) g1.connect(masterGain);
+    else g1.connect(ctx.destination);
+    osc1.start(t);
+    osc1.stop(t + 0.042);
+
+    // Component 2: Soft keycap bottom-out resonance
+    const osc2 = ctx.createOscillator();
+    const g2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(260, t);
+    osc2.frequency.exponentialRampToValueAtTime(85, t + 0.035);
+    g2.gain.setValueAtTime(0.05, t);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+    osc2.connect(g2);
+    if (masterGain) g2.connect(masterGain);
+    else g2.connect(ctx.destination);
+    osc2.start(t);
+    osc2.stop(t + 0.035);
+  } catch (e) {}
+}
+
+// ── Mouse Click Sound (Soft Tactile Microswitch Snap) ──
+function playClickSound() {
+  if (!soundEnabled) return;
+  const now = Date.now();
+  if (now - lastClickTime < 45) return;
+  lastClickTime = now;
+
+  try {
+    const ctx = getNativeCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const t = ctx.currentTime;
+
+    // Component 1: Soft tactile snap (2600Hz down to 420Hz)
+    const osc1 = ctx.createOscillator();
+    const g1 = ctx.createGain();
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(2600, t);
+    osc1.frequency.exponentialRampToValueAtTime(420, t + 0.045);
+    g1.gain.setValueAtTime(0.10, t);
+    g1.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+    osc1.connect(g1);
+    if (masterGain) g1.connect(masterGain);
+    else g1.connect(ctx.destination);
+    osc1.start(t);
+    osc1.stop(t + 0.045);
+
+    // Component 2: Soft release tick
+    const osc2 = ctx.createOscillator();
+    const g2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(1450, t + 0.008);
+    osc2.frequency.exponentialRampToValueAtTime(260, t + 0.05);
+    g2.gain.setValueAtTime(0.05, t + 0.008);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    osc2.connect(g2);
+    if (masterGain) g2.connect(masterGain);
+    else g2.connect(ctx.destination);
+    osc2.start(t + 0.008);
+    osc2.stop(t + 0.05);
+  } catch (e) {}
+}
+
+// ── Slide & Morph Transition Chime (Lush Dual-Tone Bell) ──
+function playTransitionSound() {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getNativeCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const t = ctx.currentTime;
+
+    // Dual harmonic chime: F5 (698.46Hz) and C6 (1046.50Hz)
+    const notes = [
+      { f0: 698.46, f1: 880.00, gain: 0.38, dur: 0.35 },
+      { f0: 1046.50, f1: 1396.91, gain: 0.28, dur: 0.30 }
+    ];
+
+    notes.forEach(n => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(n.f0, t);
+      osc.frequency.exponentialRampToValueAtTime(n.f1, t + 0.08);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(n.gain * 0.50, t + 0.018); // Transition chime: 50% of original
+      g.gain.exponentialRampToValueAtTime(0.001, t + n.dur);
+      osc.connect(g);
+      if (masterGain) g.connect(masterGain);
+      else g.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + n.dur);
+    });
+  } catch (e) {}
+}
+
+// ── Security Patch Verified & Applied (Ascending Major Triad Chime) ──
+function playSuccessSound() {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getNativeCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const t = ctx.currentTime;
+
+    // Harmonic arpeggio: C5 (523Hz), E5 (659Hz), G5 (784Hz), C6 (1046Hz)
+    const notes = [
+      { f: 523.25, time: 0, dur: 0.45, gain: 0.34 },
+      { f: 659.25, time: 0.07, dur: 0.42, gain: 0.34 },
+      { f: 783.99, time: 0.14, dur: 0.46, gain: 0.36 },
+      { f: 1046.50, time: 0.21, dur: 0.58, gain: 0.44 }
+    ];
+
+    notes.forEach(n => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(n.f, t + n.time);
+      g.gain.setValueAtTime(0.001, t + n.time);
+      g.gain.linearRampToValueAtTime(n.gain * 0.50, t + n.time + 0.015); // Success chime: 50% of original
+      g.gain.exponentialRampToValueAtTime(0.001, t + n.time + n.dur);
+      osc.connect(g);
+      if (masterGain) g.connect(masterGain);
+      else g.connect(ctx.destination);
+      osc.start(t + n.time);
+      osc.stop(t + n.time + n.dur);
+    });
+  } catch (e) {}
+}
+
+// ── Proof Stream Tick Sound ──
+function playProofTick(isProven) {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getNativeCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const t = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = isProven ? 'triangle' : 'sine';
+    const freq = isProven ? 880 : 540;
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.72, t + 0.038);
+    g.gain.setValueAtTime(0.12, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.038);
+    osc.connect(g);
+    if (masterGain) g.connect(masterGain);
+    else g.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.038);
+  } catch (e) {}
+}
+
+// ── AST Scan Radar Tick Sound ──
+function playScanTick() {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getNativeCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const t = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1450, t);
+    osc.frequency.exponentialRampToValueAtTime(650, t + 0.024);
+    g.gain.setValueAtTime(0.10, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.024);
+    osc.connect(g);
+    if (masterGain) g.connect(masterGain);
+    else g.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.024);
+  } catch (e) {}
+}
+
+function toggleSound() {}
+function updateSoundUI() {}
+
+// ── Slide Navigation Engine
+const TOTAL = 7;
+let cur = 1;
+let timeouts = [];
+let intervals = [];
+
+function clearAsync() {
+  timeouts.forEach(clearTimeout);
+  timeouts = [];
+  intervals.forEach(clearInterval);
+  intervals = [];
+  stopAllAudio();
+}
+
+const slides = [...document.querySelectorAll('.slide')];
+
+function setCaption(txt) {
+  const el = document.getElementById('deckCaption');
+  if (!el) return;
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(2px)';
+  setTimeout(() => {
+    el.textContent = txt;
+    el.style.opacity = '1';
+    el.style.transform = 'translateY(0)';
+  }, 140);
+}
+
+function goTo(n) {
+  if (n < 1 || n > TOTAL || n === cur) return;
+  playTransitionSound();
+  closeModal();
+  const prev = cur;
+  cur = n;
+
+  slides.forEach((s, i) => {
+    s.classList.remove('active', 'exit');
+    if (i + 1 === cur) s.classList.add('active');
+    else if (i + 1 === prev) s.classList.add('exit');
+  });
+
+  const tid = setTimeout(() => {
+    slides.forEach(s => s.classList.remove('exit'));
+  }, 400);
+  timeouts.push(tid);
+
+  const introCover = document.getElementById('introCover');
+  if (introCover) {
+    introCover.style.opacity = (cur === 1) ? '1' : '0';
+  }
+
+  const bottomWrap = document.getElementById('deckBottomWrap');
+  if (bottomWrap) {
+    if (cur === 1) {
+      bottomWrap.style.opacity = '0';
+      bottomWrap.style.pointerEvents = 'none';
+    } else {
+      bottomWrap.style.opacity = '1';
+      bottomWrap.style.pointerEvents = 'auto';
+    }
+  }
+
+  clearAsync();
+  hideCur();
+  playSlide(cur);
+}
+
+document.addEventListener('keydown', e => {
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') goTo(cur === TOTAL ? 1 : cur + 1);
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') goTo(cur === 1 ? TOTAL : cur - 1);
+});
+
+// ── Pointer Automation Helpers
+const ptr = document.getElementById('spt');
+
+function moveCur(x, y, cb, delay = 450) {
+  if (ptr.style.opacity === '0' || ptr.style.left === '-100px') {
+    ptr.style.transition = 'none';
+    ptr.style.left = (x - 20) + 'px';
+    ptr.style.top = (y - 20) + 'px';
+    void ptr.offsetWidth;
+    ptr.style.transition = 'left 0.45s cubic-bezier(0.25, 1, 0.5, 1), top 0.45s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s ease';
+  }
+  ptr.style.opacity = '1';
+  ptr.style.left = x + 'px';
+  ptr.style.top = y + 'px';
+  const id = setTimeout(cb, delay);
+  timeouts.push(id);
+}
+
+function moveCurTo(el, cb, ox = 0.5, oy = 0.5) {
+  if (!el) { if (cb) cb(); return; }
+  const r = el.getBoundingClientRect();
+  moveCur(r.left + r.width * ox, r.top + r.height * oy, cb);
+}
+
+function clickCur(cb) {
+  ptr.classList.add('clicking');
+  playClickSound();
+  const id = setTimeout(() => {
+    ptr.classList.remove('clicking');
+    if (cb) cb();
+  }, 160);
+  timeouts.push(id);
+}
+
+function hideCur() {
+  ptr.style.opacity = '0';
+}
+
+function showTip() {}
+function hideTip() {}
+
+function typeText(el, text, speed, cb) {
+  let i = 0;
+  const isInput = (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+  if (isInput) el.value = '';
+  else el.textContent = '';
+  function step() {
+    if (i < text.length) {
+      if (isInput) el.value += text[i++];
+      else el.textContent += text[i++];
+      playKeySound();
+      const id = setTimeout(step, speed);
+      timeouts.push(id);
+    } else if (cb) cb();
+  }
+  step();
+}
+
+// ── Slide 1 Automation (pip install frapast)
+function animatePipDownload(container, pkgName, filename, sizeKb, speedStr, onDone) {
+  const line1 = document.createElement('div');
+  line1.className = 't-dim';
+  line1.style.marginTop = '4px';
+  line1.textContent = `Collecting ${pkgName}`;
+  container.appendChild(line1);
+
+  const line2 = document.createElement('div');
+  line2.className = 't-dim';
+  line2.style.paddingLeft = '12px';
+  line2.textContent = `Downloading ${filename} (${sizeKb.toFixed(0)} kB)`;
+  container.appendChild(line2);
+
+  const barLine = document.createElement('div');
+  barLine.style.fontFamily = "'JetBrains Mono', monospace";
+  barLine.style.fontSize = '12px';
+  barLine.style.margin = '2px 0 6px 12px';
+  container.appendChild(barLine);
+
+  const totalChars = 32;
+  function render(pct, curKb) {
+    const filled = Math.round((pct / 100) * totalChars);
+    const empty = totalChars - filled;
+    const fStr = '━'.repeat(Math.max(0, filled));
+    const eStr = '━'.repeat(Math.max(0, empty));
+    barLine.innerHTML = `<span style="color:#38bdf8;">${fStr}</span><span style="color:#3f3f46;">${eStr}</span> <span style="color:#e4e4e7;margin-left:6px;">${curKb.toFixed(1)}/${sizeKb.toFixed(1)} kB</span> <span style="color:#71717a;margin-left:4px;">${speedStr}</span>`;
+  }
+  render(0, 0);
+
+  const steps = 14;
+  let step = 0;
+  const iv = setInterval(() => {
+    step++;
+    const pct = Math.min(100, Math.round((step / steps) * 100));
+    const curKb = (pct / 100) * sizeKb;
+    render(pct, curKb);
+    if (pct >= 100) {
+      clearInterval(iv);
+      const idx = intervals.indexOf(iv);
+      if (idx !== -1) intervals.splice(idx, 1);
+      if (onDone) onDone();
+    }
+  }, 45);
+  intervals.push(iv);
+}
+
+function playS1() {
+  const introWord = document.getElementById('introWord');
+  const splash = document.getElementById('introSplash');
+  const win = document.getElementById('s1win');
+  const cmd = document.getElementById('s1cmd');
+  const curEl = document.getElementById('s1c');
+  const out = document.getElementById('s1out');
+  const bottomWrap = document.getElementById('deckBottomWrap');
+
+  cmd.textContent = '';
+  curEl.style.display = 'inline-block';
+  out.innerHTML = '';
+
+  const introCover = document.getElementById('introCover');
+  if (introCover) introCover.style.opacity = '1';
+
+  if (bottomWrap) {
+    bottomWrap.style.opacity = '0';
+    bottomWrap.style.pointerEvents = 'none';
+  }
+
+  if (win) {
+    win.style.opacity = '0';
+    win.style.transform = 'scale(0.96)';
+  }
+
+  // Scene 1: Show "Introducing" first
+  if (introWord) { introWord.className = 'intro-word show'; }
+  if (splash) { splash.className = 'intro-splash'; }
+
+  // Dissolve "Introducing" after 1.0s
+  timeouts.push(setTimeout(() => {
+    if (introWord) introWord.className = 'intro-word hide';
+  }, 1000));
+
+  // Logo appears centered at 1.25s
+  timeouts.push(setTimeout(() => {
+    if (splash) splash.className = 'intro-splash show';
+  }, 1250));
+
+  // Morph: logo glides left, brand name blooms out at 1.9s
+  timeouts.push(setTimeout(() => {
+    if (splash) {
+      playTransitionSound();
+      splash.className = 'intro-splash show morph';
+    }
+  }, 1900));
+
+  // Description fades in at 2.65s
+  timeouts.push(setTimeout(() => {
+    if (splash) splash.className = 'intro-splash show morph show-desc';
+  }, 2650));
+
+  // Play a1 for intro scene; when a1 ends -> reveal terminal + play a2
+  playAudio('a1', () => {
+    if (introWord) introWord.className = 'intro-word hide';
+    if (splash) splash.className = 'intro-splash hide';
+    const introCover = document.getElementById('introCover');
+    if (introCover) introCover.style.opacity = '0';
+    if (win) { win.style.opacity = '1'; win.style.transform = 'scale(1)'; }
+    if (bottomWrap) { bottomWrap.style.opacity = '1'; bottomWrap.style.pointerEvents = 'auto'; }
+    setCaption('Getting started takes seconds. Install frapAST directly through pip.');
+    timeouts.push(setTimeout(() => {
+      setCaption('The package bundles native AST parsers and framework-specific security rules with zero external dependencies.');
+    }, 6200));
+
+    // Play a2 for pip install; when a2 ends -> go to Slide 2
+    playAudio('a2', () => goTo(2));
+
+    timeouts.push(setTimeout(() => {
+      typeText(cmd, 'pip install frapast', 45, () => {
+        timeouts.push(setTimeout(() => {
+          curEl.style.display = 'none';
+          animatePipDownload(out, 'frapast', 'frapast-1.0.0-py3-none-any.whl', 48.2, '3.2 MB/s eta 0:00:00', () => {
+            timeouts.push(setTimeout(() => {
+              animatePipDownload(out, 'tree-sitter>=0.20.0 (from frapast)', 'tree_sitter-0.21.3-cp311-macosx_arm64.whl', 418.9, '6.4 MB/s eta 0:00:00', () => {
+                timeouts.push(setTimeout(() => {
+                  animatePipDownload(out, 'rich>=13.0.0 (from frapast)', 'rich-13.7.1-py3-none-any.whl', 240.7, '7.8 MB/s eta 0:00:00', () => {
+                    timeouts.push(setTimeout(() => {
+                      const instLine = document.createElement('div');
+                      instLine.className = 't-dim';
+                      instLine.style.marginTop = '6px';
+                      instLine.textContent = 'Installing collected packages: tree-sitter, rich, frapast';
+                      out.appendChild(instLine);
+                      timeouts.push(setTimeout(() => {
+                        const okLine = document.createElement('div');
+                        okLine.className = 't-ok';
+                        okLine.style.fontWeight = '600';
+                        okLine.style.marginTop = '4px';
+                        okLine.textContent = 'Successfully installed frapast-1.0.0 rich-13.7.1 tree-sitter-0.21.3';
+                        out.appendChild(okLine);
+                        playSuccessSound();
+                        const nextPrompt = document.createElement('div');
+                        nextPrompt.style.marginTop = '10px';
+                        nextPrompt.innerHTML = '<span class="t-prompt">%</span> <span class="t-cur"></span>';
+                        out.appendChild(nextPrompt);
+                        // goTo(2) is handled by a2.onended — no setTimeout needed
+                      }, 350));
+                    }, 250));
+                  });
+                }, 150));
+              });
+            }, 150));
+          });
+        }, 250));
+      });
+    }, 500));
+  });
+}
+
+// ── Slide 2 Automation (frapast launch)
+function playS2() {
+  const cmd = document.getElementById('s2cmd');
+  const curEl = document.getElementById('s2c');
+  const out = document.getElementById('s2out');
+  cmd.textContent = '';
+  curEl.style.display = 'inline-block';
+  out.innerHTML = '';
+  setCaption('Launch the engine using the frapast CLI.');
+  timeouts.push(setTimeout(() => {
+    setCaption('In one command, frapAST compiles the rule registry and initializes the local security management dashboard.');
+  }, 4000));
+  // Play a3; when a3 ends -> go to Slide 3
+  playAudio('a3', () => goTo(3));
+
+  timeouts.push(setTimeout(() => {
+    typeText(cmd, 'frapast', 65, () => {
+      timeouts.push(setTimeout(() => {
+        curEl.style.display = 'none';
+        let artHtml = '<div class="t-ascii">';
+        ASCII_LINES.forEach(line => { artHtml += line + '\n'; });
+        artHtml += '</div>';
+        out.innerHTML = artHtml + `
+          <div class="t-dim">[INFO] Starting frapAST security engine v1.0.0</div>
+          <div class="t-dim">[INFO] AST Rule Registry initialized (54 rules loaded)</div>
+          <div class="t-info">[INFO] Web UI server listening on: <span style="text-decoration:underline;">http://127.0.0.1:7777</span></div>
+          <div class="t-ok" style="font-weight:600;margin-top:3px;">[INFO] Opening dashboard in browser...</div>
+        `;
+        // goTo(3) handled by a3.onended
+      }, 250));
+    });
+  }, 400));
+}
+
+// ── Slide 3 Automation (Select Directory & Run AST Scan)
+function playS3() {
+  // Play a4; when a4 ends -> go to Slide 4
+  playAudio('a4', () => goTo(4));
+  const inwrap = document.getElementById('s3inwrap');
+  const inp = document.getElementById('s3inp');
+  const btn = document.getElementById('s3btn');
+  const pbar = document.getElementById('s3pbar');
+  const stxt = document.getElementById('s3stxt');
+  const cnt = document.getElementById('s3cnt');
+
+  inwrap.classList.remove('highlight');
+  inp.value = '';
+  pbar.style.transition = 'none';
+  pbar.style.width = '0%';
+  void pbar.offsetWidth;
+  pbar.style.transition = 'width 0.25s ease-out';
+
+  btn.className = 'btn-scan';
+  document.getElementById('s3btxt').textContent = 'Run AST Scan';
+  stxt.textContent = 'Engine Ready';
+  stxt.style.color = '#64748b';
+  stxt.style.fontWeight = '500';
+  cnt.textContent = '0 Findings';
+  buildTable('s3tb', []);
+  setCaption('Select any application directory to scan.');
+  timeouts.push(setTimeout(() => {
+    setCaption('Unlike generic tools with high noise, frapAST uses semantic AST parsing tailored to framework controllers and document models to rapidly detect vulnerability candidates.');
+  }, 4200));
+
+  timeouts.push(setTimeout(() => {
+    moveCurTo(inp, () => {
+      inwrap.classList.add('highlight');
+      timeouts.push(setTimeout(() => {
+        typeText(inp, '/workspace/frappe-bench/apps/erpnext', 26, () => {
+          inwrap.classList.remove('highlight');
+          timeouts.push(setTimeout(() => {
+            moveCurTo(btn, () => {
+              clickCur(() => {
+                btn.className = 'btn-scan scanning';
+                document.getElementById('s3btxt').textContent = 'Scanning AST...';
+                stxt.textContent = 'Tier-1 Scanning...';
+                stxt.style.color = '#d97706';
+
+                let pct = 0;
+                const interval = setInterval(() => {
+                  pct += 10;
+                  pbar.style.width = pct + '%';
+                  if (pct % 20 === 0 && pct < 100) playScanTick();
+                  if (pct >= 100) {
+                    clearInterval(interval);
+                    const idx = intervals.indexOf(interval);
+                    if (idx !== -1) intervals.splice(idx, 1);
+                    playSuccessSound();
+
+                    btn.className = 'btn-scan';
+                    document.getElementById('s3btxt').textContent = 'Scan Complete';
+                    stxt.textContent = 'Tier-1 Complete';
+                    stxt.style.color = '#15803d';
+                    stxt.style.fontWeight = '600';
+                    cnt.textContent = `${totalCount} Findings`;
+                    buildTable('s3tb', FINDINGS);
+                    hideCur();
+                    // goTo(4) handled by a4.onended
+                  }
+                }, 55);
+                intervals.push(interval);
+              });
+            });
+          }, 280));
+        });
+      }, 250));
+    });
+  }, 400));
+}
+
+// ── Slide 4 Automation (Bench Connection Setup)
+function playS4() {
+  // Play a5; when a5 ends -> go to Slide 5
+  playAudio('a5', () => goTo(5));
+  const pathInp = document.getElementById('s4path');
+  const urlInp = document.getElementById('s4url');
+  const siteInp = document.getElementById('s4site');
+  const pwdInp = document.getElementById('s4pwd');
+  const saveBtn = document.getElementById('s4sv');
+  const diag = document.getElementById('s4dg');
+  const bg = document.getElementById('s4bg');
+  const prvBtn = document.getElementById('s4prv');
+
+  pathInp.classList.remove('hl');
+  urlInp.classList.remove('hl');
+  siteInp.classList.remove('hl');
+  pwdInp.classList.remove('hl');
+  pathInp.value = '';
+  urlInp.value = '';
+  siteInp.value = '';
+  pwdInp.value = '';
+  diag.style.display = 'none';
+  bg.className = 'scard-badge scb-uncheck';
+  bg.textContent = 'Not checked';
+  setCaption('Next, connect frapAST to your live bench development environment.');
+  timeouts.push(setTimeout(() => {
+    setCaption('This enables Tier-2 active verification, validating candidate flaws directly against running framework runtime hooks.');
+  }, 4600));
+
+  timeouts.push(setTimeout(() => {
+    moveCurTo(pathInp, () => {
+      pathInp.classList.add('hl');
+      timeouts.push(setTimeout(() => {
+        typeText(pathInp, '/workspace/frappe-bench', 25, () => {
+          pathInp.classList.remove('hl');
+          timeouts.push(setTimeout(() => {
+            moveCurTo(urlInp, () => {
+              urlInp.classList.add('hl');
+              typeText(urlInp, 'http://127.0.0.1:8000', 22, () => {
+                urlInp.classList.remove('hl');
+                siteInp.value = 'site1.local';
+                pwdInp.value = 'admin123';
+                timeouts.push(setTimeout(() => {
+                  moveCurTo(saveBtn, () => {
+                    clickCur(() => {
+                      diag.style.display = 'block';
+                      bg.className = 'scard-badge scb-ok';
+                      bg.textContent = 'Connected';
+                      timeouts.push(setTimeout(() => {
+                        moveCurTo(prvBtn, () => {
+                          timeouts.push(setTimeout(() => {
+                            clickCur(() => {
+                              // goTo(5) handled by a5.onended
+                            });
+                          }, 550));
+                        });
+                      }, 500));
+                    });
+                  });
+                }, 300));
+              });
+            });
+          }, 220));
+        });
+      }, 250));
+    });
+  }, 400));
+}
+
+// ── Slide 5 Automation (Proof Verification Live Stream)
+function playS5() {
+  // Play a6; when a6 ends -> go to Slide 6
+  playAudio('a6', () => goTo(6));
+  const streamEl = document.getElementById('s5sl');
+  const np = document.getElementById('s5np');
+  const nr = document.getElementById('s5nr');
+  streamEl.innerHTML = '';
+  np.textContent = '0';
+  nr.textContent = '0';
+  buildTable('s5tb', FINDINGS);
+  hideCur();
+  setCaption('Tier-2 dynamic verification executes proof tests against the running bench.');
+  timeouts.push(setTimeout(() => {
+    setCaption('In real-time, confirmed exploits are proven with zero doubt, while false positives are automatically refuted.');
+  }, 5200));
+  timeouts.push(setTimeout(() => {
+    setCaption('Inspecting the confirmed issue reveals an unvalidated document write permission flaw.');
+  }, 11800));
+
+  let idx = 0;
+  let provenCount = 0;
+  let refutedCount = 0;
+
+  function nextProof() {
+    if (idx >= PROOF.length) {
+      // Verification finished!
+      playSuccessSound();
+      timeouts.push(setTimeout(() => {
+        const viewBtn = document.querySelector('#s5tb tr:first-child .btn-view');
+        if (!viewBtn) return;
+        moveCurTo(viewBtn, () => {
+          timeouts.push(setTimeout(() => {
+            clickCur(() => {
+              openModal('FR-PERM-001');
+              // Modal opens, wait for entrance transition
+              timeouts.push(setTimeout(() => {
+                const fixBtn = document.getElementById('modalFixBtn');
+                if (!fixBtn) return;
+                moveCurTo(fixBtn, () => {
+                  timeouts.push(setTimeout(() => {
+                    clickCur(() => {
+                      closeModal();
+                      // goTo(6) handled by a6.onended
+                    });
+                  }, 650));
+                });
+              }, 400));
+            });
+          }, 450));
+        });
+      }, 500));
+      return;
+    }
+
+    const p = PROOF[idx];
+
+    const targetCellId = `s5tb-st-${p.rule}-${p.fn}`;
+    const cell = document.getElementById(targetCellId);
+    if (cell) {
+      cell.innerHTML = stBadge(p.r);
+    }
+
+    const item = document.createElement('div');
+    item.className = `stream-item ${p.r === 'proven' ? 'pr' : 're'}`;
+    item.innerHTML = `
+      <span class="badge ${p.r === 'proven' ? 'bc-prov' : 'bc-refu'}">${p.r.toUpperCase()}</span>
+      <span style="color:#64748b;">${p.rule}</span>
+      <span style="color:#94a3b8;">&rarr;</span>
+      <span style="font-weight:600;">${p.fn}</span>
+    `;
+    streamEl.prepend(item);
+    playProofTick(p.r === 'proven');
+
+    if (p.r === 'proven') provenCount++;
+    else refutedCount++;
+    idx++;
+
+    np.textContent = provenCount;
+    nr.textContent = refutedCount;
+
+    // Fast, brisk verification speed
+    const id = setTimeout(nextProof, 350);
+    timeouts.push(id);
+  }
+
+  timeouts.push(setTimeout(nextProof, 350));
+}
+
+// ── Slide 6 Automation (Auto-Remediation, Multi-Tab & Patch Application)
+function playS6() {
+  // Play a7; when a7 ends -> go to Slide 7
+  playAudio('a7', () => goTo(7));
+  setDiffTab('diff');
+  const btn = document.getElementById('s6applyBtn');
+  const msg = document.getElementById('s6applyMsg');
+  const badge = document.getElementById('s6applyBadge');
+  const dTab = document.getElementById('tabDiff');
+  const tTab = document.getElementById('tabTest');
+  const sTab = document.getElementById('tabSarif');
+
+  btn.style.display = 'flex';
+  msg.style.display = 'none';
+  badge.className = 'scard-badge scb-ok';
+  badge.textContent = 'Verified';
+  hideCur();
+  setCaption('frapAST synthesizes verified remediation patches automatically.');
+  timeouts.push(setTimeout(() => {
+    setCaption('Review the generated regression test, export standardized SARIF reports for CI/CD pipelines, and apply the AST-injected permission guard directly to the codebase in one click.');
+  }, 4800));
+  timeouts.push(setTimeout(() => {
+    setCaption('Vulnerability resolved, code verified, with zero regressions.');
+  }, 15800));
+
+  // Multi-tab interactive sequence
+  timeouts.push(setTimeout(() => {
+    // 1. Point to and click Test Tab
+    moveCurTo(tTab, () => {
+      timeouts.push(setTimeout(() => {
+        clickCur(() => {
+          setDiffTab('test');
+          // Allow viewing test code
+          timeouts.push(setTimeout(() => {
+            // 2. Point to and click SARIF Tab
+            moveCurTo(sTab, () => {
+              timeouts.push(setTimeout(() => {
+                clickCur(() => {
+                  setDiffTab('sarif');
+                  // Allow viewing SARIF output
+                  timeouts.push(setTimeout(() => {
+                    // 3. Point to and click back to Diff Tab
+                    moveCurTo(dTab, () => {
+                      timeouts.push(setTimeout(() => {
+                        clickCur(() => {
+                          setDiffTab('diff');
+                          // 4. Move to 1-Click Apply Button
+                          timeouts.push(setTimeout(() => {
+                            moveCurTo(btn, () => {
+                              timeouts.push(setTimeout(() => {
+                                clickCur(() => {
+                                  applyPatchAction();
+                                  timeouts.push(setTimeout(() => {
+                                    hideCur();
+                                    // goTo(7) handled by a7.onended
+                                  }, 1200));
+                                });
+                              }, 650));
+                            });
+                          }, 650));
+                        });
+                      }, 400));
+                    });
+                  }, 1200));
+                });
+              }, 500));
+            });
+          }, 1200));
+        });
+      }, 500));
+    });
+  }, 650));
+}
+
+// ── Slide 7 Automation (End Card / Open Source Outro)
+function playS7() {
+  hideCur();
+  setCaption('frapAST is completely free and open source under the MIT license.');
+  timeouts.push(setTimeout(() => {
+    setCaption('Install it today with pip, inspect the rules on GitHub, and protect your Frappe applications with automated, verified security.');
+  }, 4800));
+
+  const bottomWrap = document.getElementById('deckBottomWrap');
+  if (bottomWrap) {
+    bottomWrap.style.opacity = '1';
+    bottomWrap.style.pointerEvents = 'auto';
+  }
+  // Play a8 at 1.25x; when a8 ends -> show replay caption and loop back to Slide 1
+  playAudio('a8', () => {
+    setCaption('Product walkthrough complete. Replaying frapAST engine demo from Step 1...');
+    timeouts.push(setTimeout(() => goTo(1), 800));
+  });
+}
+
+function playSlide(n) {
+  clearAsync();
+  if (n === 1) { stopBGM(); startBGM(); playS1(); }
+  else if (n === 2) playS2();
+  else if (n === 3) playS3();
+  else if (n === 4) playS4();
+  else if (n === 5) playS5();
+  else if (n === 6) playS6();
+  else if (n === 7) playS7();
+}
+
+startBGM();
+playS1();
+</script>
+</body>
+</html>

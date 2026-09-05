@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "frapast"
-version = "0.1.6"
+version = "1.0.0"
 description = "Runtime-Proven Static Security Analysis Engine for Frappe and ERPNext"
 readme = "README.md"
 authors = [
@@ -13,7 +13,7 @@ authors = [
 license = "MIT"
 keywords = ["frappe", "erpnext", "security", "sast", "static-analysis", "vulnerability-scanner"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Topic :: Security",
     "Topic :: Software Development :: Quality Assurance",

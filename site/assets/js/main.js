@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.tag_name) releaseTagEl.textContent = data.tag_name;
             })
             .catch(() => {
-                releaseTagEl.textContent = 'v0.1.0';
+                releaseTagEl.textContent = 'v1.0.0';
             });
     }
 

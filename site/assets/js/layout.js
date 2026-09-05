@@ -90,7 +90,7 @@
                 <div class="footer-col">
                     <h4>Project</h4>
                     <ul>
-                        <li><a href="${root}changelog.html">Changelog (v0.1.0)</a></li>
+                        <li><a href="${root}changelog.html">Changelog (v1.0.0)</a></li>
                         <li><a href="${root}community.html">Community &amp; Roadmap</a></li>
                         <li><a href="${root}community.html#contributing">Contributing Guide</a></li>
                         <li><a href="${root}community.html#security">Security Policy</a></li>

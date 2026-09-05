@@ -185,7 +185,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run frapAST Audit
-        uses: pratheep-bit/frapast@v0.1.0
+        uses: pratheep-bit/frapast@v1.0.0
         with:
           repo-path: '.'
           fail-on: 'critical'
