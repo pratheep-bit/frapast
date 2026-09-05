@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>frapAST Interactive Showcase Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --panel-bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --primary: #2490ef;
+      --primary-glow: rgba(36, 144, 239, 0.35);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --green: #10b981;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --purple: #8b5cf6;
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 24px 16px 120px 16px;
+    }
+
+    /* Top Showcase Bar */
+    .showcase-header {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 12px 20px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(51, 65, 85, 0.6);
+      border-radius: 12px;
+      backdrop-filter: blur(12px);
+    }
+    .showcase-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 17px;
+      letter-spacing: -0.01em;
+    }
+    .badge-live {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.6; }
+    }
+
+    /* Stage Canvas */
+    .stage-container {
+      width: 100%;
+      max-width: 1200px;
+      height: 720px;
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 40px rgba(36, 144, 239, 0.1);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* Scene Layers */
+    .scene {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: scale(0.98);
+      display: flex;
+      flex-direction: column;
+    }
+    .scene.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    /* SCENE 1: Terminal */
+    .terminal-window {
+      width: 880px;
+      max-width: 92%;
+      margin: auto;
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 30px rgba(36,144,239,0.15);
+      overflow: hidden;
+      font-family: var(--font-mono);
+    }
+    .window-header {
+      background: #0f172a;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #ff5f56; }
+    .dot-yellow { background: #ffbd2e; }
+    .dot-green { background: #27c93f; }
+    .window-title {
+      margin: 0 auto;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+    }
+    .terminal-body {
+      padding: 24px;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 380px;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+    }
+    .t-prompt { color: #38bdf8; font-weight: 600; }
+    .t-cmd { color: #f8fafc; font-weight: 500; }
+    .t-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background: #38bdf8;
+      vertical-align: text-bottom;
+      animation: blink 0.8s infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    .t-ascii {
+      color: #38bdf8;
+      font-size: 11px;
+      line-height: 1.15;
+      margin: 12px 0;
+      font-weight: 700;
+    }
+    .t-box {
+      border: 1px solid #1e293b;
+      background: rgba(30, 41, 59, 0.5);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 12px 0;
+    }
+    .t-green { color: #10b981; }
+    .t-dim { color: #64748b; }
+
+    /* SCENE 2 & 3: Web Dashboard */
+    .dash-wrapper {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #090d16;
+    }
+    .dash-topbar {
+      background: #0f172a;
+      border-bottom: 1px solid #1e293b;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .dash-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 16px;
+      color: #fff;
+    }
+    .dash-brand-badge {
+      background: rgba(36, 144, 239, 0.2);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+    }
+    .dash-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .dash-input-wrap {
+      position: relative;
+      width: 440px;
+    }
+    .dash-input {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 8px 12px 8px 36px;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      transition: all 0.2s ease;
+    }
+    .dash-input:focus, .dash-input.highlighted {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+    }
+    .dash-input-icon {
+      position: absolute;
+      left: 11px;
+      top: 9px;
+      color: #64748b;
+      width: 16px;
+      height: 16px;
+    }
+    .dash-btn {
+      background: #2490ef;
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .dash-btn.active-pulse {
+      animation: btnPulse 1s infinite alternate;
+    }
+    @keyframes btnPulse {
+      0% { box-shadow: 0 0 0 0 rgba(36, 144, 239, 0.7); }
+      100% { box-shadow: 0 0 0 12px rgba(36, 144, 239, 0); }
+    }
+    .dash-btn-secondary {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+    }
+
+    /* Subheader & Stats */
+    .dash-subheader {
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e293b;
+      background: rgba(15, 23, 42, 0.5);
+    }
+    .stats-row {
+      display: flex;
+      gap: 12px;
+    }
+    .stat-pill {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 6px 14px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .stat-num {
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    /* Findings Table */
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+    .findings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+    .findings-table th {
+      color: #64748b;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 10px 14px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .findings-table td {
+      padding: 14px;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+      color: #cbd5e1;
+    }
+    .findings-table tr:hover {
+      background: rgba(30, 41, 59, 0.4);
+    }
+    .findings-table tr.highlight-row {
+      background: rgba(36, 144, 239, 0.12);
+      border-left: 3px solid #38bdf8;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+    .badge-critical { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-high { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-candidate { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+    .badge-proven { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-refuted { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
+
+    /* Modal / Drawer Overlay for Autofix */
+    .demo-modal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      width: 760px;
+      max-width: 90%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.85);
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .demo-modal.show {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .modal-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .modal-body {
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .diff-box {
+      background: #090d16;
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid #1e293b;
+      overflow-x: auto;
+    }
+    .diff-del { color: #f87171; background: rgba(239, 68, 68, 0.12); display: block; padding: 2px 4px; }
+    .diff-add { color: #34d399; background: rgba(16, 185, 129, 0.12); display: block; padding: 2px 4px; }
+
+    /* Animated Pointer Cursor */
+    .animated-pointer {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="%232490ef" stroke="%23ffffff" stroke-width="1.5"><polygon points="0,0 20,7 11,11 7,20"/></svg>');
+      background-size: contain;
+      background-repeat: no-repeat;
+      pointer-events: none;
+      z-index: 100;
+      transition: top 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.2s;
+      transform: translate(0, 0);
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+    }
+    .animated-pointer.clicking {
+      transform: scale(0.85);
+    }
+
+    /* Spotlight Tooltip Bubble */
+    .spotlight-tip {
+      position: absolute;
+      background: #2490ef;
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(36, 144, 239, 0.4);
+      pointer-events: none;
+      z-index: 90;
+      transition: all 0.4s ease;
+      opacity: 0;
+      transform: translateY(10px);
+      white-space: nowrap;
+    }
+    .spotlight-tip.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Bottom Player Controls */
+    .player-controls {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 860px;
+      max-width: 95%;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      border-radius: 14px;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+      backdrop-filter: blur(16px);
+      z-index: 200;
+    }
+    .play-btn {
+      background: #2490ef;
+      border: none;
+      color: #fff;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.15s;
+    }
+    .play-btn:hover { transform: scale(1.08); }
+    .timeline-bar {
+      flex: 1;
+      height: 6px;
+      background: #334155;
+      border-radius: 3px;
+      position: relative;
+      cursor: pointer;
+    }
+    .timeline-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 0%;
+      background: #38bdf8;
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+    .step-labels {
+      display: flex;
+      gap: 8px;
+    }
+    .step-btn {
+      background: transparent;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .step-btn.active {
+      background: #1e293b;
+      color: #38bdf8;
+      border-color: #38bdf8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div class="showcase-header">
+    <div class="showcase-title">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      frapAST Security Engine — Automated Walkthrough Demo
+    </div>
+    <div class="badge-live">
+      <span class="pulse-dot"></span>
+      4K Interactive Simulation
+    </div>
+  </div>
+
+  <!-- Stage Canvas -->
+  <div class="stage-container" id="stage">
+
+    <!-- Pointer Cursor -->
+    <div class="animated-pointer" id="pointer" style="top: 400px; left: 600px; opacity: 0;"></div>
+    <!-- Spotlight Callout Bubble -->
+    <div class="spotlight-tip" id="tooltip" style="top: 0; left: 0;"></div>
+
+    <!-- SCENE 1: Terminal Scene -->
+    <div class="scene active" id="scene1">
+      <div class="terminal-window">
+        <div class="window-header">
+          <div class="dot dot-red"></div>
+          <div class="dot dot-yellow"></div>
+          <div class="dot dot-green"></div>
+          <div class="window-title">frappe@bench: ~/frappe-bench</div>
+        </div>
+        <div class="terminal-body" id="termBody">
+          <span class="t-prompt">frappe@bench:~/frappe-bench$ </span><span id="termCmd1" class="t-cmd"></span><span id="termCursor1" class="t-cursor"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENE 2: Web Dashboard Scene -->
+    <div class="scene" id="scene2">
+      <div class="dash-wrapper">
+        <!-- Topbar -->
+        <div class="dash-topbar">
+          <div class="dash-brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#2490ef"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            frapAST <span class="dash-brand-badge">v0.1.6 (Beta)</span>
+          </div>
+
+          <div class="dash-controls">
+            <div class="dash-input-wrap">
+              <svg class="dash-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <input type="text" class="dash-input" id="scanInput" placeholder="Enter target directory path..." readonly>
+            </div>
+            <button class="dash-btn" id="scanBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Scan
+            </button>
+            <button class="dash-btn dash-btn-secondary" id="proveBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Prove All (Tier 2)
+            </button>
+          </div>
+        </div>
+
+        <!-- Subheader Stats Bar -->
+        <div class="dash-subheader">
+          <div class="stats-row">
+            <div class="stat-pill">
+              <span style="color:#94a3b8;">Total Candidates:</span>
+              <span class="stat-num" id="statCandidates">0</span>
+            </div>
+            <div class="stat-pill">
+              <span style="color:#f87171;">Critical:</span>
+              <span class="stat-num" style="color:#f87171;" id="statCritical">0</span>
+            </div>
+            <div class="stat-pill">
+              <span style="color:#34d399;">Proven Exploits:</span>
+              <span class="stat-num" style="color:#34d399;" id="statProven">0</span>
+            </div>
+          </div>
+          <div id="scanStatusMsg" style="font-size:12px; font-family:var(--font-mono); color:#38bdf8;">
+            Ready to scan.
+          </div>
+        </div>
+
+        <!-- Findings Table -->
+        <div class="table-container">
+          <table class="findings-table">
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Rule ID</th>
+                <th>Finding Location</th>
+                <th>Vulnerability Detail</th>
+                <th>Proof Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="findingsTbody">
+              <!-- Dynamically populated during scan -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Autofix Modal Preview -->
+        <div class="demo-modal" id="fixModal">
+          <div class="modal-header">
+            <span style="color:#38bdf8;">LibCST Automated AST Patch Preview</span>
+            <span style="font-size:11px; color:#94a3b8; font-family:var(--font-mono);">FR-PERM-001</span>
+          </div>
+          <div class="modal-body">
+            <p style="margin-bottom:12px; font-family:var(--font-sans); color:#cbd5e1;">
+              Automatically enforces strict POST method and permission check on mutating endpoint.
+            </p>
+            <div class="diff-box">
+<span class="diff-del">- @frappe.whitelist(allow_guest=True)</span>
+<span class="diff-del">- def update_order_status(order_id, status):</span>
+<span class="diff-add">+ @frappe.whitelist(methods=["POST"])</span>
+<span class="diff-add">+ def update_order_status(order_id, status):</span>
+<span class="diff-add">+     frappe.only_for("Sales Manager")</span>
+            </div>
+            <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+              <button class="dash-btn" id="applyFixBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Apply AST Patch
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Player Bar -->
+  <div class="player-controls">
+    <button class="play-btn" id="playPauseBtn">
+      <svg id="playIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <svg id="pauseIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    </button>
+
+    <div class="timeline-bar" id="timelineBar">
+      <div class="timeline-fill" id="timelineFill"></div>
+    </div>
+
+    <div class="step-labels">
+      <button class="step-btn active" onclick="jumpToTime(0)">1. CLI Launch</button>
+      <button class="step-btn" onclick="jumpToTime(5.5)">2. Select Target</button>
+      <button class="step-btn" onclick="jumpToTime(10.5)">3. Parallel AST</button>
+      <button class="step-btn" onclick="jumpToTime(16)">4. Active Proof</button>
+      <button class="step-btn" onclick="jumpToTime(22)">5. 1-Click Fix</button>
+    </div>
+  </div>
+
+  <script>
+    // Demo Automation Timeline Engine
+    const TOTAL_DURATION = 28; // seconds
+    let currentTime = 0;
+    let isPlaying = true;
+    let animFrame = null;
+    let lastStamp = null;
+
+    const els = {
+      scene1: document.getElementById('scene1'),
+      scene2: document.getElementById('scene2'),
+      termCmd1: document.getElementById('termCmd1'),
+      termCursor1: document.getElementById('termCursor1'),
+      termBody: document.getElementById('termBody'),
+      pointer: document.getElementById('pointer'),
+      tooltip: document.getElementById('tooltip'),
+      scanInput: document.getElementById('scanInput'),
+      scanBtn: document.getElementById('scanBtn'),
+      proveBtn: document.getElementById('proveBtn'),
+      scanStatusMsg: document.getElementById('scanStatusMsg'),
+      statCandidates: document.getElementById('statCandidates'),
+      statCritical: document.getElementById('statCritical'),
+      statProven: document.getElementById('statProven'),
+      findingsTbody: document.getElementById('findingsTbody'),
+      fixModal: document.getElementById('fixModal'),
+      applyFixBtn: document.getElementById('applyFixBtn'),
+      playPauseBtn: document.getElementById('playPauseBtn'),
+      playIcon: document.getElementById('playIcon'),
+      pauseIcon: document.getElementById('pauseIcon'),
+      timelineFill: document.getElementById('timelineFill'),
+    };
+
+    const mockFindings = [
+      { sev: 'critical', rule: 'FR-PERM-001', file: 'apps/custom_erp_app/api/orders.py:42', desc: 'Unauthenticated mutating RPC endpoint lacking permission check', status: 'candidate' },
+      { sev: 'critical', rule: 'FR-SQLI-001', file: 'apps/custom_erp_app/queries/reports.py:88', desc: 'Unsanitized string interpolation in frappe.db.sql', status: 'candidate' },
+      { sev: 'high', rule: 'FR-HOOK-001', file: 'apps/custom_erp_app/controllers/invoice.py:15', desc: 'Submittable DocType controller on_submit lacking on_cancel handler', status: 'candidate' },
+      { sev: 'high', rule: 'FR-HOOK-004', file: 'apps/custom_erp_app/tasks/sync.py:31', desc: 'frappe.enqueue() dispatched in loop without deduplication key', status: 'candidate' }
+    ];
+
+    function updateAnimation(t) {
+      // Progress Bar
+      const pct = Math.min(100, (t / TOTAL_DURATION) * 100);
+      els.timelineFill.style.width = pct + '%';
+
+      // ── STAGE 1: Terminal typing & launch (0s - 5s) ──
+      if (t < 5.0) {
+        els.scene1.classList.add('active');
+        els.scene2.classList.remove('active');
+        els.pointer.style.opacity = 0;
+        hideTooltip();
+
+        const cmdText = "frapast";
+        const progress = Math.min(1, t / 1.5);
+        const chars = Math.floor(progress * cmdText.length);
+        els.termCmd1.textContent = cmdText.slice(0, chars);
+
+        if (t > 1.8 && !document.getElementById('tAsciiBlock')) {
+          renderTerminalBanner();
+        }
+      } 
+      // ── STAGE 2: Web Dashboard & Path Selection (5.0s - 10.0s) ──
+      else if (t >= 5.0 && t < 10.0) {
+        els.scene1.classList.remove('active');
+        els.scene2.classList.add('active');
+        els.fixModal.classList.remove('show');
+
+        // Move pointer to input
+        els.pointer.style.opacity = 1;
+        setPointer(68, 540); // Input box coords
+
+        showTooltip(110, 360, "1. Specify your Frappe / ERPNext custom app directory");
+
+        const fullPath = "/home/frappe/frappe-bench/apps/custom_erp_app";
+        const subT = t - 5.5;
+        if (subT > 0) {
+          const typeProg = Math.min(1, subT / 2.0);
+          const chars = Math.floor(typeProg * fullPath.length);
+          els.scanInput.value = fullPath.slice(0, chars);
+          els.scanInput.classList.add('highlighted');
+        }
+
+        // Move to Scan Button and click
+        if (t >= 8.2) {
+          setPointer(68, 760);
+          showTooltip(110, 680, "2. Run parallel static AST discovery");
+        }
+        if (t >= 9.5) {
+          els.scanBtn.classList.add('active-pulse');
+        }
+      }
+      // ── STAGE 3: Parallel AST Discovery & Streaming (10.0s - 15.5s) ──
+      else if (t >= 10.0 && t < 15.5) {
+        els.scanBtn.classList.remove('active-pulse');
+        hideTooltip();
+        els.pointer.style.opacity = 0;
+
+        const parseCount = Math.min(450, Math.floor(((t - 10.0) / 3.0) * 450));
+        els.scanStatusMsg.textContent = `Parsing files… ${parseCount} / 450 (100%)`;
+
+        // Populate table rows
+        if (els.findingsTbody.children.length === 0) {
+          renderTableRows();
+        }
+
+        // Animate counter
+        const candNum = Math.min(18, Math.floor(((t - 10.5) / 2.0) * 18));
+        const critNum = Math.min(3, Math.floor(((t - 11.0) / 2.0) * 3));
+        els.statCandidates.textContent = candNum;
+        els.statCritical.textContent = critNum;
+      }
+      // ── STAGE 4: Active Bench Verification & Exploit Proof (15.5s - 21.5s) ──
+      else if (t >= 15.5 && t < 21.5) {
+        els.pointer.style.opacity = 1;
+        setPointer(68, 880); // Prove All button
+        showTooltip(110, 750, "3. Synthesize & execute exploit against running bench");
+
+        if (t >= 17.0) {
+          els.proveBtn.classList.add('active-pulse');
+          els.scanStatusMsg.innerHTML = '<span style="color:#34d399;">Active verification running…</span> executing HTTP reproducer on bench :8000';
+        }
+
+        if (t >= 18.5) {
+          // Status flip to PROVEN
+          flipStatusToProven();
+          els.statProven.textContent = 2;
+        }
+      }
+      // ── STAGE 5: LibCST 1-Click Code Patch (21.5s - 28s) ──
+      else if (t >= 21.5) {
+        hideTooltip();
+        els.proveBtn.classList.remove('active-pulse');
+        els.scanStatusMsg.textContent = 'Verification complete. 2 exploits proven live.';
+
+        // Move to first row "Fix" button
+        setPointer(205, 1100);
+        showTooltip(245, 960, "4. Preview & apply LibCST automated AST patch");
+
+        if (t >= 23.0) {
+          els.fixModal.classList.add('show');
+        }
+
+        if (t >= 25.0) {
+          setPointer(495, 840); // Modal apply button
+        }
+
+        if (t >= 26.5) {
+          els.applyFixBtn.innerHTML = '✓ Patch Applied Cleanly';
+          els.applyFixBtn.style.background = '#10b981';
+        }
+      }
+    }
+
+    function renderTerminalBanner() {
+      if (document.getElementById('tAsciiBlock')) return;
+      const banner = document.createElement('div');
+      banner.id = 'tAsciiBlock';
+      banner.innerHTML = `
+<div class="t-ascii">
+ ______                        _____ _______ 
+|  ____|                /\\    / ____|__   __|
+| |__ _ __ __ _ _ __   /  \\  | (___    | |   
+|  __| '__/ _\` | '_ \\ / /\\ \\  \\___ \\   | |   
+| |  | | | (_| | |_) / ____ \\ ____) |  | |   
+|_|  |_|  \\__,_| .__/_/    \\_\\_____/   |_|   
+               | |                           
+               |_|                           
+</div>
+  <div style="font-weight:600; color:#fff;">frapAST Security Engine — v0.1.6</div>
+  <div class="t-dim">Enterprise SAST & Runtime DAST Platform for Frappe / ERPNext</div>
+
+  <div class="t-box">
+    <div>Local Dashboard   ● <span class="t-green">ONLINE</span>   http://127.0.0.1:7777</div>
+    <div>Network Host      ● <span class="t-green">READY</span>    http://127.0.0.1:7777</div>
+  </div>
+  <div class="t-dim">Environment  : Linux 6.6 (x86_64) | Python 3.12</div>
+  <div class="t-dim">Verification : Active Bench Socket Bridge (127.0.0.1:8000)</div>
+  <div style="margin-top:10px; color:#38bdf8;">✓ Launching local web dashboard...</div>
+      `;
+      els.termBody.appendChild(banner);
+      els.termCursor1.style.display = 'none';
+    }
+
+    function renderTableRows() {
+      els.findingsTbody.innerHTML = mockFindings.map((f, i) => `
+        <tr id="row-${i}" class="${i === 0 ? 'highlight-row' : ''}">
+          <td><span class="badge badge-${f.sev}">${f.sev.toUpperCase()}</span></td>
+          <td style="font-family:var(--font-mono); font-weight:600; color:#38bdf8;">${f.rule}</td>
+          <td style="font-family:var(--font-mono); font-size:12px;">${f.file}</td>
+          <td>${f.desc}</td>
+          <td><span class="badge badge-candidate" id="badge-status-${i}">CANDIDATE</span></td>
+          <td>
+            <button class="dash-btn" style="padding:4px 10px; font-size:11px; background:#1e293b; border:1px solid #334155;">
+              Fix
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function flipStatusToProven() {
+      const b0 = document.getElementById('badge-status-0');
+      const b1 = document.getElementById('badge-status-1');
+      if (b0) { b0.className = 'badge badge-proven'; b0.textContent = 'PROVEN LIVE'; }
+      if (b1) { b1.className = 'badge badge-proven'; b1.textContent = 'PROVEN LIVE'; }
+    }
+
+    function setPointer(top, left) {
+      els.pointer.style.top = top + 'px';
+      els.pointer.style.left = left + 'px';
+    }
+
+    function showTooltip(top, left, text) {
+      els.tooltip.style.top = top + 'px';
+      els.tooltip.style.left = left + 'px';
+      els.tooltip.textContent = text;
+      els.tooltip.classList.add('show');
+    }
+
+    function hideTooltip() {
+      els.tooltip.classList.remove('show');
+    }
+
+    // Main Animation Loop
+    function loop(timestamp) {
+      if (!lastStamp) lastStamp = timestamp;
+      const delta = (timestamp - lastStamp) / 1000;
+      lastStamp = timestamp;
+
+      if (isPlaying) {
+        currentTime += delta;
+        if (currentTime > TOTAL_DURATION) {
+          currentTime = 0; // Loop seamlessly
+        }
+        updateAnimation(currentTime);
+      }
+      animFrame = requestAnimationFrame(loop);
+    }
+
+    function jumpToTime(t) {
+      currentTime = t;
+      updateAnimation(currentTime);
+    }
+
+    // Controls
+    els.playPauseBtn.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      els.playIcon.style.display = isPlaying ? 'none' : 'block';
+      els.pauseIcon.style.display = isPlaying ? 'block' : 'none';
+    });
+
+    document.getElementById('timelineBar').addEventListener('click', (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickPct = (e.clientX - rect.left) / rect.width;
+      currentTime = clickPct * TOTAL_DURATION;
+      updateAnimation(currentTime);
+    });
+
+    // Start playback
+    animFrame = requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
