@@ -347,4 +347,4 @@ Contributions are welcome. To report an architectural pattern or false-positive 
 
 ## License
 
-MIT (c) 2026 Frappe Security Scanner Contributors - see [LICENSE](LICENSE).
+MIT (c) 2026 Pratheep S - see [LICENSE](LICENSE).
