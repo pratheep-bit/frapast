@@ -65,6 +65,7 @@ _local_docs/
 # Internal recording & demo files (LinkedIn video production, not for public repo)
 site/record.html
 site/demo.html
+site/showcase.html
 site/demo-bg.jpg
 
 # Raw video files (host externally, never commit)

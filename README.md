@@ -19,6 +19,10 @@ Find the vulnerability. Synthesize the reproducer. Prove it live. Ship the autof
 
 [Documentation](https://frapast.vercel.app) | [Quickstart](#quickstart) | [Industry Benchmarks](#industry-benchmarks-and-performance) | [Architecture Comparison](#architectural-comparison) | [Developer Experience](#developer-experience-dx) | [Rule Taxonomy](#rule-taxonomy) | [Interactive Dashboard](#interactive-web-dashboard)
 
+<p align="center">
+  <img src=".github/assets/cli-terminal.png" alt="frapAST CLI Terminal" width="880">
+</p>
+
 </div>
 
 ---
@@ -61,6 +65,10 @@ Evaluated against open-source enterprise Frappe codebases on macOS (Apple Silico
 ---
 
 ## Live-Bench Active Verification Case Study
+
+<p align="center">
+  <img src=".github/assets/active-verification.png" alt="frapAST Live-Bench Active Verification" width="880">
+</p>
 
 frapAST includes live integration testing against local and staging Frappe benches. The Tier 2 proof engine generates and executes direct HTTP RPC reproducers to verify whether a static candidate is exploitable over the wire:
 
@@ -317,6 +325,10 @@ Proof Basis:
 ---
 
 ## Interactive Web Dashboard
+
+<p align="center">
+  <img src=".github/assets/dashboard-overview.png" alt="frapAST Interactive Web Dashboard" width="880">
+</p>
 
 Launch the local web dashboard:
 ```bash
