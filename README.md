@@ -272,46 +272,24 @@ Proof Basis:
 
 ## How It Works
 
-```
-+-----------------+   +-----------------+   +-----------------+
-|  Schema Index   |   |   Hook Index    |   |  Python AST     |
-|  (DocType JSON) |   |  (hooks.py AST) |   |  (Source Files) |
-+--------+--------+   +--------+--------+   +--------+--------+
-         |                     |                     |
-         +---------------------+---------------------+
-                               |
-                      +--------v--------+
-                      |   Call Graph    |  5 Edge Types:
-                      |                 |  - direct_call
-                      |                 |  - string_dispatch (frappe.call)
-                      |                 |  - hook_dispatch (doc_events)
-                      |                 |  - dynamic_method (get_doc.method)
-                      |                 |  - report_entry (report.execute)
-                      +--------+--------+
-                               |
-                      +--------v--------+
-                      |   Rule Engine   |  28 Active Detectors
-                      +--------+--------+
-                               |
-                      +--------v--------+
-                      | Severity Matrix |  Multi-Dimensional Composite Scoring
-                      +--------+--------+
-                               |
-            +------------------+------------------+
-            |                                     |
-   +--------v-------+                    +--------v-------+
-   |  CLI / SARIF   |                    | Web Dashboard  |
-   +--------+-------+                    +--------+-------+
-            |                                     |
-            +------------------+------------------+
-                               |
-                      +--------v--------+
-                      |  Proof Engine   |  Tier 0 (Static) -> Tier 1 (AST) -> Tier 2 (HTTP/RPC)
-                      +--------+--------+
-                               |
-                      +--------v--------+
-                      | Autofix Engine  |  CLI AST Code Patch Generator and Diff Viewer
-                      +-----------------+
+```mermaid
+flowchart TD
+    subgraph Inputs ["Input Analysis Layer"]
+        A["Schema Index<br/><code>DocType JSON</code>"]
+        B["Hook Index<br/><code>hooks.py AST</code>"]
+        C["Python AST<br/><code>Source Files</code>"]
+    end
+
+    A & B & C --> D["Call Graph Engine<br/><code>5 Frappe Edge Types</code>"]
+    
+    D --> E["Rule Engine<br/><code>28 Active Detectors</code>"]
+    E --> F["Severity Matrix<br/><code>Multi-Dimensional Composite Scoring</code>"]
+
+    F --> G["CLI / SARIF Exporter"]
+    F --> H["Web Dashboard<br/><code>Local UI</code>"]
+
+    G & H --> I["Proof Engine<br/><code>Tier 0 (Static) &rarr; Tier 1 (AST) &rarr; Tier 2 (HTTP/RPC)</code>"]
+    I --> J["Autofix Engine<br/><code>CLI AST Code Patch Generator & Diff</code>"]
 ```
 
 1. **Schema and Hook Indexing**: Parses all DocType JSON definitions (`fields`, `permissions`, `is_submittable`, `istable`) and `hooks.py` dispatch trees.
