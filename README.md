@@ -264,8 +264,6 @@ Proof Basis:
 | `FR-HOOK-006` | Low | Bare `except:` block swallowing framework execution signals and exceptions | Tier 1 | Validated |
 | `FR-HOOK-007` | Low | Mutable default argument (`[]`, `{}`) in function definition signature | Tier 1 | Validated |
 | `FR-DATA-001` | Low | DocType field reference accessing a non-existent schema fieldname | Tier 1 | Validated |
-| `FR-DATA-002` | Low | Missing `db.commit()` after asynchronous background processing state writes | Tier 1 | Validated |
-| `FR-DATA-003` | Low | Raw database delete on parent document leaving orphan child table rows | Static | Validated |
 | `FR-I18N-001` | Low | Hardcoded user-facing message string in `msgprint` or `throw` without `frappe._()` | Tier 1 | Validated |
 
 ---
