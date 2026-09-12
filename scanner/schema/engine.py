@@ -27,12 +27,15 @@ def discover_doctype_json(app_roots: str | Path | list[str | Path] | tuple[str |
 				d for d in dirs
 				if d not in SKIP_DIRS and not (d.startswith(".") and d != ".")
 			]
-			parent_name = Path(dirpath).name
+			parent_name = os.path.basename(dirpath)
+			dir_path_obj: Path | None = None
 			for fname in sorted(filenames):
 				if fname.endswith(".json"):
 					stem = fname[:-5]
 					if parent_name == stem:
-						files.append(SourceFile(path=Path(dirpath) / fname, root=root))
+						if dir_path_obj is None:
+							dir_path_obj = Path(dirpath)
+						files.append(SourceFile(path=dir_path_obj / fname, root=root))
 	return files
 
 
