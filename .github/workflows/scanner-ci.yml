@@ -10,6 +10,10 @@ permissions:
   contents: read
   security-events: write   # required for SARIF upload to Code Scanning
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Tests (Python ${{ matrix.python-version }})
