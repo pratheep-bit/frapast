@@ -71,7 +71,7 @@ def is_suppressed(
     """Return True if the candidate has an inline ``# frapast: ignore`` suppression.
 
     Checks the same line as the finding and the immediately preceding line, which is
-    the standard convention from Bandit/ESLint/ruff.
+    the standard convention from popular linters and static analyzers.
 
     Parameters
     ----------

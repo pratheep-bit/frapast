@@ -90,7 +90,7 @@ frapAST includes live integration testing against local and staging Frappe bench
 
 ## Architectural Comparison
 
-| Capability | Generic SAST (Bandit / SonarQube) | Cloud Static Scanners | frapAST |
+| Capability | Generic SAST Tools | Cloud Static Scanners | frapAST |
 |---|:---:|:---:|:---:|
 | Frappe Framework Modeling | None (generic Python only) | Partial regex matching | Full (DocType JSONs, `hooks.py`, ORM, DocEvents, Reports) |
 | Active Proof Verification | None (static alerts only) | None (static alerts only) | Two-Tier Active Proof (synthesizes live HTTP reproducers) |
