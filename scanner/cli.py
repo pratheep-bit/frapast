@@ -503,6 +503,10 @@ def _build_parser() -> argparse.ArgumentParser:
   frapast scan /path/to/erpnext
   frapast scan /path/to/frappe-app --severity --format json
   frapast scan --config scan_config.yaml
+
+Exit Codes:
+  0  Success (clean scan, findings below failure threshold, or command succeeded)
+  1  Execution error, invalid configuration, or unhandled exception
 """,
 	)
 	parser.add_argument("--version", action="version", version=_get_version_string())

@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Tests](https://img.shields.io/badge/tests-306%20passed-green.svg)](#test-suite-and-quality-assurance)
-[![Rules](https://img.shields.io/badge/detectors-33%20active-blue.svg)](#rule-taxonomy)
+[![Rules](https://img.shields.io/badge/detectors-28%20active-blue.svg)](#rule-taxonomy)
 [![Benchmark Speed](https://img.shields.io/badge/speed-16%2C700%2B%20files%2Fsec-green.svg)](#industry-benchmarks-and-performance)
 [![Privacy](https://img.shields.io/badge/privacy-100%25%20Local%20and%20Airgapped-blue.svg)](#data-privacy-and-air-gapped-execution)
 
@@ -90,7 +90,7 @@ frapAST includes live integration testing against local and staging Frappe bench
 
 ## Architectural Comparison
 
-| Capability | Generic SAST (Bandit / SonarQube) | Cloud Static Scanners | frapAST |
+| Capability | Generic SAST Tools | Cloud Static Scanners | frapAST |
 |---|:---:|:---:|:---:|
 | Frappe Framework Modeling | None (generic Python only) | Partial regex matching | Full (DocType JSONs, `hooks.py`, ORM, DocEvents, Reports) |
 | Active Proof Verification | None (static alerts only) | None (static alerts only) | Two-Tier Active Proof (synthesizes live HTTP reproducers) |
