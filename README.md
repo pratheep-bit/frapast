@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Tests](https://img.shields.io/badge/tests-306%20passed-green.svg)](#test-suite-and-quality-assurance)
-[![Rules](https://img.shields.io/badge/detectors-33%20active-blue.svg)](#rule-taxonomy)
+[![Rules](https://img.shields.io/badge/detectors-28%20active-blue.svg)](#rule-taxonomy)
 [![Benchmark Speed](https://img.shields.io/badge/speed-16%2C700%2B%20files%2Fsec-green.svg)](#industry-benchmarks-and-performance)
 [![Privacy](https://img.shields.io/badge/privacy-100%25%20Local%20and%20Airgapped-blue.svg)](#data-privacy-and-air-gapped-execution)
 
