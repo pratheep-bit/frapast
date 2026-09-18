@@ -1,25 +1,27 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="scanner/web/static/logo.svg">
-  <img src="scanner/web/static/logo-light.svg" alt="frapAST Logo" width="96" height="96">
-</picture>
+<img src="scanner/web/static/logo.png" alt="frapAST Logo" width="96" height="96" style="border-radius: 12px;">
 
 # frapAST
 
 ### Runtime-Proven Static Security and Performance Engine for Frappe and ERPNext
 
-[![PyPI version](https://img.shields.io/badge/pypi-v0.1.0-blue.svg)](https://pypi.org/project/frapast/)
+[![PyPI version](https://img.shields.io/pypi/v/frapast.svg)](https://pypi.org/project/frapast/)
+[![Documentation](https://img.shields.io/badge/docs-frapast.vercel.app-blue.svg)](https://frapast.vercel.app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-287%20passed-green.svg)](#test-suite-and-quality-assurance)
+[![Tests](https://img.shields.io/badge/tests-306%20passed-green.svg)](#test-suite-and-quality-assurance)
 [![Rules](https://img.shields.io/badge/detectors-28%20active-blue.svg)](#rule-taxonomy)
 [![Benchmark Speed](https://img.shields.io/badge/speed-16%2C700%2B%20files%2Fsec-green.svg)](#industry-benchmarks-and-performance)
 [![Privacy](https://img.shields.io/badge/privacy-100%25%20Local%20and%20Airgapped-blue.svg)](#data-privacy-and-air-gapped-execution)
 
 Find the vulnerability. Synthesize the reproducer. Prove it live. Ship the autofix.
 
-[Quickstart](#quickstart) | [Industry Benchmarks](#industry-benchmarks-and-performance) | [Architecture Comparison](#architectural-comparison) | [Developer Experience](#developer-experience-dx) | [Rule Taxonomy](#rule-taxonomy) | [Engine Architecture](#how-it-works) | [Web Dashboard](#interactive-web-dashboard)
+[Documentation](https://frapast.vercel.app) | [Quickstart](#quickstart) | [Industry Benchmarks](#industry-benchmarks-and-performance) | [Architecture Comparison](#architectural-comparison) | [Developer Experience](#developer-experience-dx) | [Rule Taxonomy](#rule-taxonomy) | [Interactive Dashboard](#interactive-web-dashboard)
+
+<p align="center">
+  <img src=".github/assets/cli-terminal.png" alt="frapAST CLI Terminal" width="880">
+</p>
 
 </div>
 
@@ -64,6 +66,10 @@ Evaluated against open-source enterprise Frappe codebases on macOS (Apple Silico
 
 ## Live-Bench Active Verification Case Study
 
+<p align="center">
+  <img src=".github/assets/active-verification.png" alt="frapAST Live-Bench Active Verification" width="880">
+</p>
+
 frapAST includes live integration testing against local and staging Frappe benches. The Tier 2 proof engine generates and executes direct HTTP RPC reproducers to verify whether a static candidate is exploitable over the wire:
 
 * **Unprotected RPC Endpoint (`frappe.client.get_time_zone`)**:
@@ -84,7 +90,7 @@ frapAST includes live integration testing against local and staging Frappe bench
 
 ## Architectural Comparison
 
-| Capability | Generic SAST (Bandit / SonarQube) | Cloud Static Scanners | frapAST |
+| Capability | Generic SAST Tools | Cloud Static Scanners | frapAST |
 |---|:---:|:---:|:---:|
 | Frappe Framework Modeling | None (generic Python only) | Partial regex matching | Full (DocType JSONs, `hooks.py`, ORM, DocEvents, Reports) |
 | Active Proof Verification | None (static alerts only) | None (static alerts only) | Two-Tier Active Proof (synthesizes live HTTP reproducers) |
@@ -169,7 +175,7 @@ bench frapast check --port 8000
 ```
 
 ### 2. Reusable GitHub Action
-Add `.github/workflows/frapast.yml` to your repository for automated PR security checks and SARIF code scanning annotations:
+Add `.github/workflows/frapast.yml` to your repository for automated PR security checks and SARIF Code Scanning alerts:
 
 ```yaml
 name: frapAST Security Audit
@@ -187,7 +193,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run frapAST Audit
-        uses: pratheep-bit/frapast@main
+        uses: pratheep-bit/frapast@v1.0.0
         with:
           repo-path: '.'
           fail-on: 'critical'
@@ -258,54 +264,30 @@ Proof Basis:
 | `FR-HOOK-006` | Low | Bare `except:` block swallowing framework execution signals and exceptions | Tier 1 | Validated |
 | `FR-HOOK-007` | Low | Mutable default argument (`[]`, `{}`) in function definition signature | Tier 1 | Validated |
 | `FR-DATA-001` | Low | DocType field reference accessing a non-existent schema fieldname | Tier 1 | Validated |
-| `FR-DATA-002` | Low | Missing `db.commit()` after asynchronous background processing state writes | Tier 1 | Validated |
-| `FR-DATA-003` | Low | Raw database delete on parent document leaving orphan child table rows | Static | Validated |
 | `FR-I18N-001` | Low | Hardcoded user-facing message string in `msgprint` or `throw` without `frappe._()` | Tier 1 | Validated |
 
 ---
 
 ## How It Works
 
-```
-+-----------------+   +-----------------+   +-----------------+
-|  Schema Index   |   |   Hook Index    |   |  Python AST     |
-|  (DocType JSON) |   |  (hooks.py AST) |   |  (Source Files) |
-+--------+--------+   +--------+--------+   +--------+--------+
-         |                     |                     |
-         +---------------------+---------------------+
-                               |
-                      +--------v--------+
-                      |   Call Graph    |  5 Edge Types:
-                      |                 |  - direct_call
-                      |                 |  - string_dispatch (frappe.call)
-                      |                 |  - hook_dispatch (doc_events)
-                      |                 |  - dynamic_method (get_doc.method)
-                      |                 |  - report_entry (report.execute)
-                      +--------+--------+
-                               |
-                      +--------v--------+
-                      |   Rule Engine   |  28 Active Detectors
-                      +--------+--------+
-                               |
-                      +--------v--------+
-                      | Severity Matrix |  Multi-Dimensional Composite Scoring
-                      +--------+--------+
-                               |
-            +------------------+------------------+
-            |                                     |
-   +--------v-------+                    +--------v-------+
-   |  CLI / SARIF   |                    | Web Dashboard  |
-   +--------+-------+                    +--------+-------+
-            |                                     |
-            +------------------+------------------+
-                               |
-                      +--------v--------+
-                      |  Proof Engine   |  Tier 0 (Static) -> Tier 1 (AST) -> Tier 2 (HTTP/RPC)
-                      +--------+--------+
-                               |
-                      +--------v--------+
-                      | Autofix Engine  |  CLI AST Code Patch Generator and Diff Viewer
-                      +-----------------+
+```mermaid
+flowchart TD
+    subgraph Inputs ["Input Analysis Layer"]
+        A["Schema Index<br/><code>DocType JSON</code>"]
+        B["Hook Index<br/><code>hooks.py AST</code>"]
+        C["Python AST<br/><code>Source Files</code>"]
+    end
+
+    A & B & C --> D["Call Graph Engine<br/><code>5 Frappe Edge Types</code>"]
+    
+    D --> E["Rule Engine<br/><code>28 Active Detectors</code>"]
+    E --> F["Severity Matrix<br/><code>Multi-Dimensional Composite Scoring</code>"]
+
+    F --> G["CLI / SARIF Exporter"]
+    F --> H["Web Dashboard<br/><code>Local UI</code>"]
+
+    G & H --> I["Proof Engine<br/><code>Tier 0 (Static) &rarr; Tier 1 (AST) &rarr; Tier 2 (HTTP/RPC)</code>"]
+    I --> J["Autofix Engine<br/><code>CLI AST Code Patch Generator & Diff</code>"]
 ```
 
 1. **Schema and Hook Indexing**: Parses all DocType JSON definitions (`fields`, `permissions`, `is_submittable`, `istable`) and `hooks.py` dispatch trees.
@@ -319,6 +301,10 @@ Proof Basis:
 ---
 
 ## Interactive Web Dashboard
+
+<p align="center">
+  <img src=".github/assets/dashboard-overview.png" alt="frapAST Interactive Web Dashboard" width="880">
+</p>
 
 Launch the local web dashboard:
 ```bash
@@ -341,7 +327,7 @@ The codebase includes an automated test suite:
 pytest -v
 ```
 
-- **287 passed tests** covering AST visitors, call graph resolution, rule detectors, server security, reproducer synthesis, adversarial suppression handling, and autofix patches.
+- **293 passed tests** covering AST visitors, call graph resolution, rule detectors, server security, reproducer synthesis, adversarial suppression handling, and autofix patches.
 - **Security hardening**: Hardened shell script generation (`shlex.quote`), path traversal directory containment, and localhost origin gating.
 
 ---
@@ -359,4 +345,4 @@ Contributions are welcome. To report an architectural pattern or false-positive 
 
 ## License
 
-MIT (c) 2026 Frappe Security Scanner Contributors - see [LICENSE](LICENSE).
+MIT (c) 2026 Pratheep S - see [LICENSE](LICENSE).

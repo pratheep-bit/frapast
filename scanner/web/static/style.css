@@ -16,9 +16,12 @@
       --header-bg: #ffffff;
       --overlay-bg: rgba(15, 23, 42, 0.48);
       --skeleton-bg: #eef1f5;
+      --bg-surface-elevated: #f8fafc;
+      --bg-hover: #eff6ff;
 
       /* Borders */
       --border: #e2e8f0;
+      --border-subtle: #f1f5f9;
       --border-dark: #cbd5e1;
       --border-focus: #2490ef;
 
@@ -89,7 +92,12 @@
       --z-drawer: 200;
       --z-toast: 300;
 
+      /* Typography tokens */
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
       /* Type scale */
+      --fs-xxs: 10px;
       --fs-xs: 11px;
       --fs-sm: 12px;
       --fs-base: 13px;
@@ -112,7 +120,7 @@
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: var(--font-sans);
       background: var(--bg);
       color: var(--text-main);
       min-height: 100vh;
@@ -305,6 +313,60 @@
     .btn-scan:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+
+    /* ---- Diff scan mode toggle pill ---- */
+    .diff-mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 4px 10px;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .diff-mode-toggle:hover {
+      border-color: #f59e0b;
+      color: #f59e0b;
+    }
+
+    .diff-mode-toggle.active {
+      background: rgba(245, 158, 11, 0.12);
+      color: #f59e0b;
+      border-color: #f59e0b;
+    }
+
+    /* ---- Diff ref input wrapper ---- */
+    .diff-ref-wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 6px;
+      border-left: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .diff-ref-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-size: var(--fs-sm);
+      font-family: var(--font-mono, monospace);
+      width: 90px;
+      min-width: 60px;
+    }
+
+    .diff-ref-input::placeholder {
+      color: var(--text-light);
     }
 
     .scan-status-badge {
@@ -774,9 +836,6 @@
     }
 
     /* =====================================================================
-     EXPANDABLE CODE DROPDOWN ROW
-     ===================================================================== */
-    /* =====================================================================
      EXPANDABLE CODE DROPDOWN ROW — CLEAN WHITE THEME
      ===================================================================== */
     tbody tr.code-dropdown-row {
@@ -1181,9 +1240,9 @@
     }
 
     .btn-secondary:hover:not(:disabled) {
-      border-color: var(--red-text);
-      color: var(--red-text);
-      background: var(--red-bg);
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-soft);
     }
 
     .btn-secondary:disabled {

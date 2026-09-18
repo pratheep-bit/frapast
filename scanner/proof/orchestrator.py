@@ -3,7 +3,9 @@ from __future__ import annotations
 import os
 import re
 import shlex
+import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -618,6 +620,8 @@ class ProofOrchestrator:
         self.bench_password = bench_password.strip()
         self.bench_site_name = bench_site_name.strip()
         self._bench_runner: object | None = None
+        self._auto_detect_attempted: bool = False
+        self._reproducers_cache: dict[str, Path] | None = None
 
     def prune_old_reproducers(self, max_scripts: int = 1000) -> None:
         """Removes the oldest cached reproducer scripts if count exceeds max_scripts."""
@@ -632,19 +636,15 @@ class ProofOrchestrator:
         except Exception:
             pass
 
-    def discover_reproducers(self) -> dict[str, Path]:
-        """Discover reproducer scripts in the reproducers directory.
+    def discover_reproducers(self, force: bool = False) -> dict[str, Path]:
+        if not force and self._reproducers_cache is not None:
+            return self._reproducers_cache
 
-        Reads a .version sidecar file next to each FR-*.sh script. If the
-        sidecar is absent or its version does not match the current
-        SYNTHESIS_VERSION (from http_synthesis.py), the stale script is
-        deleted and excluded from the returned map so prove_candidate()
-        will resynthesize it with up-to-date (hardened) logic.
-        """
         from scanner.proof.http_synthesis import SYNTHESIS_VERSION
 
         reproducers: dict[str, Path] = {}
         if not self.reproducers_dir.is_dir():
+            self._reproducers_cache = reproducers
             return reproducers
         for path in sorted(self.reproducers_dir.glob("FR-*.sh")):
             finding_id = path.stem
@@ -663,6 +663,7 @@ class ProofOrchestrator:
                 path.unlink(missing_ok=True)
                 continue
             reproducers[finding_id] = path
+        self._reproducers_cache = reproducers
         return reproducers
 
     def discover_unproven_findings(self) -> list[tuple[str, Path]]:
@@ -736,13 +737,44 @@ class ProofOrchestrator:
 
         start = time.monotonic()
         try:
-            res = subprocess.run(
-                ["bash", str(reproducer_path)],
-                cwd=self.workspace_root,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_seconds,
-            )
+            # On Windows or when bash is not available in PATH, execute the embedded
+            # Python script directly via sys.executable to eliminate bash process
+            # startup latency (200-400ms per finding) and avoid WinError 2.
+            use_bash = (sys.platform != "win32") and bool(shutil.which("bash"))
+            if use_bash:
+                res = subprocess.run(
+                    ["bash", str(reproducer_path)],
+                    cwd=self.workspace_root,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout_seconds,
+                )
+            else:
+                script_text = reproducer_path.read_text(encoding="utf-8")
+                env = dict(os.environ)
+                py_lines: list[str] = []
+                in_py = False
+                for line in script_text.splitlines():
+                    if "export " in line and "=" in line and not in_py:
+                        parts = line.strip().split("export ", 1)[1].split("=", 1)
+                        k = parts[0].strip()
+                        v = parts[1].strip().strip("'\"")
+                        env[k] = v
+                    elif "<<'PYEOF'" in line or "<<PYEOF" in line:
+                        in_py = True
+                    elif line.strip() == "PYEOF":
+                        in_py = False
+                    elif in_py:
+                        py_lines.append(line)
+                code = "\n".join(py_lines) if py_lines else script_text
+                res = subprocess.run(
+                    [sys.executable, "-c", code],
+                    cwd=self.workspace_root,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout_seconds,
+                )
             duration = time.monotonic() - start
             if res.returncode == 0:
                 status = ProofStatus.PASSED
@@ -774,7 +806,8 @@ class ProofOrchestrator:
             )
 
     def _bench_configured(self) -> bool:
-        if not self.bench_url:
+        if not self.bench_url and not self._auto_detect_attempted:
+            self._auto_detect_attempted = True
             env_url = os.environ.get("FRAPAST_BENCH_URL")
             if env_url:
                 self.bench_url = env_url

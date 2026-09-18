@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "frapast"
-version = "0.1.0"
+version = "1.0.0"
 description = "Runtime-Proven Static Security Analysis Engine for Frappe and ERPNext"
 readme = "README.md"
 authors = [
@@ -13,7 +13,7 @@ authors = [
 license = "MIT"
 keywords = ["frappe", "erpnext", "security", "sast", "static-analysis", "vulnerability-scanner"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Topic :: Security",
     "Topic :: Software Development :: Quality Assurance",
@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
 ]
 requires-python = ">=3.10"
@@ -39,10 +40,11 @@ frapast = "scanner.cli:main"
 frapast = "scanner.bench_commands:commands"
 
 [project.urls]
-Homepage    = "https://github.com/pratheep-bit/frapast"
-Repository  = "https://github.com/pratheep-bit/frapast"
-Issues      = "https://github.com/pratheep-bit/frapast/issues"
-Security    = "https://github.com/pratheep-bit/frapast/security/advisories"
+Homepage      = "https://github.com/pratheep-bit/frapast"
+Documentation = "https://frapast.vercel.app"
+Repository    = "https://github.com/pratheep-bit/frapast"
+Issues        = "https://github.com/pratheep-bit/frapast/issues"
+Security      = "https://github.com/pratheep-bit/frapast/security/advisories"
 Changelog   = "https://github.com/pratheep-bit/frapast/releases"
 
 [project.optional-dependencies]

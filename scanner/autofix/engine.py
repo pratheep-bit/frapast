@@ -75,11 +75,25 @@ def fix_hook_001(file_path: Path, source: str, finding_data: dict) -> FixPatch |
                 class_indent = match.group(1)
                 break
 
+    # Derive the method body indent using the same style as class_indent.
+    # If class_indent consists entirely of tabs, one additional tab is the
+    # correct body indent.  If it uses spaces, add one indent unit (4 spaces
+    # unless the existing indent width is detected as 2).
+    # This prevents mixing tabs and spaces, which raises TabError in CPython.
+    if class_indent and class_indent[0] == "\t":
+        # Tab-indented file: body is one more tab than the method line.
+        body_indent = class_indent + "\t"
+    else:
+        # Space-indented file: detect the per-level width (2 or 4 spaces).
+        indent_len = len(class_indent) if class_indent else 4
+        unit = 2 if indent_len % 2 == 0 and indent_len % 4 != 0 else 4
+        body_indent = class_indent + (" " * unit)
+
     cancel_method_lines = [
         "\n",
         f"{class_indent}def on_cancel(self):\n",
-        f"{class_indent}    # Automatically generated rollback handler by frapAST\n",
-        f"{class_indent}    pass\n",
+        f"{body_indent}# Automatically generated rollback handler by frapAST\n",
+        f"{body_indent}pass\n",
     ]
 
     # Insert after the last statement in the class
@@ -169,8 +183,20 @@ def fix_hook_006(file_path: Path, source: str, finding_data: dict) -> FixPatch |
     if not target_line or target_line > len(lines):
         return None
 
-    orig_line = lines[target_line - 1]
-    # Match bare except: with optional whitespace
+    # Match bare except: with optional whitespace, searching nearby lines if line numbers shifted
+    found_idx = None
+    if target_line <= len(lines) and re.match(r"^(\s*)except\s*:\s*$", lines[target_line - 1]):
+        found_idx = target_line - 1
+    else:
+        for idx in range(max(0, target_line - 10), min(len(lines), target_line + 10)):
+            if re.match(r"^(\s*)except\s*:\s*$", lines[idx]):
+                found_idx = idx
+                break
+
+    if found_idx is None:
+        return None
+
+    orig_line = lines[found_idx]
     match = re.match(r"^(\s*)except\s*:\s*$", orig_line)
     if not match:
         return None
@@ -179,7 +205,7 @@ def fix_hook_006(file_path: Path, source: str, finding_data: dict) -> FixPatch |
     modified_line = f"{indent}except Exception:\n"
 
     new_lines = list(lines)
-    new_lines[target_line - 1] = modified_line
+    new_lines[found_idx] = modified_line
     modified_source = "".join(new_lines)
     diff = _generate_diff(file_path, source, modified_source)
 
@@ -270,7 +296,7 @@ class FixEngine:
     def __init__(self, workspace_root: Path):
         self.workspace_root = workspace_root.resolve()
 
-    def generate_patch(self, finding: dict) -> FixPatch | None:
+    def generate_patch(self, finding: dict, current_source: str | None = None) -> FixPatch | None:
         """Synthesize a patch for a single finding."""
         rule_id = str(finding.get("rule_id", ""))
         rel_file = str(finding.get("file", ""))
@@ -286,22 +312,39 @@ class FixEngine:
             return None
 
         try:
-            source = file_path.read_text(encoding="utf-8")
+            source = current_source if current_source is not None else file_path.read_text(encoding="utf-8")
         except Exception:
             return None
 
         return fixer(file_path, source, finding)
 
     def generate_patches(self, findings: list[dict], rule_filter: str | None = None) -> list[FixPatch]:
-        """Synthesize patches for all eligible findings."""
+        """Synthesize patches for all eligible findings, handling multiple fixes per file progressively."""
         patches: list[FixPatch] = []
+        # Group findings by resolved file path
+        by_file: dict[Path, list[dict]] = {}
         for f in findings:
             r_id = f.get("rule_id", "")
             if rule_filter and r_id != rule_filter:
                 continue
-            patch = self.generate_patch(f)
-            if patch is not None:
-                patches.append(patch)
+            rel_file = str(f.get("file", ""))
+            if not rel_file:
+                continue
+            fpath = (self.workspace_root / rel_file).resolve()
+            if not fpath.is_file():
+                continue
+            by_file.setdefault(fpath, []).append(f)
+
+        for fpath, file_findings in by_file.items():
+            try:
+                curr_source = fpath.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            for f in file_findings:
+                patch = self.generate_patch(f, current_source=curr_source)
+                if patch is not None:
+                    patches.append(patch)
+                    curr_source = patch.modified_source
         return patches
 
     def apply_patch(self, patch: FixPatch) -> bool:
@@ -311,3 +354,19 @@ class FixEngine:
             return True
         except Exception:
             return False
+
+    def apply_patches(self, patches: list[FixPatch]) -> int:
+        """Atomically apply a collection of patches grouped by file."""
+        by_file: dict[Path, list[FixPatch]] = {}
+        for p in patches:
+            by_file.setdefault(p.file_path, []).append(p)
+
+        success = 0
+        for fpath, file_patches in by_file.items():
+            if not file_patches:
+                continue
+            last_patch = file_patches[-1]
+            if self.apply_patch(last_patch):
+                success += len(file_patches)
+        return success
+

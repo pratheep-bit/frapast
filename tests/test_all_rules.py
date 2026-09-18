@@ -19,7 +19,7 @@ class TestAllRulesCoverage(unittest.TestCase):
 
 	def test_rules_registry_integrity(self):
 		from scanner.rules.engine import ALL_RULES, RENAMED_TAXONOMY
-		self.assertGreaterEqual(len(ALL_RULES), 20)
+		self.assertEqual(len(ALL_RULES), 28)
 		for rule in ALL_RULES:
 			self.assertTrue(callable(rule))
 		# Taxonomy consistency assertion passes at import time

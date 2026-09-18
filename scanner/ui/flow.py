@@ -276,11 +276,24 @@ def post_proof_menu(
         "exit": "q", "quit": "q", "e": "q",
     })
 
-    action_key = mapping.get(raw, raw)
+    # Direct bug number shortcuts: "v 1", "view b1", "b1", "1", etc.
+    target_bug: int | None = None
+    if raw.startswith("v ") or raw.startswith("view "):
+        rem = raw.split(None, 1)[1].strip().lstrip("bBvV")
+        if rem.isdigit():
+            target_bug = int(rem)
+    elif raw.startswith("b") and raw[1:].isdigit():
+        target_bug = int(raw[1:])
+    elif raw.isdigit() and len(raw) <= 4:
+        cand_num = int(raw)
+        if 1 <= cand_num <= len(candidates):
+            target_bug = cand_num
 
-    if action_key == "v":
-        _handle_view_bug(repo, candidates)
+    if target_bug is not None or raw in ("v", "view", "bug"):
+        _handle_view_bug(repo, candidates, initial_idx=target_bug)
         return post_proof_menu(repo, candidates, summary, web_available=web_available)
+
+    action_key = mapping.get(raw, raw)
 
     if action_key == "j":
         _handle_export_json(repo, candidates)
@@ -298,7 +311,11 @@ def post_proof_menu(
     if action_key == "w" and web_available:
         return "open_web"
 
-    return "exit"
+    if action_key in ("q", "exit", "quit"):
+        return "exit"
+
+    console.print(f"[muted]Unrecognized option '{raw}'. Enter 'v 1' to view bug #1, or 'q' to exit.[/muted]\n")
+    return post_proof_menu(repo, candidates, summary, web_available=web_available)
 
 
 # ---------------------------------------------------------------------------
@@ -306,9 +323,16 @@ def post_proof_menu(
 # ---------------------------------------------------------------------------
 
 
-def _handle_view_bug(repo: Path, candidates: list[dict]) -> None:
+def _handle_view_bug(repo: Path, candidates: list[dict], initial_idx: int | None = None) -> None:
     from scanner.ui.results import candidate_score, render_code_snippet
     sorted_cands = sorted(candidates, key=candidate_score, reverse=True)
+    if initial_idx is not None:
+        if 1 <= initial_idx <= len(sorted_cands):
+            render_code_snippet(repo, sorted_cands[initial_idx - 1], bug_id=initial_idx)
+        else:
+            console.print(f"[muted]No bug #{initial_idx} (available: 1 – {len(sorted_cands)}).[/muted]\n")
+        return
+
     console.print(f"[muted]Enter bug number (1 – {len(sorted_cands)}), or press Enter to cancel:[/muted]")
     try:
         raw = input("  Bug # ❯ ").strip().lstrip("bBvV")
@@ -319,7 +343,7 @@ def _handle_view_bug(repo: Path, candidates: list[dict]) -> None:
         if 1 <= idx <= len(sorted_cands):
             render_code_snippet(repo, sorted_cands[idx - 1], bug_id=idx)
         else:
-            console.print(f"[muted]No bug #{idx}.[/muted]")
+            console.print(f"[muted]No bug #{idx}.[/muted]\n")
 
 
 def _handle_export_json(repo: Path, candidates: list[dict]) -> None:

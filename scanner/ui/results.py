@@ -95,12 +95,14 @@ def render_results(
 	num_files: int,
 	elapsed: float,
 	limit: int = 20,
+	num_skipped: int = 0,
 ) -> None:
+	skip_note = f" (skipped {num_skipped} in .git/node_modules/tmp/etc)" if num_skipped > 0 else ""
 	if not candidates:
 		console.print(
 			Panel(
 				f"[success]✓ 0 candidates found[/success]  ·  "
-				f"scanned [bold]{num_files}[/bold] files in [bold]{elapsed:.2f}s[/bold]",
+				f"scanned [bold]{num_files}[/bold] files{skip_note} in [bold]{elapsed:.2f}s[/bold]",
 				border_style="success",
 				padding=(0, 2),
 			)
@@ -120,9 +122,9 @@ def render_results(
 	table.add_column("#", style="bold yellow", width=5)
 	table.add_column("Status", width=14)
 	table.add_column("Severity", width=12)
-	table.add_column("Rule", style="bold")
+	table.add_column("Rule", style="bold", no_wrap=True, min_width=14)
 	table.add_column("Location", style="info")
-	table.add_column("Function")
+	table.add_column("Function", no_wrap=True)
 	table.add_column("Evidence", style="muted", ratio=2)
 
 	# Reset every candidate's display id before reassigning: without
@@ -192,8 +194,11 @@ def render_results(
 	stats = "  ·  ".join(stat_bits) if stat_bits else "no severity data"
 
 	footer = Text.from_markup(
-		f"[bold]{len(candidates)}[/bold] candidates across [bold]{num_files}[/bold] files "
+		f"[bold]{len(candidates)}[/bold] candidates across [bold]{num_files}[/bold] files{skip_note} "
 		f"in [bold]{elapsed:.2f}s[/bold]  —  {stats}"
+	)
+	footer.append(
+		"\n[dim]Severity number = priority score (privilege × impact × blast radius, plus proof-tier bonus) — higher runs first.[/dim]"
 	)
 	footer.append("\n[muted]Tip: Type 'v 1' or 'view 1' to view the code context snippet for bug b1[/muted]")
 	if limit > 0 and len(candidates) > limit:
