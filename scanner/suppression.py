@@ -65,7 +65,7 @@ def _parse_suppress_comment(line: str) -> set[str] | None:
 
 
 def is_suppressed(
-    candidate: Candidate,
+    candidate: Candidate | dict,
     source_lines: dict[str, list[str]],
 ) -> bool:
     """Return True if the candidate has an inline ``# frapast: ignore`` suppression.
@@ -76,20 +76,31 @@ def is_suppressed(
     Parameters
     ----------
     candidate:
-        The candidate finding to check.
+        The candidate finding to check (Candidate dataclass or dictionary).
     source_lines:
         A mapping from file path string to a list of source code lines (0-indexed).
     """
-    lines = source_lines.get(candidate.file)
+    if isinstance(candidate, dict):
+        c_file = str(candidate.get("file", "") or "")
+        c_line = int(candidate.get("line", 0) or 0)
+        c_rule_id = str(candidate.get("rule_id", "") or "")
+        c_taxonomy_id = str(candidate.get("taxonomy_id", c_rule_id) or c_rule_id)
+    else:
+        c_file = str(getattr(candidate, "file", "") or "")
+        c_line = int(getattr(candidate, "line", 0) or 0)
+        c_rule_id = str(getattr(candidate, "rule_id", "") or "")
+        c_taxonomy_id = str(getattr(candidate, "taxonomy_id", c_rule_id) or c_rule_id)
+
+    lines = source_lines.get(c_file)
     if lines is None:
         return False
 
     # Line numbers in candidates are 1-indexed.
     check_indices = []
-    if candidate.line > 0:
-        check_indices.append(candidate.line - 1)  # same line (0-indexed)
-    if candidate.line > 1:
-        check_indices.append(candidate.line - 2)  # preceding line (0-indexed)
+    if c_line > 0:
+        check_indices.append(c_line - 1)  # same line (0-indexed)
+    if c_line > 1:
+        check_indices.append(c_line - 2)  # preceding line (0-indexed)
 
     for idx in check_indices:
         if idx < 0 or idx >= len(lines):
@@ -100,16 +111,16 @@ def is_suppressed(
         # Empty set = suppress all rules
         if not suppressed_rules:
             return True
-        if candidate.rule_id in suppressed_rules or candidate.taxonomy_id in suppressed_rules:
+        if c_rule_id in suppressed_rules or c_taxonomy_id in suppressed_rules:
             return True
 
     return False
 
 
 def filter_suppressed(
-    candidates: list[Candidate],
+    candidates: list[Candidate | dict],
     source_lines: dict[str, list[str]],
-) -> list[Candidate]:
+) -> list[Candidate | dict]:
     """Return candidates that are not suppressed by inline comments."""
     return [c for c in candidates if not is_suppressed(c, source_lines)]
 
@@ -118,7 +129,7 @@ def filter_suppressed(
 # Baseline file management
 # --------------------------------------------------------------------------- #
 
-def _fingerprint(candidate: Candidate) -> str:
+def _fingerprint(candidate: Candidate | dict) -> str:
     """Stable semantic fingerprint for a candidate: rule_id + file + function + code_location_hash.
 
     Using the enclosing function and AST code fragment hash ensures that the baseline is
@@ -126,12 +137,21 @@ def _fingerprint(candidate: Candidate) -> str:
     while still immediately flagging any change to the vulnerable code itself or any new
     finding introduced in the file.
     """
-    func = getattr(candidate, "function", "")
-    key = f"{candidate.rule_id}|{candidate.file}|{func}|{candidate.code_location_hash}"
+    if isinstance(candidate, dict):
+        rule_id = str(candidate.get("rule_id", "") or "")
+        file_path = str(candidate.get("file", "") or "")
+        func = str(candidate.get("function", "") or "")
+        loc_hash = str(candidate.get("code_location_hash", "") or "")
+    else:
+        rule_id = str(getattr(candidate, "rule_id", "") or "")
+        file_path = str(getattr(candidate, "file", "") or "")
+        func = str(getattr(candidate, "function", "") or "")
+        loc_hash = str(getattr(candidate, "code_location_hash", "") or "")
+    key = f"{rule_id}|{file_path}|{func}|{loc_hash}"
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:32]
 
 
-def generate_baseline(candidates: list[Candidate], path: Path) -> None:
+def generate_baseline(candidates: list[Candidate | dict], path: str | Path) -> None:
     """Write a baseline file from the given list of candidates.
 
     Usage::
@@ -141,33 +161,36 @@ def generate_baseline(candidates: list[Candidate], path: Path) -> None:
     All current findings become "known" — only new findings introduced after
     this baseline was generated will be reported on subsequent scans.
     """
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
     fingerprints = sorted({_fingerprint(c) for c in candidates})
     payload = {
         "version": 1,
         "generated_by": "frapast",
         "fingerprints": fingerprints,
     }
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def load_baseline(path: Path) -> set[str]:
+def load_baseline(path: str | Path) -> set[str]:
     """Load a baseline file and return the set of known finding fingerprints.
 
     Returns an empty set if the file does not exist or is malformed.
     """
-    if not path.is_file():
+    target = Path(path)
+    if not target.is_file():
         return set()
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(target.read_text(encoding="utf-8"))
         return set(payload.get("fingerprints", []))
     except (json.JSONDecodeError, KeyError, TypeError):
         return set()
 
 
 def apply_baseline(
-    candidates: list[Candidate],
+    candidates: list[Candidate | dict],
     baseline_fingerprints: set[str],
-) -> list[Candidate]:
+) -> list[Candidate | dict]:
     """Filter out candidates that are already known in the baseline."""
     if not baseline_fingerprints:
         return candidates
@@ -272,3 +295,63 @@ def path_is_excluded(file_path: str | Path, config: SuppressionConfig) -> bool:
         if fnmatch.fnmatch(p, pattern) or fnmatch.fnmatch(Path(p).name, pattern):
             return True
     return False
+
+
+def filter_by_target_version(
+    candidates: list[Candidate | dict],
+    target_version: str | None,
+) -> list[Candidate | dict]:
+    """Filter compatibility candidates (FR-COMPAT) to those applicable to the target version.
+
+    Parameters
+    ----------
+    candidates:
+        List of findings (Candidate dataclass or dictionary objects).
+    target_version:
+        Frappe target framework version, e.g. "v14", "v15", or "v16". If None or empty,
+        all candidates are returned without filtering.
+
+    Returns
+    -------
+    list:
+        Candidates applicable when upgrading to `target_version`. Non-FR-COMPAT rules
+        are preserved unmodified. For FR-COMPAT rules, findings that only break in a
+        future version strictly greater than `target_version` are filtered out.
+    """
+    if not target_version:
+        return candidates
+
+    tv_str = str(target_version).strip().lower().lstrip("v")
+    try:
+        tv_num = int(tv_str)
+    except ValueError:
+        return candidates
+
+    filtered = []
+    for c in candidates:
+        if isinstance(c, dict):
+            rule_id = str(c.get("rule_id", "") or "")
+            proof = str(c.get("proof_recipe", "") or "")
+            evidence = str(c.get("evidence", "") or "")
+        else:
+            rule_id = str(getattr(c, "rule_id", "") or "")
+            proof = str(getattr(c, "proof_recipe", "") or "")
+            evidence = str(getattr(c, "evidence", "") or "")
+
+        if not rule_id.startswith("FR-COMPAT"):
+            filtered.append(c)
+            continue
+
+        combined_text = f"{proof} {evidence}"
+        match = re.search(r"(?:upgrading to Frappe|removed in Frappe|Frappe)\s+v?(\d+)", combined_text, re.IGNORECASE)
+        if not match:
+            match = re.search(r"\bv?(\d+)\b", proof)
+
+        if match:
+            break_version = int(match.group(1))
+            if break_version <= tv_num:
+                filtered.append(c)
+        else:
+            filtered.append(c)
+
+    return filtered
