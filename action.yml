@@ -22,6 +22,10 @@ inputs:
     description: "Path to write the SARIF 2.1.0 output file."
     required: false
     default: "frapast-results.sarif"
+  baseline-file:
+    description: "Path to baseline JSON file to filter out known findings."
+    required: false
+    default: ""
   python-version:
     description: "Python version to use when running frapAST."
     required: false
@@ -58,9 +62,14 @@ runs:
       shell: bash
       run: |
         set +e
+        EXTRA_ARGS=()
+        if [ -n "${{ inputs.baseline-file }}" ]; then
+          EXTRA_ARGS+=(--baseline "${{ inputs.baseline-file }}")
+        fi
         python -m scanner.cli scan "${{ inputs.repo-path }}" \
           --format "${{ inputs.format }}" \
-          --sarif "${{ inputs.sarif-file }}"
+          --sarif "${{ inputs.sarif-file }}" \
+          "${EXTRA_ARGS[@]}"
         EXIT_CODE=$?
 
         # Count findings in SARIF if available
