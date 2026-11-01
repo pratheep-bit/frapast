@@ -1,0 +1,20 @@
+rule_id: FR-REDIR-001
+rule_version: 1.0.0
+taxonomy_id: FR-REDIR-001
+required_indexes: [python, callgraph]
+predicate: >
+  Redirect target field (redirect_to, location, next, state) written from a
+  whitelisted endpoint without validating the URL against a trusted-domain allowlist.
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Pass an external URL (e.g. https://evil.example/) as the redirect parameter
+  and verify the server refuses to redirect to untrusted domains.
+severity_defaults:
+  privilege_required: "none"
+  impact_class: "phishing"
+  blast_radius: "cross_user"
+advisories:
+  - GHSA-j9jr-qrpj-g855
+  - GHSA-7g27-q225-j894
+  - GHSA-78c5-55xg-jm7m
+  - GHSA-7m8v-g2pr-h2f7

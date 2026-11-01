@@ -1,0 +1,20 @@
+rule_id: FR-PERM-007
+rule_version: 1.0.0
+taxonomy_id: FR-PERM-007
+required_indexes: [python, callgraph, schema]
+predicate: >
+  Whitelisted endpoint or report executes queries bypassing Frappe User Permissions
+  (via ignore_user_permissions=True or querying user-permission-restricted DocTypes
+  via frappe.get_all without strict_user_permissions=True or permission guards).
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Invoke the endpoint or run the query as a user restricted by User Permission (e.g.
+  specific company, territory, or customer) and verify records belonging to other
+  tenants or companies are exposed.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "data_leak"
+  blast_radius: "tenant_wide"
+advisories:
+  - GHSA-p284-r7rh-wq7j
+

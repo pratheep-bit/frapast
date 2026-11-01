@@ -1,0 +1,25 @@
+rule_id: FR-XSS-002
+rule_version: 1.0.0
+taxonomy_id: FR-XSS-002
+required_indexes: [python, callgraph]
+predicate: >
+  A whitelisted endpoint calls frappe.respond_as_web_page(), frappe.sendmail(),
+  or frappe.get_print() without applying frappe.utils.sanitize_html() to any
+  user-supplied content argument, enabling reflected or stored XSS when the
+  HTML response is rendered in the browser or a mail client.
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Pass an HTML payload (e.g. <script>alert(document.domain)</script>) as a
+  content or message parameter through the whitelisted endpoint, trigger the
+  respond_as_web_page / sendmail call, and verify the payload is executed in the
+  browser or delivered unsanitized in the email body. Apply
+  frappe.utils.sanitize_html() on the user-controlled argument to remediate.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "xss"
+  blast_radius: "cross_user"
+advisories:
+  - GHSA-hxfh-hh23-fvch
+  - GHSA-7m8v-g2pr-h2f7
+  - GHSA-cx24-w5gm-5vv9
+  - GHSA-v248-pv3c-jvgw

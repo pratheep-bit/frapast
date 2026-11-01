@@ -1,0 +1,26 @@
+rule_id: FR-XSS-003
+rule_version: 1.0.0
+taxonomy_id: FR-XSS-003
+required_indexes: [python, callgraph]
+predicate: >
+  A whitelisted endpoint calls frappe.render_template(), frappe.get_template(), or
+  a related Jinja2 rendering function from a context that may contain user-supplied
+  values, without frappe.utils.sanitize_html() applied to the context variables and
+  without the | e / | escape Jinja2 filter in the template. This exposes a XSS
+  sink via Jinja2 context variable injection.
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Pass an HTML payload (e.g. <img src=x onerror=alert(document.domain)>) as a
+  value that is included in the Jinja2 template context dict, render the template,
+  and verify the output contains the unescaped payload. Remediate by wrapping
+  the context value with frappe.utils.sanitize_html() before insertion or by adding
+  the | e (escape) filter to the template variable reference.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "xss"
+  blast_radius: "cross_user"
+advisories:
+  - GHSA-hxfh-hh23-fvch
+  - GHSA-vxmp-h244-wv3r
+  - GHSA-cx24-w5gm-5vv9
+  - GHSA-7p3m-h76m-hg9v

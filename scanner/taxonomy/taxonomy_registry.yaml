@@ -11,7 +11,7 @@
 #                           never be silently promoted into core_scope just
 #                           because validate_taxonomy.py started failing.
 core_scope:
-  FR-PERM: {range: "001-006", name: "Permission & Access Control Bypass"}
+  FR-PERM: {range: "001-007", name: "Permission & Access Control Bypass"}
   FR-SQLI: {range: "001-004", name: "ORM vs. Raw SQL Boundary"}
   FR-HOOK: {range: "001-007", name: "Hook Execution & Lifecycle"}
   FR-WKFL: {range: "001-004", name: "Docstatus / Workflow State Machine"}
@@ -34,11 +34,11 @@ additional_categories:
     justification: "Static detection rule stub added during initial ruleset creation; not in original 6-category scope."
     precision_status: "untested - zero findings recorded"
   FR-PERF:
-    range: "001-001"
+    range: "001-003"
     name: "Performance Anti-Patterns"
     added_date: "2026-07-21"
-    justification: "Static detection rule stub added during initial ruleset creation; not in original 6-category scope."
-    precision_status: "untested - zero findings recorded"
+    justification: "Detects N+1 query loops, unindexed filter columns in queries/reports, and unbounded transactional table scans."
+    precision_status: "active"
   FR-I18N:
     range: "001-001"
     name: "Internationalization & Formatting"
@@ -50,6 +50,54 @@ additional_categories:
     name: "Path Traversal & Arbitrary File Access"
     added_date: "2026-08-17"
     justification: "Added to catch historical path traversal CVEs (e.g. CVE-2026-44440) in file management and template endpoints."
+    precision_status: "active"
+  FR-XSS:
+    range: "001-003"
+    name: "Cross-Site Scripting (Stored, Reflected, Template Context)"
+    added_date: "2026-08-20"
+    justification: "Catches XSS in HTML fields, web responses, and Jinja template contexts."
+    precision_status: "active"
+  FR-SSTI:
+    range: "001-001"
+    name: "Server-Side Template Injection"
+    added_date: "2026-08-20"
+    justification: "Detects unescaped user input passed to render_template."
+    precision_status: "active"
+  FR-ARCH:
+    range: "001-001"
+    name: "Archive Path Traversal (TarSlip / ZipSlip)"
+    added_date: "2026-08-20"
+    justification: "Detects archive extractall() without directory containment validation."
+    precision_status: "active"
+  FR-UPLOAD:
+    range: "001-001"
+    name: "Unrestricted File Upload"
+    added_date: "2026-08-20"
+    justification: "Detects file uploads in whitelisted endpoints lacking MIME validation."
+    precision_status: "active"
+  FR-REDIR:
+    range: "001-001"
+    name: "Open Redirect"
+    added_date: "2026-08-20"
+    justification: "Detects user-controlled redirect targets without URL validation."
+    precision_status: "active"
+  FR-MASSASSIGN:
+    range: "001-001"
+    name: "Mass Assignment"
+    added_date: "2026-08-20"
+    justification: "Detects dynamic DocType and kwargs injection in database mutations."
+    precision_status: "active"
+  FR-SECRET:
+    range: "001-002"
+    name: "Credential Exposure & Hardcoded Secrets"
+    added_date: "2026-08-20"
+    justification: "Detects sensitive field exposure in endpoints and hardcoded secrets in config/source files."
+    precision_status: "active"
+  FR-COMPAT:
+    range: "001-002"
+    name: "Framework API Deprecation & Upgrade Compatibility"
+    added_date: "2026-11-01"
+    justification: "Detects deprecated and removed Frappe framework server and client APIs that cause runtime exceptions or upgrade failures during Frappe/ERPNext version migrations."
     precision_status: "active"
 
 extensions:

@@ -1,0 +1,18 @@
+rule_id: FR-COMPAT-002
+rule_version: 1.0.0
+taxonomy_id: FR-COMPAT-002
+required_indexes: [python]
+predicate: >
+  Client-side JavaScript or Desk script references a deprecated or removed Frappe
+  client API (cur_frm.cscript, frappe.views.GridReport, cur_dialog direct mutations,
+  or obsolete form button signatures) causing UI script errors after framework upgrades.
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Migrate client-side script from obsolete global objects (cur_frm.cscript) to modern
+  event-driven handlers (frappe.ui.form.on).
+severity_defaults:
+  privilege_required: "none"
+  impact_class: "client_script_breakage"
+  blast_radius: "component"
+advisories: []
+

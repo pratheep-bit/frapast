@@ -1,0 +1,18 @@
+rule_id: FR-PERF-003
+rule_version: 1.0.0
+taxonomy_id: FR-PERF-003
+required_indexes: [python]
+predicate: >
+  Script Report query against heavy transactional DocTypes (GL Entry, Stock Ledger Entry,
+  Attendance, Timesheet, Email Queue) lacking date range filters or a limit clause,
+  causing potential gateway timeouts or worker memory exhaustion.
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Add mandatory date range filters (from_date, to_date, posting_date) or a limit
+  clause to bound the query result set.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "performance_degradation"
+  blast_radius: "system_wide"
+advisories: []
+

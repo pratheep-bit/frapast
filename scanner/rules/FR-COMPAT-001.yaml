@@ -1,0 +1,19 @@
+rule_id: FR-COMPAT-001
+rule_version: 2.0.0
+taxonomy_id: FR-COMPAT-001
+status: active
+required_indexes: [python]
+predicate: >
+  Custom code calls or imports a Frappe framework API that was removed, moved,
+  or deprecated across git release branches (derived from scanner/data/frappe_api_changes.json).
+  Runs strictly when --target-version is passed; without the flag the rule emits nothing.
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Inspect the symbol and target Frappe framework version; update the deprecated or removed
+  API call to the modern framework method to ensure forward upgrade compatibility.
+severity_defaults:
+  privilege_required: "none"
+  impact_class: "upgrade_breakage"
+  blast_radius: "component"
+advisories: []
+
