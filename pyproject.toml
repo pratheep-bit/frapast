@@ -69,6 +69,7 @@ scanner = [
     "taxonomy/*.yaml",
     "rules/*.yaml",
     "web/static/*",
+    "data/*.json",
 ]
 
 [tool.pytest.ini_options]
