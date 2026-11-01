@@ -126,7 +126,16 @@ def _fields(values: object) -> tuple[FieldRecord, ...]:
 		fieldtype = value.get("fieldtype")
 		if isinstance(fieldname, str) and isinstance(fieldtype, str):
 			options = value.get("options")
-			fields.append(FieldRecord(fieldname, fieldtype, options if isinstance(options, str) else None))
+			fields.append(
+				FieldRecord(
+					fieldname=fieldname,
+					fieldtype=fieldtype,
+					options=options if isinstance(options, str) else None,
+					search_index=bool(value.get("search_index")),
+					in_standard_filter=bool(value.get("in_standard_filter")),
+					db_index=bool(value.get("db_index")),
+				)
+			)
 	return tuple(fields)
 
 
