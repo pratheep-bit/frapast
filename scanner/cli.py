@@ -402,15 +402,27 @@ def scan(
 	repo_id: str | None = None,
 	include_severity: bool = False,
 	show_progress: bool = False,
+	target_version: str | None = None,
 ) -> list[dict[str, object]]:
-	candidates, _, _ = _scan_repo_with_severity(
-		Path(repo_path),
-		fp_log_path=fp_log_path,
-		repo_id=repo_id or "local",
-		include_severity=include_severity,
-		show_progress=show_progress,
-	)
-	return candidates
+	try:
+		if target_version:
+			from scanner.rules.engine import set_target_version as _set_tv
+			_set_tv(target_version)
+		candidates, _, _ = _scan_repo_with_severity(
+			Path(repo_path),
+			fp_log_path=fp_log_path,
+			repo_id=repo_id or "local",
+			include_severity=include_severity,
+			show_progress=show_progress,
+		)
+		if target_version:
+			from scanner.suppression import filter_by_target_version as _filter_tv
+			candidates = _filter_tv(candidates, target_version)
+		return candidates
+	finally:
+		if target_version:
+			from scanner.rules.engine import set_target_version as _set_tv
+			_set_tv(None, None)
 
 
 def scan_multi(
@@ -536,6 +548,9 @@ Exit Codes:
 	scan_parser.add_argument("--limit", type=int, default=20, help="Maximum number of candidates to display in human output (default: 20; 0 for all)")
 	scan_parser.add_argument("--format", choices=["human", "yaml", "json", "sarif"], default="human", help="Output format (default: human)")
 	scan_parser.add_argument("--sarif", default="", help="Export SARIF 2.1.0 report directly to file path")
+	scan_parser.add_argument("--baseline", default=None, help="Path to baseline JSON file. Known findings in the baseline are filtered out.")
+	scan_parser.add_argument("--generate-baseline", default=None, metavar="FILE", help="Scan repository and write current findings as a baseline JSON file, then exit.")
+	scan_parser.add_argument("--target-version", choices=["v14", "v15", "v16"], default=None, help="Target Frappe framework version for compatibility checks (filters FR-COMPAT rules).")
 	# Tier 2 bench configuration for scan --prove / --ui
 	scan_parser.add_argument("--bench-url", default="", help="Frappe bench base URL for Tier 2 HTTP/RPC proof (e.g. http://localhost:8000)")
 	scan_parser.add_argument("--bench-port", "--port", type=int, default=None, help="Frappe bench webserver port (e.g. 8005 or 8000)")
@@ -663,6 +678,13 @@ def _filter_candidates_by_diff(candidates: list[dict[str, object]], repo_path: P
 	]
 
 
+def _warn_skipped_rules() -> None:
+	from scanner.rules import get_skipped_rules_count
+	skipped = get_skipped_rules_count()
+	if skipped > 0:
+		sys.stderr.write(f"Warning: {skipped} rule(s) were skipped due to internal errors. Run with --log-level debug for details.\n")
+
+
 def _run_scan_command(args: argparse.Namespace) -> int:
 	if getattr(args, "ui", False) and args.repo_path:
 		from scanner.ui.flow import run_full_pipeline
@@ -683,15 +705,52 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		if not config_path.is_file():
 			sys.stderr.write(f"Error: path '{args.config}' does not exist\n")
 			return 2
+		if getattr(args, "target_version", None):
+			from scanner.rules.engine import set_target_version as _set_tv
+			_set_tv(args.target_version)
 		need_severity = args.severity or args.format == "human" or args.prove
-		scan_results = _scan_config_entries(
-			config_path,
-			include_severity=need_severity,
-			show_progress=True,
-			fp_log_path=args.fp_log,
-			diff_ref=args.diff,
-		)
+		try:
+			scan_results = _scan_config_entries(
+				config_path,
+				include_severity=need_severity,
+				show_progress=True,
+				fp_log_path=args.fp_log,
+				diff_ref=args.diff,
+			)
+		finally:
+			if getattr(args, "target_version", None):
+				from scanner.rules.engine import set_target_version as _set_tv
+				_set_tv(None, None)
 		ledger_dir = _config_findings_dir(config_path, args.ledger_dir)
+
+		# Handle --generate-baseline for multi-repo
+		if getattr(args, "generate_baseline", None):
+			from scanner.suppression import generate_baseline as _gen_baseline
+			out_path = Path(args.generate_baseline)
+			all_cands = [c for r in scan_results for c in r.candidates]
+			_gen_baseline(all_cands, out_path)
+			console.print(f"[success]Baseline generated:[/success] wrote {len(all_cands)} finding(s) to [cyan]{out_path}[/cyan]")
+			return 0
+
+		# Handle --baseline for multi-repo
+		if getattr(args, "baseline", None):
+			from scanner.suppression import apply_baseline as _apply_baseline, load_baseline as _load_baseline
+			b_path = Path(args.baseline)
+			if not b_path.is_file():
+				sys.stderr.write(f"Error: baseline file '{args.baseline}' does not exist\n")
+				return 2
+			fingerprints = _load_baseline(b_path)
+			for i, r in enumerate(scan_results):
+				filtered = _apply_baseline(r.candidates, fingerprints)
+				scan_results[i] = replace(r, candidates=filtered)
+
+		# Handle --target-version for multi-repo
+		if getattr(args, "target_version", None):
+			from scanner.suppression import filter_by_target_version as _filter_tv
+			for i, r in enumerate(scan_results):
+				filtered = _filter_tv(r.candidates, args.target_version)
+				scan_results[i] = replace(r, candidates=filtered)
+
 		if args.write_ledger:
 			for result in scan_results:
 				_write_candidates(result.candidates, ledger_dir, result.repo_id)
@@ -726,6 +785,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 		else:
 			for result in scan_results:
 				ui.render_results(result.repo_path, result.candidates, result.num_files, result.elapsed, limit=args.limit)
+			_warn_skipped_rules()
 
 		if args.prove:
 			return 1 if len(proven_findings) > 0 else 0
@@ -748,16 +808,65 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 
 	effective_fp_log = args.fp_log or "findings/fp-log.yaml"
 	fp_log_path = effective_fp_log if Path(effective_fp_log).is_file() else None
-	candidates, num_files, elapsed = _scan_repo_with_severity(
-		repo,
-		fp_log_path=fp_log_path,
-		repo_id=args.repo_id,
-		include_severity=args.severity or args.format == "human" or args.prove,
-		show_progress=True,
-	)
+	if getattr(args, "target_version", None):
+		from scanner.rules.engine import set_target_version as _set_tv
+		_set_tv(args.target_version)
+	try:
+		candidates, num_files, elapsed = _scan_repo_with_severity(
+			repo,
+			fp_log_path=fp_log_path,
+			repo_id=args.repo_id,
+			include_severity=args.severity or args.format == "human" or args.prove,
+			show_progress=True,
+		)
+	finally:
+		if getattr(args, "target_version", None):
+			from scanner.rules.engine import set_target_version as _set_tv
+			_set_tv(None, None)
 
 	if args.diff:
 		candidates = _filter_candidates_by_diff(candidates, repo, args.diff)
+
+	# Handle --generate-baseline
+	if getattr(args, "generate_baseline", None):
+		from scanner.suppression import generate_baseline as _gen_baseline
+		out_path = Path(args.generate_baseline)
+		_gen_baseline(candidates, out_path)
+		console.print(f"[success]Baseline generated:[/success] wrote {len(candidates)} finding(s) to [cyan]{out_path}[/cyan]")
+		return 0
+
+	# Handle --baseline (CLI flag, frapast.toml, or default .frapast-baseline.json)
+	effective_baseline = getattr(args, "baseline", None)
+	baseline_path: Path | None = None
+	if effective_baseline:
+		baseline_path = Path(effective_baseline)
+		if not baseline_path.is_file():
+			sys.stderr.write(f"Error: baseline file '{effective_baseline}' does not exist\n")
+			return 2
+	else:
+		from scanner.suppression import load_config as _load_sup_config
+		sup_config = _load_sup_config(repo)
+		if sup_config.baseline_path and sup_config.baseline_path.is_file():
+			baseline_path = sup_config.baseline_path
+		elif (repo / ".frapast-baseline.json").is_file():
+			baseline_path = repo / ".frapast-baseline.json"
+
+	if baseline_path is not None:
+		from scanner.suppression import apply_baseline as _apply_baseline, load_baseline as _load_baseline
+		fingerprints = _load_baseline(baseline_path)
+		before_count = len(candidates)
+		candidates = _apply_baseline(candidates, fingerprints)
+		filtered_count = before_count - len(candidates)
+		if filtered_count > 0 and args.format == "human":
+			console.print(f"[dim]Baseline: filtered {filtered_count} known finding(s) ({len(candidates)} remaining)[/dim]")
+
+	if getattr(args, "target_version", None):
+		from scanner.suppression import filter_by_target_version as _filter_tv
+		before_tv = len(candidates)
+		candidates = _filter_tv(candidates, args.target_version)
+		filtered_tv = before_tv - len(candidates)
+		if filtered_tv > 0 and args.format == "human":
+			console.print(f"[dim]Target version ({args.target_version}): filtered {filtered_tv} non-applicable compatibility finding(s) ({len(candidates)} remaining)[/dim]")
 
 	output = {"candidates": candidates}
 	if args.write_ledger:
@@ -773,6 +882,9 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 			limit=args.limit,
 			write_ledger=args.write_ledger,
 			ledger_dir=args.ledger_dir,
+			initial_candidates=candidates,
+			num_files=num_files,
+			elapsed=elapsed,
 		)
 	elif args.prove:
 		candidates_to_prove = candidates
@@ -800,6 +912,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 				f"{len(proven_findings)} / {len(candidates_to_prove)} candidates verified as PROVEN."
 			)
 			ui.render_results(repo, proven_findings or candidates_to_prove, num_files, elapsed, limit=args.limit, num_skipped=skipped_files)
+			_warn_skipped_rules()
 		return 1 if len(proven_findings) > 0 else 0
 	else:
 		if getattr(args, "sarif", None):
@@ -808,6 +921,7 @@ def _run_scan_command(args: argparse.Namespace) -> int:
 			_write_json_or_yaml(output, args.format, repo)
 		elif not interactive:
 			ui.render_results(repo, candidates, num_files, elapsed, limit=args.limit, num_skipped=skipped_files)
+			_warn_skipped_rules()
 
 	return 1 if len(candidates) > 0 else 0
 
@@ -1177,8 +1291,35 @@ def main(argv: list[str] | None = None) -> int:
 			result = orchestrator.prove_candidate(args.finding_id)
 			update_ledger_after_proof(args.ledger_dir, result)
 			proof_dict = {**result.__dict__, "status": getattr(result.status, "value", str(result.status))}
+			sarif_target = getattr(args, "sarif", None)
+			if sarif_target or args.format == "sarif":
+				from scanner.ledger_io import index_ledger_entries, read_ledger_entry
+				entry = None
+				if Path(args.ledger_dir).is_dir():
+					idx = index_ledger_entries(args.ledger_dir)
+					p = idx.get(args.finding_id) or idx.get(getattr(result, "code_location_hash", None))
+					if p:
+						entry = read_ledger_entry(p)
+				if entry is None:
+					entry = {
+						"id": args.finding_id,
+						"rule_id": args.finding_id.split("-")[0] if "-" in args.finding_id else "UNKNOWN",
+						"file": getattr(result, "reproducer_path", "") or "",
+						"line": 1,
+						"evidence": result.stdout or result.stderr or "",
+					}
+				cand = dict(entry)
+				cand["proof_status"] = getattr(result.status, "value", str(result.status))
+				cand["proof_tier"] = getattr(result, "proof_tier", 0)
+				if sarif_target:
+					_export_sarif_file({"candidates": [cand]}, sarif_target, repo)
+				if args.format == "sarif":
+					from scanner.reporting.sarif import export_sarif
+					print(export_sarif(_prepare_output_candidates([cand]), repo))
 			if args.format == "json":
 				print(json.dumps({"proof": proof_dict}, indent=2, default=str))
+			elif args.format == "sarif":
+				pass
 			else:
 				print(yaml.safe_dump({"proof": proof_dict}, sort_keys=False))
 		else:
@@ -1203,6 +1344,8 @@ def main(argv: list[str] | None = None) -> int:
 				bench_password=bench_password,
 				bench_site=bench_site,
 			)
+			if getattr(args, "sarif", None):
+				_export_sarif_file({"candidates": candidates, "proven": proven_findings}, args.sarif, repo)
 			if args.format in ("json", "yaml", "sarif"):
 				_write_json_or_yaml({"candidates": candidates, "proven": proven_findings}, args.format, repo)
 			else:

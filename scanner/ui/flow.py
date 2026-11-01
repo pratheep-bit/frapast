@@ -382,11 +382,14 @@ def run_full_pipeline(
     write_ledger: bool = False,
     ledger_dir: str = "findings",
     launch_web: bool = False,
+    initial_candidates: list[dict[str, object]] | None = None,
+    num_files: int = 0,
+    elapsed: float = 0.0,
 ) -> int:
     """The single unified entry point that runs the full pipeline.
 
     Steps:
-      1. Scan repo
+      1. Scan repo (or use pre-scanned/baseline-filtered candidates)
       2. Show findings table
       3. Ask proof count
       4. Run Tier 1 + Tier 2 proof
@@ -399,14 +402,17 @@ def run_full_pipeline(
     from scanner.cli import _scan_repo_with_severity, _write_candidates
 
     # ── Step 1: Scan ──────────────────────────────────────────────────────
-    console.print(f"\n[bold]🔍 Scanning[/bold] [cyan]{repo}[/cyan]…\n")
-    candidates, num_files, elapsed = _scan_repo_with_severity(
-        repo,
-        fp_log_path=None,
-        repo_id=repo_id,
-        include_severity=True,
-        show_progress=True,
-    )
+    if initial_candidates is not None:
+        candidates = initial_candidates
+    else:
+        console.print(f"\n[bold]🔍 Scanning[/bold] [cyan]{repo}[/cyan]…\n")
+        candidates, num_files, elapsed = _scan_repo_with_severity(
+            repo,
+            fp_log_path=None,
+            repo_id=repo_id,
+            include_severity=True,
+            show_progress=True,
+        )
 
     if not candidates:
         console.print("[success]✓ No security findings detected.[/success]")

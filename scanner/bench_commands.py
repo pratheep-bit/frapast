@@ -24,13 +24,19 @@ def commands():
 @click.option("--format", "-f", type=click.Choice(["human", "json", "yaml", "sarif"]), default="human", help="Output format")
 @click.option("--limit", "-l", type=int, default=20, help="Maximum findings to show in human output")
 @click.option("--sarif", type=str, default="", help="Export SARIF 2.1.0 report to file path")
-def bench_audit(app_name: str, format: str, limit: int, sarif: str):
+@click.option("--baseline", type=str, default="", help="Path to baseline JSON file")
+@click.option("--generate-baseline", type=str, default="", help="Path to write baseline JSON file")
+def bench_audit(app_name: str, format: str, limit: int, sarif: str, baseline: str, generate_baseline: str):
     """Run static security & performance scan on a Frappe custom app."""
     from scanner.cli import main
 
     args = ["scan", app_name, "--format", format, "--limit", str(limit)]
     if sarif:
         args.extend(["--sarif", sarif])
+    if baseline:
+        args.extend(["--baseline", baseline])
+    if generate_baseline:
+        args.extend(["--generate-baseline", generate_baseline])
     sys.exit(main(args))
 
 
