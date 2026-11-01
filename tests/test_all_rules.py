@@ -19,11 +19,27 @@ class TestAllRulesCoverage(unittest.TestCase):
 
 	def test_rules_registry_integrity(self):
 		from scanner.rules.engine import ALL_RULES, RENAMED_TAXONOMY
-		self.assertEqual(len(ALL_RULES), 28)
+		self.assertEqual(len(ALL_RULES), 44)
 		for rule in ALL_RULES:
 			self.assertTrue(callable(rule))
 		# Taxonomy consistency assertion passes at import time
 		self.assertEqual(RENAMED_TAXONOMY["fr_corr_001_bare_except"], "FR-HOOK-006")
+
+	def test_readme_active_rule_count_matches_all_rules(self):
+		"""Assert README's stated active-rule count matches len(ALL_RULES)."""
+		from scanner.rules.engine import ALL_RULES
+		import re
+		readme_path = ROOT / "README.md"
+		content = readme_path.read_text(encoding="utf-8")
+		match = re.search(r"frapAST includes (\d+) active rule detectors", content)
+		self.assertIsNotNone(match, "Could not find active rule detector phrase in README.md")
+		readme_count = int(match.group(1))
+		self.assertEqual(readme_count, len(ALL_RULES))
+
+		badge_match = re.search(r"detectors-(\d+)%20active-blue\.svg", content)
+		self.assertIsNotNone(badge_match, "Could not find detectors badge in README.md")
+		badge_count = int(badge_match.group(1))
+		self.assertEqual(badge_count, len(ALL_RULES))
 
 	def test_rules_execution_on_fixtures(self):
 		fixture_dir = ROOT / "tests" / "python" / "fixtures"

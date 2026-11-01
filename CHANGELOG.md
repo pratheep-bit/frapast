@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `hooks.py` parser indexing doc_events, override_whitelisted_methods, and scheduler events.
   - Python AST visitor extracting whitelisted endpoints, database calls, query builders, string dispatches, dynamic document methods, and script report entry points.
   - Interprocedural static call graph constructor connecting multi-hop call chains.
-- **Rule Taxonomy (28 Active Detectors)**:
+- **Rule Taxonomy (44 Active Detectors)**:
   - Injection & Access Control: `FR-SQLI-001`, `FR-SQLI-002`, `FR-SQLI-003`, `FR-SQLI-004`, `FR-INJ-001`, `FR-INJ-002`, `FR-PATH-001`, `FR-SSRF-001`, `FR-CSRF-001`.
   - Permissions: `FR-PERM-001`, `FR-PERM-002`, `FR-PERM-003`, `FR-PERM-004`, `FR-PERM-005`, `FR-PERM-006`.
   - Lifecycle & Workflow: `FR-HOOK-001`, `FR-HOOK-002`, `FR-HOOK-003`, `FR-HOOK-004`, `FR-HOOK-005`, `FR-WKFL-001`, `FR-WKFL-002`, `FR-WKFL-003`.
