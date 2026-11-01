@@ -72,3 +72,9 @@ site/demo-bg.jpg
 *.mp4
 *.mov
 *.webm
+
+# Internal mining, scratch, and raw benchmark data dumps
+bug-set-from-frappe-github/
+mining/
+phase4_benchmark_results.json
+scratch_*.json
