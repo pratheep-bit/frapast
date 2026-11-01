@@ -13,6 +13,9 @@ class FieldRecord:
 	fieldname: str
 	fieldtype: str
 	options: str | None = None
+	search_index: bool = False
+	in_standard_filter: bool = False
+	db_index: bool = False
 
 
 @dataclass(frozen=True)
