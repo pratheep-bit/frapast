@@ -1,0 +1,20 @@
+rule_id: FR-MASSASSIGN-001
+rule_version: 1.0.0
+taxonomy_id: FR-MASSASSIGN-001
+required_indexes: [python, callgraph]
+predicate: >
+  frappe.db.set_value called with a dynamically-resolved (non-literal) DocType
+  argument from a whitelisted endpoint without a permission check — an attacker
+  may supply an arbitrary DocType and field name to overwrite protected data.
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Pass an unexpected DocType (e.g. 'User') and field (e.g. 'api_secret') through
+  the endpoint and verify the write is rejected.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "data_integrity"
+  blast_radius: "site_wide"
+advisories:
+  - GHSA-2c6h-wv85-fxvj
+  - GHSA-583g-fg76-fhfr
+  - GHSA-2c4m-999q-xhx4

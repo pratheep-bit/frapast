@@ -1,0 +1,23 @@
+rule_id: FR-SSTI-001
+rule_version: 1.0.0
+taxonomy_id: FR-SSTI-001
+required_indexes: [python, callgraph]
+predicate: >
+  Request-controlled input evaluated as a Jinja2 template (eval/exec with
+  request-controlled arg, or db.set_value on template-rendered fields from
+  a whitelisted endpoint) — potential RCE via SSTI.
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Pass a Jinja2 payload (e.g. {{7*7}}) through the endpoint and verify the
+  expression is not evaluated by the server.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "rce"
+  blast_radius: "site_wide"
+advisories:
+  - GHSA-6pmg-vc6m-6wrr
+  - GHSA-qq98-vfv9-xmxh
+  - GHSA-v342-4xr9-x3q3
+  - GHSA-w996-r7v3-87wr
+  - GHSA-6w83-8777-v93q
+  - GHSA-qq49-v74j-hjh7

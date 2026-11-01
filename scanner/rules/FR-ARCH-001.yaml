@@ -1,0 +1,17 @@
+rule_id: FR-ARCH-001
+rule_version: 1.0.0
+taxonomy_id: FR-ARCH-001
+required_indexes: [python, callgraph]
+predicate: >
+  tarfile.extractall() or zipfile.extractall() called from a whitelisted endpoint
+  without validating member paths against '..' or absolute-path prefixes (TarSlip/ZipSlip).
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Upload an archive containing a member named '../../sensitive_file' and verify
+  the extracted file cannot escape the intended target directory.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "rce"
+  blast_radius: "site_wide"
+advisories:
+  - GHSA-58w2-4cjg-hvp6

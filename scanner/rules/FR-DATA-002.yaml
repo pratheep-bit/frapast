@@ -1,0 +1,18 @@
+rule_id: FR-DATA-002
+rule_version: 1.0.0
+taxonomy_id: FR-DATA-002
+required_indexes: [python]
+predicate: >
+  Direct mutation of General Ledger (GL Entry) or Stock Ledger (Stock Ledger Entry)
+  tables via raw SQL INSERT/UPDATE/DELETE or direct DocType creation outside approved
+  ERPNext posting pipelines (make_gl_entries, make_stock_entries).
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Verify if the mutation bypasses balance validation, currency exchange, or stock
+  valuation algorithms; route transaction through official posting functions instead.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "data_corruption"
+  blast_radius: "system_wide"
+advisories: []
+

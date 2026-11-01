@@ -1,0 +1,20 @@
+rule_id: FR-UPLOAD-001
+rule_version: 1.0.0
+taxonomy_id: FR-UPLOAD-001
+required_indexes: [python, callgraph]
+predicate: >
+  save_file() / upload_file() reachable from a whitelisted endpoint where
+  the uploaded file's extension and content-type are not validated against
+  a safe allowlist before the file is written to disk.
+evidence_fields: [source_span, function, code_location_hash]
+proof_recipe: >
+  Upload an SVG file containing an embedded script tag to the endpoint and
+  verify the server rejects the file type before writing.
+severity_defaults:
+  privilege_required: "authenticated"
+  impact_class: "stored_xss"
+  blast_radius: "cross_user"
+advisories:
+  - GHSA-2wx6-8gmq-x4fw
+  - GHSA-7f28-gm9h-q6rg
+  - GHSA-fwrv-4rw4-97fw
