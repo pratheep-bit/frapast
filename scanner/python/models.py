@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from scanner.shared import SourceSpan
+from scanner.shared import SourceFile, SourceSpan
 
 
 class PythonParseError(ValueError):
@@ -269,6 +269,55 @@ class UnusedImportRecord:
 
 
 @dataclass(frozen=True)
+class HardcodedSecretRecord:
+	symbol_id: str
+	span: SourceSpan
+	secret_type: str
+	variable_name: str
+	masked_value: str
+
+
+@dataclass(frozen=True)
+class IgnoreUserPermissionsRecord:
+	function: str
+	value: bool
+	span: SourceSpan
+	symbol_id: str
+	call_name: str | None = None
+
+
+@dataclass(frozen=True)
+class GetAllCallRecord:
+	function: str
+	doctype: str | None
+	strict_user_permissions: bool
+	span: SourceSpan
+	symbol_id: str
+
+
+@dataclass(frozen=True)
+class DeprecatedAPIRecord:
+	function: str
+	symbol_id: str
+	span: SourceSpan
+	api_name: str
+	deprecated_in: str
+	removed_in: str
+	replacement: str
+	details: str
+
+
+@dataclass(frozen=True)
+class QueryFilterRecord:
+	function: str
+	doctype: str | None
+	filter_fields: tuple[str, ...]
+	span: SourceSpan
+	symbol_id: str
+	call_name: str
+
+
+@dataclass(frozen=True)
 class PythonSymbolIndex:
 	whitelisted_endpoints: tuple[WhitelistedEndpoint, ...]
 	ignore_permissions: tuple[IgnorePermissionsRecord, ...]
@@ -302,4 +351,10 @@ class PythonSymbolIndex:
 	report_entry_points: tuple[ReportEntryPointRecord, ...] = ()
 	unused_imports: tuple[UnusedImportRecord, ...] = ()
 	parse_errors: tuple[PythonParseErrorRecord, ...] = ()
+	hardcoded_secrets: tuple[HardcodedSecretRecord, ...] = ()
+	sources: tuple[SourceFile, ...] = ()
+	ignore_user_permissions: tuple[IgnoreUserPermissionsRecord, ...] = ()
+	get_all_calls: tuple[GetAllCallRecord, ...] = ()
+	deprecated_api_calls: tuple[DeprecatedAPIRecord, ...] = ()
+	query_filters: tuple[QueryFilterRecord, ...] = ()
 

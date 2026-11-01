@@ -13,15 +13,19 @@ from scanner.python.models import (
 	CallRecord,
 	ClassLifecycleRecord,
 	CommitCallRecord,
+	DeprecatedAPIRecord,
 	DirectWriteRecord,
 	DynamicMethodCallRecord,
 	EnqueueCallRecord,
 	EvalExecRecord,
 	FieldnameRefRecord,
 	FunctionRecord,
+	GetAllCallRecord,
 	GetDocKwargsRecord,
+	HardcodedSecretRecord,
 	HardcodedStringRecord,
 	IgnorePermissionsRecord,
+	IgnoreUserPermissionsRecord,
 	ImportRecord,
 	MsgprintRecord,
 	MutableDefaultArgRecord,
@@ -32,6 +36,7 @@ from scanner.python.models import (
 	PythonParseErrorRecord,
 	PythonSymbolIndex,
 	QueryBuilderRecord,
+	QueryFilterRecord,
 	QueryInLoopRecord,
 	ReportEntryPointRecord,
 	SetValueRecord,
@@ -67,6 +72,63 @@ LIFECYCLE_METHODS = frozenset(
 # file, which shows up in profiles on large monorepos.
 _CAPS_RUN_BOUNDARY_RE = re.compile(r"(?<=[A-Z])(?=[A-Z][a-z])")
 _LOWER_TO_UPPER_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+
+_SECRET_VAR_NAMES = frozenset({
+	"api_secret", "api_key", "secret_key", "db_password", "admin_password",
+	"root_password", "encryption_key", "client_secret", "webhook_secret",
+	"mail_password", "s3_secret_access_key", "jwt_secret", "private_key",
+	"access_token", "refresh_token", "auth_token", "paystack_secret_key",
+	"stripe_secret_key", "razorpay_key_secret",
+})
+
+_KNOWN_SECRET_PATTERNS = (
+	("private_key", re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----")),
+	("aws_access_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+	("slack_token", re.compile(r"\bxox[baprs]-[0-9a-zA-Z]{10,48}\b")),
+	("github_token", re.compile(r"\bgh[pousr]_[0-9a-zA-Z]{36}\b")),
+)
+
+_SAFE_PLACEHOLDERS = frozenset({
+	"", "none", "null", "false", "true", "password", "secret", "admin", "test",
+	"dummy", "placeholder", "changeme", "your_password", "your_secret",
+	"your_api_key", "your_secret_key", "your_secret_here", "xxx", "123456",
+	"example", "root", "replace_me", "replace_this", "enter_here",
+})
+
+_DEPRECATED_CALLS: dict[str, tuple[str, str, str, str]] = {
+	"frappe.get_single": (
+		"v14", "v15", "frappe.get_doc(doctype)",
+		"frappe.get_single was removed in Frappe v15. Use frappe.get_doc(doctype) to load single DocTypes.",
+	),
+	"frappe.db.multisql": (
+		"v14", "v15", "frappe.db.sql() or frappe.qb",
+		"frappe.db.multisql was removed in Frappe v15. Use dialect-agnostic frappe.qb or standard frappe.db.sql.",
+	),
+	"frappe.db.sql_ddl": (
+		"v14", "v15", "frappe.db.sql() or bench migrate",
+		"frappe.db.sql_ddl is deprecated. Schema alterations must be performed via DocType schemas or bench migrate.",
+	),
+	"frappe.client.get_list": (
+		"v14", "v15", "frappe.get_list()",
+		"frappe.client.get_list is a client RPC proxy. Calling it in server-side Python adds redundant serialization and is deprecated.",
+	),
+	"frappe.client.get": (
+		"v14", "v15", "frappe.get_doc()",
+		"frappe.client.get is a client RPC proxy. Use frappe.get_doc() in server-side Python.",
+	),
+	"frappe.client.set_value": (
+		"v14", "v15", "frappe.db.set_value()",
+		"frappe.client.set_value is a client RPC proxy. Use frappe.db.set_value() in server-side Python.",
+	),
+	"frappe.client.insert": (
+		"v14", "v15", "frappe.get_doc(doc).insert()",
+		"frappe.client.insert is a client RPC proxy. Use frappe.get_doc(doc).insert() in server-side Python.",
+	),
+	"frappe.client.delete": (
+		"v14", "v15", "frappe.delete_doc()",
+		"frappe.client.delete is a client RPC proxy. Use frappe.delete_doc() in server-side Python.",
+	),
+}
 
 
 def discover_python_files(
@@ -218,10 +280,19 @@ class _IndexCollector:
 		self.report_entry_points: list[ReportEntryPointRecord] = []
 		self.unused_imports: list[UnusedImportRecord] = []
 		self.parse_errors: list[PythonParseErrorRecord] = []
+		self.hardcoded_secrets: list[HardcodedSecretRecord] = []
+		self.sources: list[SourceFile] = []
+		self.ignore_user_permissions: list[IgnoreUserPermissionsRecord] = []
+		self.get_all_calls: list[GetAllCallRecord] = []
+		self.deprecated_api_calls: list[DeprecatedAPIRecord] = []
+		self.query_filters: list[QueryFilterRecord] = []
 		self._document_subclass_names: set[str] = set()
 		self._non_document_bases: set[str] = set()
 
 	def collect(self, source: SourceFile, tree: ast.Module, lines: list[str]) -> None:
+		self.sources.append(source)
+		self._collect_secrets(source, tree, lines)
+		self._collect_deprecated_hooks_and_imports(source, tree, lines)
 		rel_path = source.relative_path
 		import_map: dict[str, str] = {}
 		for node in tree.body:
@@ -270,6 +341,132 @@ class _IndexCollector:
 				self._collect_class(source, node, lines, import_map=import_map)
 
 		self._collect_unused_imports(source, tree, import_map)
+
+	def _collect_secrets(self, source: SourceFile, tree: ast.Module, lines: list[str]) -> None:
+		for node in ast.walk(tree):
+			if isinstance(node, (ast.Assign, ast.AnnAssign)):
+				targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+				val_node = node.value
+				if isinstance(val_node, ast.Constant) and isinstance(val_node.value, str):
+					val_str = val_node.value.strip()
+					val_lower = val_str.lower()
+					if (
+						len(val_str) >= 6
+						and val_lower not in _SAFE_PLACEHOLDERS
+						and not (val_str.startswith("<") and val_str.endswith(">"))
+						and not (val_str.startswith("{{") and val_str.endswith("}}"))
+						and not val_str.startswith("$")
+						and not ("{" in val_str and "}" in val_str)
+					):
+						for target in targets:
+							target_name = ""
+							if isinstance(target, ast.Name):
+								target_name = target.id
+							elif isinstance(target, ast.Attribute):
+								target_name = target.attr
+							if target_name:
+								name_lower = target_name.lower()
+								if (
+									name_lower in _SECRET_VAR_NAMES
+									or any(s in name_lower for s in ("api_secret", "secret_key", "client_secret", "db_password", "encryption_key", "webhook_secret"))
+								):
+									masked = f"{val_str[:2]}...{val_str[-2:]}" if len(val_str) > 6 else "***"
+									span = _span(source, node, lines)
+									self.hardcoded_secrets.append(
+										HardcodedSecretRecord(
+											symbol_id=f"{source.relative_path}:{node.lineno}",
+											span=span,
+											secret_type="assigned_secret",
+											variable_name=target_name,
+											masked_value=masked,
+										)
+									)
+									break
+			elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+				val_str = node.value
+				for pattern_name, regex in _KNOWN_SECRET_PATTERNS:
+					if regex.search(val_str):
+						span = _span(source, node, lines)
+						self.hardcoded_secrets.append(
+							HardcodedSecretRecord(
+								symbol_id=f"{source.relative_path}:{getattr(node, 'lineno', 1)}",
+								span=span,
+								secret_type=pattern_name,
+								variable_name=pattern_name,
+								masked_value="***REDACTED***",
+							)
+						)
+						break
+
+	def _collect_deprecated_hooks_and_imports(
+		self, source: SourceFile, tree: ast.Module, lines: list[str]
+	) -> None:
+		is_hooks = source.path.name == "hooks.py"
+		for node in tree.body:
+			if is_hooks and isinstance(node, ast.Assign):
+				for target in node.targets:
+					if isinstance(target, ast.Name):
+						if target.id == "has_website_permission":
+							span = _span(source, node, lines)
+							self.deprecated_api_calls.append(
+								DeprecatedAPIRecord(
+									function="hooks.has_website_permission",
+									symbol_id=f"{source.relative_path}:{node.lineno}",
+									span=span,
+									api_name="has_website_permission",
+									deprecated_in="v14",
+									removed_in="v15",
+									replacement="has_permission in hooks.py",
+									details="has_website_permission hook in hooks.py is deprecated in favor of has_permission.",
+								)
+							)
+						elif target.id == "scheduler_events" and isinstance(node.value, ast.Dict):
+							for k in node.value.keys:
+								if isinstance(k, ast.Constant) and k.value == "all":
+									span = _span(source, node, lines)
+									self.deprecated_api_calls.append(
+										DeprecatedAPIRecord(
+											function="hooks.scheduler_events.all",
+											symbol_id=f"{source.relative_path}:{node.lineno}",
+											span=span,
+											api_name="scheduler_events['all']",
+											deprecated_in="v15",
+											removed_in="v16",
+											replacement="cron or hourly intervals in scheduler_events",
+											details="scheduler_events: {'all': ...} is deprecated due to background worker queue starvation. Use cron intervals.",
+										)
+									)
+			elif isinstance(node, ast.ImportFrom) and node.module:
+				if node.module.startswith("frappe.desk.form.load") or node.module == "frappe.desk.form.load":
+					span = _span(source, node, lines)
+					self.deprecated_api_calls.append(
+						DeprecatedAPIRecord(
+							function=f"{source.relative_path}:{node.lineno}",
+							symbol_id=f"{source.relative_path}:{node.lineno}",
+							span=span,
+							api_name="frappe.desk.form.load",
+							deprecated_in="v15",
+							removed_in="v16",
+							replacement="document controller methods",
+							details="frappe.desk.form.load internal API was refactored in v15/v16.",
+						)
+					)
+			elif isinstance(node, ast.Import):
+				for alias in node.names:
+					if alias.name.startswith("frappe.desk.form.load"):
+						span = _span(source, node, lines)
+						self.deprecated_api_calls.append(
+							DeprecatedAPIRecord(
+								function=f"{source.relative_path}:{node.lineno}",
+								symbol_id=f"{source.relative_path}:{node.lineno}",
+								span=span,
+								api_name="frappe.desk.form.load",
+								deprecated_in="v15",
+								removed_in="v16",
+								replacement="document controller methods",
+								details="frappe.desk.form.load internal API was refactored in v15/v16.",
+							)
+						)
 
 	def _collect_class(
 		self, source: SourceFile, node: ast.ClassDef, lines: list[str], import_map: dict[str, str]
@@ -437,6 +634,10 @@ class _IndexCollector:
 		self.queries_in_loop.extend(visitor.queries_in_loop)
 		self.hardcoded_user_strings.extend(visitor.hardcoded_user_strings)
 		self.mutations.extend(visitor.mutations)
+		self.ignore_user_permissions.extend(visitor.ignore_user_permissions)
+		self.get_all_calls.extend(visitor.get_all_calls)
+		self.deprecated_api_calls.extend(visitor.deprecated_api_calls)
+		self.query_filters.extend(visitor.query_filters)
 		for span, call_name in visitor.raw_path_traversals:
 			self.path_traversals.append(
 				PathTraversalRecord(
@@ -504,6 +705,12 @@ class _IndexCollector:
 			report_entry_points=tuple(self.report_entry_points),
 			unused_imports=tuple(self.unused_imports),
 			parse_errors=tuple(self.parse_errors),
+			hardcoded_secrets=tuple(self.hardcoded_secrets),
+			sources=tuple(self.sources),
+			ignore_user_permissions=tuple(self.ignore_user_permissions),
+			get_all_calls=tuple(self.get_all_calls),
+			deprecated_api_calls=tuple(self.deprecated_api_calls),
+			query_filters=tuple(self.query_filters),
 		)
 
 
@@ -562,6 +769,10 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		self.queries_in_loop: list[QueryInLoopRecord] = []
 		self.hardcoded_user_strings: list[HardcodedStringRecord] = []
 		self.mutations: list[MutationRecord] = []
+		self.ignore_user_permissions: list[IgnoreUserPermissionsRecord] = []
+		self.get_all_calls: list[GetAllCallRecord] = []
+		self.deprecated_api_calls: list[DeprecatedAPIRecord] = []
+		self.query_filters: list[QueryFilterRecord] = []
 		self.raw_path_traversals: list[tuple[SourceSpan, str]] = []
 		self.has_path_guard: bool = False
 
@@ -789,11 +1000,23 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		is_mutation = False
 		if isinstance(node.func, ast.Attribute) and node.func.attr in {
 			"save", "insert", "delete", "cancel", "submit", "db_set", "db_insert", "db_update", "db_delete",
+			"extractall", "save_file", "upload_file", "handle_upload",
 		}:
 			is_mutation = True
 		elif name in {
 			"frappe.db.set_value", "frappe.db.set_values", "frappe.db.delete",
 			"frappe.delete_doc", "frappe.db.commit", "frappe.db.truncate", "frappe.enqueue",
+			"frappe.utils.file_manager.save_file", "frappe.handler.upload_file",
+			"save_file", "upload_file", "handle_upload",
+			"tarfile.extractall", "zipfile.extractall", "extractall",
+			# Phase 2 XSS sinks: HTML output-producing functions (FR-XSS-002, FR-XSS-003)
+			"frappe.respond_as_web_page", "respond_as_web_page",
+			"frappe.sendmail", "sendmail",
+			"frappe.get_print", "get_print",
+			"frappe.utils.pdf_generator.get_pdf", "get_pdf",
+			"frappe.render_template", "render_template",
+			"frappe.utils.jinja.render_template",
+			"frappe.get_template", "get_template",
 		}:
 			is_mutation = True
 		elif name == "frappe.db.sql":
@@ -805,18 +1028,18 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 		if is_mutation:
 			self.mutations.append(MutationRecord(self.function, span, self.symbol_id, name))
 
-		# Path traversal detection (FR-PATH-001)
+		# Path traversal detection (FR-PATH-001 / FR-ARCH-001)
 		is_file_sink = False
 		path_arg = None
-		if name in {"open", "io.open", "frappe.get_file", "frappe.read_file", "os.remove", "os.unlink", "os.listdir", "os.scandir", "os.walk"}:
+		if name in {"open", "io.open", "frappe.get_file", "frappe.read_file", "os.remove", "os.unlink", "os.listdir", "os.scandir", "os.walk", "tarfile.open", "zipfile.ZipFile"}:
 			is_file_sink = True
 			path_arg = node.args[0] if node.args else None
 		elif name in {"shutil.copy", "shutil.copyfile", "shutil.copy2", "shutil.move", "shutil.rmtree"}:
 			is_file_sink = True
 			path_arg = node.args[0] if node.args else None
-		elif isinstance(node.func, ast.Attribute) and node.func.attr in {"read_text", "read_bytes", "write_text", "write_bytes"}:
+		elif isinstance(node.func, ast.Attribute) and node.func.attr in {"read_text", "read_bytes", "write_text", "write_bytes", "extractall"}:
 			is_file_sink = True
-			path_arg = node.func.value
+			path_arg = node.args[0] if node.args else node.func.value
 
 		if is_file_sink and path_arg is not None:
 			is_controlled = _request_controlled(path_arg, self.values, self.parameters, self.import_map)
@@ -829,13 +1052,13 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 			self.enqueue_calls.append(
 				EnqueueCallRecord(self.function, has_dedupe, span, self.symbol_id)
 			)
-		# eval/exec detection
-		if name in {"eval", "exec"}:
+		# eval/exec & template rendering detection (for FR-SSTI-001 / FR-INJ-002)
+		if name in {"eval", "exec", "frappe.safe_eval", "frappe.render_template"} or (isinstance(node.func, ast.Attribute) and node.func.attr in {"safe_eval", "render_template"}):
 			controlled = False
 			if node.args:
 				controlled = _request_controlled(node.args[0], self.values, self.parameters, self.import_map)
 			self.eval_exec_calls.append(
-				EvalExecRecord(self.function, name, controlled, span, self.symbol_id)
+				EvalExecRecord(self.function, name or node.func.attr, controlled, span, self.symbol_id)
 			)
 		# frappe.qb dynamic table detection
 		if name in {"frappe.qb.from_", "frappe.qb.DocType"}:
@@ -875,9 +1098,155 @@ class _FunctionBodyVisitor(ast.NodeVisitor):
 						call_name=name,
 					)
 				)
+			if keyword.arg == "ignore_user_permissions" and _is_true(keyword.value):
+				self.ignore_user_permissions.append(
+					IgnoreUserPermissionsRecord(
+						self.function,
+						True,
+						_span(self.source, keyword, self.lines),
+						self.symbol_id,
+						call_name=name,
+					)
+				)
+
+		# frappe.get_all user permissions inspection
+		if name in {"frappe.get_all", "get_all", "frappe.db.get_all"}:
+			dt_arg = None
+			if node.args:
+				dt_node = _resolve_expression(node.args[0], self.values)
+				dt_arg = _literal_string(dt_node)
+			if dt_arg is None:
+				for kw in node.keywords:
+					if kw.arg in {"doctype", "dt"}:
+						dt_node = _resolve_expression(kw.value, self.values)
+						dt_arg = _literal_string(dt_node)
+						break
+			strict_up = any(
+				kw.arg == "strict_user_permissions" and _is_true(kw.value)
+				for kw in node.keywords
+			)
+			self.get_all_calls.append(
+				GetAllCallRecord(
+					self.function,
+					dt_arg,
+					strict_up,
+					span,
+					self.symbol_id,
+				)
+			)
+
+		# Query filters extraction (for FR-PERF-002)
+		if name in {"frappe.get_all", "get_all", "frappe.get_list", "get_list", "frappe.db.get_list", "frappe.db.get_all"}:
+			q_dt = None
+			if node.args:
+				dt_node = _resolve_expression(node.args[0], self.values)
+				q_dt = _literal_string(dt_node)
+			if q_dt is None:
+				for kw in node.keywords:
+					if kw.arg in {"doctype", "dt"}:
+						dt_node = _resolve_expression(kw.value, self.values)
+						q_dt = _literal_string(dt_node)
+						break
+			filters_node = None
+			for kw in node.keywords:
+				if kw.arg == "filters":
+					filters_node = _resolve_expression(kw.value, self.values)
+					break
+			if filters_node is None and len(node.args) > 1:
+				filters_node = _resolve_expression(node.args[1], self.values)
+			filter_keys: list[str] = []
+			if isinstance(filters_node, ast.Dict):
+				for k in filters_node.keys:
+					if isinstance(k, ast.Constant) and isinstance(k.value, str):
+						filter_keys.append(k.value)
+			elif isinstance(filters_node, (ast.List, ast.Tuple)):
+				for elt in filters_node.elts:
+					if isinstance(elt, (ast.List, ast.Tuple)) and elt.elts:
+						field_candidate = elt.elts[1] if len(elt.elts) >= 4 else elt.elts[0]
+						if isinstance(field_candidate, ast.Constant) and isinstance(field_candidate.value, str):
+							filter_keys.append(field_candidate.value)
+			if filter_keys:
+				self.query_filters.append(
+					QueryFilterRecord(
+						function=self.function,
+						doctype=q_dt,
+						filter_fields=tuple(filter_keys),
+						span=span,
+						symbol_id=self.symbol_id,
+						call_name=name,
+					)
+				)
+
+		# Deprecated API detection (FR-COMPAT-001)
+		if name in _DEPRECATED_CALLS:
+			dep_in, rem_in, repl, details = _DEPRECATED_CALLS[name]
+			self.deprecated_api_calls.append(
+				DeprecatedAPIRecord(
+					function=self.function,
+					symbol_id=self.symbol_id,
+					span=span,
+					api_name=name,
+					deprecated_in=dep_in,
+					removed_in=rem_in,
+					replacement=repl,
+					details=details,
+				)
+			)
+		if isinstance(node.func, ast.Attribute) and node.func.attr in {"hget", "hset", "hdel", "hgetall", "hkeys"}:
+			target_val = node.func.value.func if isinstance(node.func.value, ast.Call) else node.func.value
+			val_name = _call_name(target_val, self.import_map)
+			if "cache" in val_name.lower():
+				self.deprecated_api_calls.append(
+					DeprecatedAPIRecord(
+						function=self.function,
+						symbol_id=self.symbol_id,
+						span=span,
+						api_name=f"frappe.cache().{node.func.attr}",
+						deprecated_in="v15",
+						removed_in="v16",
+						replacement="frappe.cache.get_value(), set_value(), or delete_value()",
+						details=f"Redis hash methods ({node.func.attr}) on frappe.cache() are deprecated in v15+; use key-value methods.",
+					)
+				)
+		if name in {"frappe.render_template", "render_template"}:
+			for kw in node.keywords:
+				if kw.arg == "is_path" and _is_true(kw.value):
+					self.deprecated_api_calls.append(
+						DeprecatedAPIRecord(
+							function=self.function,
+							symbol_id=self.symbol_id,
+							span=span,
+							api_name="frappe.render_template(..., is_path=True)",
+							deprecated_in="v14",
+							removed_in="v15",
+							replacement="frappe.get_template(path).render(context)",
+							details="is_path parameter was removed from render_template in Frappe v15. Use frappe.get_template(path).render() instead.",
+						)
+					)
+		if name in {"frappe.publish_realtime", "publish_realtime"}:
+			for kw in node.keywords:
+				if kw.arg == "user":
+					self.deprecated_api_calls.append(
+						DeprecatedAPIRecord(
+							function=self.function,
+							symbol_id=self.symbol_id,
+							span=span,
+							api_name="frappe.publish_realtime(..., user=...)",
+							deprecated_in="v15",
+							removed_in="v16",
+							replacement="users=[user] or room=...",
+							details="user parameter in frappe.publish_realtime is deprecated in v15 and removed in v16. Use users=[user] or room.",
+						)
+					)
 		if isinstance(node.func, ast.Name):
 			self.calls.append(CallRecord(self.symbol_id, node.func.id, span))
-		elif not name:
+		elif isinstance(node.func, ast.Attribute):
+			dotted = _call_name(node.func, None)
+			if dotted:
+				self.calls.append(CallRecord(self.symbol_id, dotted, span))
+			else:
+				self.unresolved.append(f"{self.symbol_id}:{span.line_start}:dynamic_call")
+		else:
 			self.unresolved.append(f"{self.symbol_id}:{span.line_start}:dynamic_call")
 		# Visit the func child with the guard raised so that visit_Attribute
 		# knows not to treat method callee attributes as field references.
@@ -997,6 +1366,8 @@ def _call_name(node: ast.AST, import_map: dict[str, str] | None = None) -> str:
 	if isinstance(node, ast.Attribute):
 		parent = _call_name(node.value, import_map)
 		return f"{parent}.{node.attr}" if parent else node.attr
+	if isinstance(node, ast.Call):
+		return _call_name(node.func, import_map)
 	return ""
 
 
@@ -1123,7 +1494,7 @@ def _set_value_doctype_arg(node: ast.Call) -> str | None:
 
 
 def _is_true(node: ast.AST) -> bool:
-	return isinstance(node, ast.Constant) and node.value is True
+	return isinstance(node, ast.Constant) and (node.value is True or node.value == 1)
 
 
 _ROLE_PERMISSION_CALL_NAMES = {
